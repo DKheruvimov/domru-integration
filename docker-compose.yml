@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  intercom-bridge:
+    image: dom-ru.cr.cloud.ru/yandex-domru-intercom-bridge:latest
+    container_name: yandex-domru-intercom-bridge
+    restart: always
+    ports:
+      - "4100:3000"
+    environment:
+      - PORT=3000
+      # Add other environment variables here if needed
+      # - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./data:/app/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

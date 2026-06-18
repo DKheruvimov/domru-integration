@@ -1,0 +1,6 @@
+{
+  "name": "Dom.ru API Dashboard",
+  "description": "Developer playground and interactive Proptech dashboard for the unofficial Dom.ru TypeScript client library. Inspect source code, simulate interactions, and test smart door controls, cameras, and financials.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
