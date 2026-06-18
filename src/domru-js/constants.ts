@@ -7,6 +7,9 @@ export const DEFAULT_HEADERS: Record<string, string> = {
 	Host: "myhome.proptech.ru",
 	"User-Agent":
 		"Xiaomi MIX2S | Android 10 | erth | 8.26.0 (82600010) | | null | d5c78d0a-9cbe-4bea-b66a-b8296d947b62 | null",
+	Accept: "*/*",
+	"Accept-Language": "en-us",
+	Connection: "keep-alive",
 };
 
 /** Префикс для вычисления hash2 при аутентификации */

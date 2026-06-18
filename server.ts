@@ -495,6 +495,7 @@ async function startServer() {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader("Access-Control-Expose-Headers", "*");
     res.sendStatus(200);
   });
 
@@ -509,25 +510,59 @@ async function startServer() {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader("Access-Control-Expose-Headers", "*");
 
     try {
-      console.log(`[STREAM_PROXY] Fetching target: ${targetUrl}`);
+      // Forward safe request headers from client to remote server (crucial for Range requests in Safari/iOS)
+      const requestHeaders: Record<string, string> = {
+        "User-Agent": (req.headers["user-agent"] as string) || "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36",
+        "Accept": (req.headers["accept"] as string) || "*/*"
+      };
+
+      if (req.headers["range"]) {
+        requestHeaders["Range"] = req.headers["range"] as string;
+      }
+      if (req.headers["if-range"]) {
+        requestHeaders["If-Range"] = req.headers["if-range"] as string;
+      }
+
+      console.log(`[STREAM_PROXY] Fetching target: ${targetUrl} (Range: ${req.headers["range"] || 'none'})`);
       const response = await fetch(targetUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36",
-          "Accept": "*/*"
-        }
+        headers: requestHeaders
       });
 
       console.log(`[STREAM_PROXY] Remote Response Status: ${response.status} ${response.statusText}`);
-      if (!response.ok) {
+      // 200 OK or 206 Partial Content are both valid success codes
+      if (!response.ok && response.status !== 206) {
         console.error(`[STREAM_PROXY] Error response from remote server: ${response.status}`);
         return res.status(response.status).send(`Stream request failed: ${response.statusText}`);
       }
 
+      // Forward correct HTTP Status Code
+      res.status(response.status);
+
+      // Copy key headers from remote response to client response
+      const headersToForward = [
+        "content-type",
+        "content-length",
+        "content-range",
+        "accept-ranges",
+        "cache-control",
+        "expires",
+        "pragma",
+        "last-modified",
+        "etag"
+      ];
+
+      for (const h of headersToForward) {
+        const val = response.headers.get(h);
+        if (val !== null) {
+          res.setHeader(h, val);
+        }
+      }
+
       const contentType = response.headers.get("content-type") || "";
       console.log(`[STREAM_PROXY] Remote Content-Type: ${contentType}`);
-      res.setHeader("Content-Type", contentType);
 
       const isM3u8 = targetUrl.includes(".m3u8") || 
                      contentType.includes("mpegurl") || 
@@ -536,6 +571,9 @@ async function startServer() {
                      contentType.includes("application/x-mpegURL");
 
       if (isM3u8) {
+        // Force correct M3U8 content-type just incase
+        res.setHeader("Content-Type", contentType || "application/vnd.apple.mpegurl");
+        
         const text = await response.text();
         console.log(`[STREAM_PROXY] Content looks like M3U8. First 150 chars:\n${text.substring(0, 150)}`);
         const lines = text.split(/\r?\n/);

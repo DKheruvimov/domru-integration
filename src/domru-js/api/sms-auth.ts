@@ -44,8 +44,9 @@ export async function getAccountsByPhone(phone: string, timeout = 10000): Promis
  * Вспомогательная функция для генерации User-Agent
  */
 function getSmsUserAgent(account: SmsAccount): string {
-	const pId = !account.placeId ? "null" : String(account.placeId);
-	return `Google sdkgphone64x8664 | Android 14 | erth | 8.26.0 (82600010) | | ${account.operatorId} | d5c78d0a-9cbe-4bea-b66a-b8296d947b62 | ${pId}`;
+	const pId = !account.placeId ? "1" : String(account.placeId);
+	const opId = account.operatorId || 0;
+	return `Google sdkgphone64x8664 | Android 14 | erth | 8.26.0 (82600010) | | ${opId} | d5c78d0a-9cbe-4bea-b66a-b8296d947b62 | ${pId}`;
 }
 
 /**
@@ -56,12 +57,12 @@ export async function requestSmsCode(phone: string, account: SmsAccount, timeout
 	const userAgent = getSmsUserAgent(account);
 
 	const payload = {
-		operatorId: account.operatorId,
-		subscriberId: account.subscriberId,
-		accountId: account.accountId,
-		placeId: account.placeId,
-		address: account.address,
-		profileId: account.profileId,
+		operatorId: Number(account.operatorId || 0),
+		subscriberId: Number(account.subscriberId || 0),
+		accountId: String(account.accountId || ""),
+		placeId: Number(account.placeId || 0),
+		address: String(account.address || ""),
+		profileId: String(account.profileId || ""),
 	};
 
 	console.log(`[DOMRU-SMS-REQ] Sending to ${url}`);
@@ -106,12 +107,12 @@ export async function confirmSmsCode(
 	const userAgent = getSmsUserAgent(account);
 
 	const payload = {
-		confirm1: code,
-		subscriberId: account.subscriberId,
-		login: phone,
-		operatorId: account.operatorId,
-		accountId: account.accountId,
-		profileId: account.profileId,
+		confirm1: String(code || ""),
+		subscriberId: Number(account.subscriberId || 0),
+		login: String(phone || ""),
+		operatorId: Number(account.operatorId || 0),
+		accountId: String(account.accountId || ""),
+		profileId: String(account.profileId || ""),
 	};
 
 	console.log(`[DOMRU-SMS-CONFIRM] Sending to ${url}`);
