@@ -56,6 +56,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
   const [playerMode, setPlayerMode] = useState<"stream" | "snapshot">("stream");
   const [snapshotTime, setSnapshotTime] = useState(Date.now());
   const [hasStreamError, setHasStreamError] = useState(false);
+  const [forceHlsJS, setForceHlsJS] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const addStreamLog = (msg: string) => {
@@ -297,28 +298,42 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
     const video = videoRef.current;
     if (!video || !streamUrl) return;
 
-    addStreamLog("Подготовка плеера HTML5 <video>...");
+    addStreamLog("--- НАЧАЛО ИНИЦИАЛИЗАЦИИ ВИДЕОПОТОКА ---");
+    addStreamLog(`URL потока: ${streamUrl}`);
+    addStreamLog(`Браузер (User Agent): ${navigator.userAgent}`);
+    
+    const nativeHlsSupported = video.canPlayType("application/vnd.apple.mpegurl") !== "";
+    addStreamLog(`Родная поддержка HLS (canPlayType): ${nativeHlsSupported ? "ДА" : "НЕТ"}`);
+    addStreamLog(`Режим воспроизведения: ${forceHlsJS ? "Принудительный Hls.js клиент" : "Автоопределение"}`);
 
-    const handleLoadStart = () => addStreamLog("HTML5 Video: Запуск загрузки (loadstart)...");
-    const handleLoadedMetadata = () => addStreamLog(`HTML5 Video: Мета-данные получены. Размер: ${video.videoWidth}x${video.videoHeight}px`);
-    const handleLoadedData = () => addStreamLog("HTML5 Video: Первый кадр видеоданных загружен (loadeddata)");
-    const handleCanPlay = () => addStreamLog("HTML5 Video: Поток готов к старту воспроизведения (canplay)");
-    const handlePlaying = () => addStreamLog("▶ HTML5 Video: Воспроизведение успешно началось (playing)!");
-    const handleWaiting = () => addStreamLog("HTML5 Video: Буферизация, ожидание следующего чанка (waiting)...");
-    const handleStalled = () => addStreamLog("⚠ HTML5 Video: Канал прервался/подзавис (stalled). Ожидание кадров.");
-    const handleEmptied = () => addStreamLog("HTML5 Video: Ресурс медиа очищен (emptied).");
+    const handleLoadStart = () => addStreamLog("HTML5 Video: Запуск загрузки источника (loadstart)...");
+    const handleLoadedMetadata = () => addStreamLog(`HTML5 Video: Мета-данные получены (loadedmetadata). Размер кадра: ${video.videoWidth}x${video.videoHeight}px`);
+    const handleLoadedData = () => addStreamLog("HTML5 Video: Первый кадр успешно загружен в буфер (loadeddata).");
+    const handleCanPlay = () => addStreamLog("HTML5 Video: Поток готов к началу воспроизведения (canplay).");
+    const handlePlaying = () => addStreamLog("▶ HTML5 Video: Воспроизведение потока успешно началось и идет без задержек (playing)!");
+    const handleWaiting = () => addStreamLog("HTML5 Video: Ожидание новых сегментов буфера/подкачка (waiting)...");
+    const handleStalled = () => addStreamLog("⚠ HTML5 Video: Сегменты перестали поступать (stalled). Браузер пытается восстановить поток.");
+    const handleEmptied = () => addStreamLog("HTML5 Video: Ресурс воспроизведения принудительно очищен (emptied).");
+    const handleSuspend = () => addStreamLog("HTML5 Video: Поток временно приостановлен (suspend). Браузер экономит ресурсы или трафик.");
     const handleVideoError = () => {
       const err = video.error;
       let errMsg = "Неизвестная ошибка медиа-элемента";
+      let codeMsg = err ? String(err.code) : "нет кода";
+      let technicalDetail = err?.message || "";
+
       if (err) {
         switch (err.code) {
-          case 1: errMsg = "MEDIA_ERR_ABORTED (Получение прервано пользователем/браузером)"; break;
-          case 2: errMsg = "MEDIA_ERR_NETWORK (Сетевая ошибка при скачивании сегмента)"; break;
-          case 3: errMsg = "MEDIA_ERR_DECODE (Сбой декодирования/некорректный кодек видеопотока)"; break;
-          case 4: errMsg = "MEDIA_ERR_SRC_NOT_SUPPORTED (Формат видео не поддерживается браузером или заблокирован CORS)"; break;
+          case 1: errMsg = "MEDIA_ERR_ABORTED (Загрузка прервана пользователем или политикой вкладки)"; break;
+          case 2: errMsg = "MEDIA_ERR_NETWORK (Сетевой сбой при загрузке плейлиста, ключа AES или видеосегмента)"; break;
+          case 3: errMsg = "MEDIA_ERR_DECODE (Ошибка декодирования: видеопоток битый или кодек не поддерживается на платформе)"; break;
+          case 4: errMsg = "MEDIA_ERR_SRC_NOT_SUPPORTED (Формат не поддерживается, заблокирован CORS или не удалось расшифровать поток/AES-ключ)"; break;
         }
       }
-      addStreamLog(`⛔ Ошибка HTML5 Video (${err ? err.code : '?' }): ${errMsg}`);
+
+      addStreamLog(`⛔ Ошибка HTML5 Video (Код ${codeMsg}): ${errMsg}`);
+      if (technicalDetail) {
+        addStreamLog(`Детализация от браузера (video.error.message): "${technicalDetail}"`);
+      }
       setHasStreamError(true);
     };
 
@@ -330,6 +345,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
     video.addEventListener("waiting", handleWaiting);
     video.addEventListener("stalled", handleStalled);
     video.addEventListener("emptied", handleEmptied);
+    video.addEventListener("suspend", handleSuspend);
     video.addEventListener("error", handleVideoError);
 
     let hlsInstance: any = null;
@@ -342,91 +358,107 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
                   (activeCamera && !streamUrl.includes("mjpeg"));
 
     if (isHls) {
-      addStreamLog("Формат потока определен как HLS (M3U8) или совместимый. Проверяем возможность воспроизведения...");
-      if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        addStreamLog("Найдена родная поддержка HLS (Safari/iOS Safari). Запуск напрямую.");
+      addStreamLog("Формат потока распознан как HLS (M3U8). Запуск HLS-процессора...");
+      
+      const useNative = nativeHlsSupported && !forceHlsJS;
+
+      if (useNative) {
+        addStreamLog("Используем встроенный (родной) плеер Сафари для HLS. Начинаем стриминг.");
         video.src = streamUrl;
       } else {
-        addStreamLog("Родной поддержки HLS нет. Загружаем отладчик-клиент Hls.js...");
+        addStreamLog("Будет использован отладчик-клиент Hls.js. Загрузка движка...");
         const loadHls = async () => {
           if (!(window as any).Hls) {
-            addStreamLog("Запрос Hls.js библиотеки из глобального CDN...");
+            addStreamLog("Запрашиваем дистрибутив Hls.js v1.5.8 из CDN...");
             await new Promise<void>((resolve, reject) => {
               const script = document.createElement("script");
               script.src = "https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js";
               script.onload = () => resolve();
-              script.onerror = () => reject(new Error("Не удалось загрузить скрипт Hls.js с удаленного CDN"));
+              script.onerror = () => reject(new Error("Не удалось загрузить Hls.js с удаленного CDN"));
               document.head.appendChild(script);
             });
-            addStreamLog("Библиотека Hls.js успешно загружена.");
+            addStreamLog("Движок Hls.js успешно импортирован на страницу.");
           }
 
           const Hls = (window as any).Hls;
           if (Hls && Hls.isSupported()) {
-            addStreamLog("Hls.js поддерживается этой версией браузера. Инициализация...");
+            addStreamLog("Расширение MSE и Hls.js официально поддерживаются браузером. Конфигурируем плеер...");
             hlsInstance = new Hls({
               enableWorker: true,
               lowLatencyMode: true,
               maxBufferLength: 10,
               xhrSetup: (xhr: XMLHttpRequest, url: string) => {
-                // Allows us to track if HTTP or HTTPS is used
                 if (url.startsWith("http://") && window.location.protocol === "https:") {
-                  addStreamLog("⚠ Опасно: Вы зашли через HTTPS, а чанк запрашивается по HTTP. Браузер может заблокировать как Mixed Content!");
+                  addStreamLog(`⚠ КРИТИЧЕСКОЕ ПРЕДУПРЕЖДЕНИЕ (Mixed Content): запрос чанка через http (${url}) заблокирует браузер по правилам безопасности HTTPS!`);
                 }
               }
             });
 
+            addStreamLog("Регистрируем внутренние Hls.js логгеры-слушатели...");
             hlsInstance.on(Hls.Events.MEDIA_ATTACHED, () => {
-              addStreamLog("Hls.js: Видео-элемент подключен.");
+              addStreamLog("Hls.js: Видео-компонент успешно подключен к движку.");
             });
 
             hlsInstance.on(Hls.Events.MANIFEST_PARSED, (evt: any, data: any) => {
-              addStreamLog(`Hls.js: Манифест потока распарсен! Найдено дорожек (levels): ${data?.levels?.length || 0}`);
+              addStreamLog(`Hls.js: Манифест распарсен! Качество (дорожек уровней): ${data?.levels?.length || 0}. Пробуем запустить воспроизведение...`);
               video.play().catch((e) => {
-                addStreamLog(`⚠ Автовоспроизведение остановлено браузером (нужен клик пользователя): ${e.message}`);
+                addStreamLog(`⚠ Авто-старт запрещен браузером: ${e.message}. Требуется ручной запуск (клик play).`);
               });
             });
 
             hlsInstance.on(Hls.Events.ERROR, (evt: any, data: any) => {
-              const { category, details, fatal } = data;
-              const lvl = fatal ? "🚨 КРИТИЧЕСКАЯ" : "предупреждение";
-              addStreamLog(`Hls.js событие [${lvl}]:: ${category} - ${details}`);
+              const { category, details, fatal, response } = data;
+              const severityLvl = fatal ? "🚨 КРИТИЧЕСКАЯ" : "предупреждение";
+              
+              let networkDetail = "";
+              if (response) {
+                const rawText = response.text || response.data || "";
+                const errorExcerpt = (typeof rawText === "string" && rawText) 
+                  ? (rawText.length > 120 ? rawText.substring(0, 120) + "..." : rawText)
+                   : "";
+                networkDetail = ` (HTTP ${response.code}${errorExcerpt ? ": " + errorExcerpt : ""}) Url: ${data.url || ""}`;
+              }
+
+              addStreamLog(`Hls.js (${severityLvl}): Категория: ${category} | Причина: ${details}${networkDetail}`);
+              if (data.reason) {
+                addStreamLog(`Hls.js под-причина: "${data.reason}"`);
+              }
 
               if (fatal) {
                 setHasStreamError(true);
                 if (category === Hls.ErrorTypes.NETWORK_ERROR) {
-                  addStreamLog("🔄 Сетевая ошибка Hls.js (Возможный CORS или оффлайн-сервер). Перезапуск загрузки...");
+                  addStreamLog("🔄 Попытка переподключения сети Hls.js (startLoad)...");
                   hlsInstance.startLoad();
                 } else if (category === Hls.ErrorTypes.MEDIA_ERROR) {
-                  addStreamLog("🔄 Ошибка медиа контента Hls.js. Сброс позиции буфера...");
+                  addStreamLog("🔄 Попытка восстановления структуры медиа Hls.js (recoverMediaError)...");
                   hlsInstance.recoverMediaError();
                 } else {
-                  addStreamLog("❌ Неисправимая ошибка воспроизведения Hls.js. Прерывание.");
+                  addStreamLog("❌ Невосстановимый фатальный сбой Hls.js. Закрытие плеера.");
                   hlsInstance.destroy();
                 }
               }
             });
 
+            addStreamLog("Загружаем плейлист источника через прокси...");
             hlsInstance.loadSource(streamUrl);
             hlsInstance.attachMedia(video);
           } else {
-            addStreamLog("⚠ Браузер не поддерживает Hls.js API. Пробуем прямой src.");
+            addStreamLog("⚠ Окружение не поддерживает Media Source Extensions (MSE). Пробуем запуск через встроенный src.");
             video.src = streamUrl;
           }
         };
 
         loadHls().catch((e) => {
-          addStreamLog(`⛔ Сбой при запуске Hls.js движка: ${e.message}`);
+          addStreamLog(`⛔ Инициализация Hls.js завершилась ошибкой: ${e.message}`);
           video.src = streamUrl;
         });
       }
     } else {
-      addStreamLog("Протокол не HLS (mjpeg, mp4 или rtsp). Пробуем запуск в стандартный src.");
+      addStreamLog("Протокол отличный от HLS (MJPEG / MP4). Передаем адрес напрямую в src HTML5.");
       video.src = streamUrl;
     }
 
     return () => {
-      // Cleanup
       video.removeEventListener("loadstart", handleLoadStart);
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.removeEventListener("loadeddata", handleLoadedData);
@@ -435,14 +467,15 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
       video.removeEventListener("waiting", handleWaiting);
       video.removeEventListener("stalled", handleStalled);
       video.removeEventListener("emptied", handleEmptied);
+      video.removeEventListener("suspend", handleSuspend);
       video.removeEventListener("error", handleVideoError);
 
       if (hlsInstance) {
-        addStreamLog("Очистка и уничтожение Hls-плеера.");
+        addStreamLog("Очистка системных ресурсов: Hls.js экземпляр уничтожен.");
         hlsInstance.destroy();
       }
     };
-  }, [streamUrl]);
+  }, [streamUrl, forceHlsJS]);
 
   // Handle open door command
   const triggerOpenDoor = async (deviceId: number) => {
@@ -911,15 +944,32 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
                 )}
               {streamUrl && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 font-mono border-b border-zinc-200 dark:border-zinc-800 pb-2">
-                    <span>Состояние: Соединение установлено</span>
-                    <div className="flex items-center gap-3 text-zinc-600 dark:text-zinc-400">
+                  <div className="flex flex-wrap items-center justify-between gap-2.5 text-[11px] text-zinc-500 dark:text-zinc-400 font-mono border-b border-zinc-200 dark:border-zinc-800 pb-2">
+                    <span className="flex items-center gap-1.5">
+                      <span>Состояние: Соединение установлено</span>
+                      {forceHlsJS ? (
+                        <span className="bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-sans font-bold text-[9px] px-1.5 py-0.5 rounded">Hls.js ДВИЖОК</span>
+                      ) : (
+                        <span className="bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 font-sans font-bold text-[9px] px-1.5 py-0.5 rounded">АВТО</span>
+                      )}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2 text-zinc-600 dark:text-zinc-400">
+                      <button
+                        onClick={() => {
+                          const next = !forceHlsJS;
+                          setForceHlsJS(next);
+                          addStreamLog(`🔧 Пользователь вручную переключил forceHlsJS=${next ? "ВКЛ (Принудительный Hls.js)" : "ВЫКЛ (Автоматический выбор)"}`);
+                        }}
+                        className="hover:text-[#E30613] dark:hover:text-red-400 flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1.5 rounded-lg text-[10px] font-sans font-bold transition-all border border-zinc-200 dark:border-zinc-700/60"
+                      >
+                        🔧 {forceHlsJS ? "Использовать Авто-плеер" : "Принудительно Hls.js"}
+                      </button>
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(streamUrl);
                           addStreamLog("📋 Ссылка на поток скопирована в буфер обмена!");
                         }}
-                        className="hover:text-teal-600 dark:hover:text-teal-400 flex items-center gap-1 transition-colors bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1.5 rounded-lg"
+                        className="hover:text-[#E30613] dark:hover:text-red-400 flex items-center gap-1 transition-colors bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1.5 rounded-lg"
                       >
                         <span>Скопировать URL</span>
                       </button>
@@ -927,7 +977,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
                         href={streamUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="hover:text-teal-600 dark:hover:text-teal-400 flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1.5 rounded-lg transition-colors"
+                        className="hover:text-[#E30613] dark:hover:text-red-400 flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1.5 rounded-lg transition-colors"
                       >
                         <span>Открыть в новой вкладке</span>
                         <ExternalLink className="w-3 h-3" />

@@ -4,6 +4,9 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { DomruClient, getAccountsByPhone, requestSmsCode, confirmSmsCode } from "./src/domru-js/index.js";
 
+// Bypass Russian Trusted CA / invalid / expired self-signed certificates for video streaming subdomains
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -476,7 +479,20 @@ async function startServer() {
       if (stream && stream.url && !stream.url.toLowerCase().startsWith("rtsp://")) {
         const originalUrl = stream.url;
         // Wrap with our secure gateway proxy to bypass browser sandboxing restrictions (CORS & HTTPS Mixed Content)
-        const proxiedUrl = `/api/domru/stream-proxy?url=${encodeURIComponent(originalUrl)}`;
+        const login = req.headers["x-domru-login"] || "";
+        const password = req.headers["x-domru-password"] || "";
+        const token = req.headers["x-domru-token"] || "";
+        const operatorId = req.headers["x-domru-operator-id"] || "";
+        const refreshToken = req.headers["x-domru-refresh-token"] || "";
+
+        let proxiedUrl = `/api/domru/stream-proxy?url=${encodeURIComponent(originalUrl)}`;
+        if (login) proxiedUrl += `&login=${encodeURIComponent(login as string)}`;
+        if (password) proxiedUrl += `&password=${encodeURIComponent(password as string)}`;
+        if (token) proxiedUrl += `&token=${encodeURIComponent(token as string)}`;
+        if (operatorId) proxiedUrl += `&operatorId=${encodeURIComponent(operatorId as string)}`;
+        if (refreshToken) proxiedUrl += `&refreshToken=${encodeURIComponent(refreshToken as string)}`;
+
+        console.log(`[STREAM_ROUTE] Generated secure authenticated proxy stream URL for Camera ${cameraId}`);
         res.json({
           url: proxiedUrl,
           type: stream.type,
@@ -506,6 +522,13 @@ async function startServer() {
       return res.status(400).send("Parameter 'url' is required.");
     }
 
+    // Extract auth parameters for downstream requests (e.g., segment key decryptions or sub-playlists)
+    const login = (req.query.login as string) || (req.headers["x-domru-login"] as string) || "";
+    const password = (req.query.password as string) || (req.headers["x-domru-password"] as string) || "";
+    const token = (req.query.token as string) || (req.headers["x-domru-token"] as string) || "";
+    const operatorId = (req.query.operatorId as string) || (req.headers["x-domru-operator-id"] as string) || "";
+    const refreshToken = (req.query.refreshToken as string) || (req.headers["x-domru-refresh-token"] as string) || "";
+
     // Set explicit CORS headers so the client can request HLS playlist and chunks from this endpoint without restrictions
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
@@ -526,7 +549,18 @@ async function startServer() {
         requestHeaders["If-Range"] = req.headers["if-range"] as string;
       }
 
-      console.log(`[STREAM_PROXY] Fetching target: ${targetUrl} (Range: ${req.headers["range"] || 'none'})`);
+      // Add Authorization and Operator headers if request target is a Domru / Proptech site (important for decryption keys!)
+      const isDomruDomain = targetUrl.includes("proptech.ru") || targetUrl.includes("domru.ru") || targetUrl.includes("ertelecom.ru");
+      if (isDomruDomain) {
+        if (token) {
+          requestHeaders["Authorization"] = `Bearer ${token}`;
+        }
+        if (operatorId) {
+          requestHeaders["Operator"] = String(operatorId);
+        }
+      }
+
+      console.log(`[STREAM_PROXY] Fetching target: ${targetUrl} (isDomruDomain=${isDomruDomain}, Range=${req.headers["range"] || 'none'})`);
       const response = await fetch(targetUrl, {
         headers: requestHeaders
       });
@@ -571,7 +605,7 @@ async function startServer() {
                      contentType.includes("application/x-mpegURL");
 
       if (isM3u8) {
-        // Force correct M3U8 content-type just incase
+        // Force correct M3U8 content-type just in case
         res.setHeader("Content-Type", contentType || "application/vnd.apple.mpegurl");
         
         const text = await response.text();
@@ -580,18 +614,44 @@ async function startServer() {
         const hostHeader = req.headers.host || "localhost:3000";
         const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
 
+        // Assemble auth headers as query options to propagate credentials to subsegments / subresources
+        let authParams = "";
+        if (login) authParams += `&login=${encodeURIComponent(login)}`;
+        if (password) authParams += `&password=${encodeURIComponent(password)}`;
+        if (token) authParams += `&token=${encodeURIComponent(token)}`;
+        if (operatorId) authParams += `&operatorId=${encodeURIComponent(operatorId)}`;
+        if (refreshToken) authParams += `&refreshToken=${encodeURIComponent(refreshToken)}`;
+
         const rewrittenLines = lines.map(line => {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith("#")) {
+          let trimmed = line.trim();
+          if (!trimmed) {
             return line;
           }
-          // Resolve absolute coordinates and rewrite reference back to local stream proxy pool
-          try {
-            const resolved = new URL(trimmed, targetUrl).toString();
-            return `${protocol}://${hostHeader}/api/domru/stream-proxy?url=${encodeURIComponent(resolved)}`;
-          } catch {
-            return trimmed;
+
+          // Case 1: Standard media segment / playlist referenced directly (does not start with '#')
+          if (!trimmed.startsWith("#")) {
+            try {
+              const resolved = new URL(trimmed, targetUrl).toString();
+              return `${protocol}://${hostHeader}/api/domru/stream-proxy?url=${encodeURIComponent(resolved)}${authParams}`;
+            } catch {
+              return trimmed;
+            }
           }
+
+          // Case 2: Tag lines specifying a subresource URI (e.g. encryption keys, e.g. URI="...")
+          if (trimmed.includes("URI=")) {
+            trimmed = trimmed.replace(/URI="([^"]+)"/g, (match, p1) => {
+              try {
+                const resolved = new URL(p1, targetUrl).toString();
+                const proxied = `${protocol}://${hostHeader}/api/domru/stream-proxy?url=${encodeURIComponent(resolved)}${authParams}`;
+                return `URI="${proxied}"`;
+              } catch {
+                return match;
+              }
+            });
+          }
+
+          return trimmed;
         });
 
         res.send(rewrittenLines.join("\n"));
@@ -618,8 +678,8 @@ async function startServer() {
         }
       }
     } catch (err: any) {
-      console.error("Stream CORS proxy failure:", err);
-      res.status(500).send(`CORS Gateway stream failure: ${err.message}`);
+      console.error("[STREAM_PROXY] Error fetching target stream url:", targetUrl, err);
+      res.status(500).send(`CORS Gateway stream failure: ${err.message || err}. Target: ${targetUrl}. Stack: ${err.stack || "No stack"}`);
     }
   });
 
