@@ -48,19 +48,21 @@ jobs:
             docker login dom-ru.cr.cloud.ru -u "${{ secrets.REGISTRY_USERNAME }}" -p "${{ secrets.REGISTRY_PASSWORD }}"
             
             echo "==== Stopping old bridge container (if any) ===="
-            # Stop any older or uppercase variations of the bridge container
-            docker ps -a --format '{{.Names}}' | grep -i "yandex-domru-intercom-bridge" | xargs -r docker stop
-            docker ps -a --format '{{.Names}}' | grep -i "yandex-domru-intercom-bridge" | xargs -r docker rm
+            # Stop both previous domru-bridge and yandex-domru-intercom-bridge containers to vacate port 3100
+            docker stop domru-bridge yandex-domru-intercom-bridge || true
+            docker rm domru-bridge yandex-domru-intercom-bridge || true
             
             echo "==== Pulling latest image ===="
             docker pull dom-ru.cr.cloud.ru/yandex-domru-intercom-bridge:latest
             
             echo "==== Launching new container ===="
-            # We map 4100 on the host to 3000 in the container to stay isolated from other sites like kheruvimovy.ru
+            # We map port 3100 on the host to 3000 in the container and specify Yandex & Google DNS
             docker run -d \
               --name yandex-domru-intercom-bridge \
               --restart always \
-              -p 4100:3000 \
+              --dns 77.88.8.8 \
+              --dns 8.8.8.8 \
+              -p 3100:3000 \
               --log-opt max-size=10m --log-opt max-file=3 \
               dom-ru.cr.cloud.ru/yandex-domru-intercom-bridge:latest
             

@@ -6,7 +6,10 @@ services:
     container_name: yandex-domru-intercom-bridge
     restart: always
     ports:
-      - "4100:3000"
+      - "3100:3000"
+    dns:
+      - 77.88.8.8
+      - 8.8.8.8
     environment:
       - PORT=3000
       # Add other environment variables here if needed
