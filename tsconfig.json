@@ -27,6 +27,6 @@
     "node_modules",
     "examples",
     "src/domru-js/tests",
-    "tmp-ad-domru"
+    "src/domru-js/examples"
   ]
 }

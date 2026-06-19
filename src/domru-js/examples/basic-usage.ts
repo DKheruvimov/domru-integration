@@ -4,7 +4,7 @@
  * Запуск: bun run examples/basic-usage.ts
  */
 
-import { DomruClient } from "../src/index.js";
+import { DomruClient } from "../index.js";
 
 async function main() {
     // Создаём клиента
