@@ -323,12 +323,28 @@ async function startServer() {
     }
   });
 
+  const normalizePhone = (phone: string): string => {
+    let clean = String(phone || "").replace(/\D/g, "");
+    if (clean.length === 10) {
+      return "7" + clean;
+    }
+    if (clean.length === 11) {
+      if (clean.startsWith("8")) {
+        return "7" + clean.substring(1);
+      }
+      return clean;
+    }
+    return clean;
+  };
+
   // API Route: SMS Accounts Fetch
   app.post("/api/domru/sms/accounts", async (req, res) => {
     const { phone } = req.body;
     if (!phone) {
       return res.status(400).json({ error: "Необходим номер телефона" });
     }
+
+    const cleanPhone = normalizePhone(phone);
 
     if (isDemo(req)) {
       return res.json([
@@ -352,7 +368,7 @@ async function startServer() {
     }
 
     try {
-      const accounts = await getAccountsByPhone(phone);
+      const accounts = await getAccountsByPhone(cleanPhone);
       res.json(accounts);
     } catch (err: any) {
       handleClientError(err, res);
@@ -366,12 +382,14 @@ async function startServer() {
       return res.status(400).json({ error: "Необходимы номер телефона и аккаунт" });
     }
 
+    const cleanPhone = normalizePhone(phone);
+
     if (isDemo(req)) {
       return res.json({ success: true, message: "Код отправлен (Имитация)" });
     }
 
     try {
-      const success = await requestSmsCode(phone, account);
+      const success = await requestSmsCode(cleanPhone, account);
       res.json({ success });
     } catch (err: any) {
       handleClientError(err, res);
@@ -384,6 +402,8 @@ async function startServer() {
     if (!phone || !code || !account) {
       return res.status(400).json({ error: "Необходимы номер телефона, код подтверждения и аккаунт" });
     }
+
+    const cleanPhone = normalizePhone(phone);
 
     if (isDemo(req)) {
       if (code === "0000" || code === "1234" || code === "5555" || code.length === 4) {
@@ -401,7 +421,7 @@ async function startServer() {
     }
 
     try {
-      const response = await confirmSmsCode(phone, code, account);
+      const response = await confirmSmsCode(cleanPhone, code, account);
       res.json({
         success: true,
         token: response.accessToken,
@@ -846,6 +866,7 @@ async function startServer() {
 
       const client = new DomruClient({
         login: creds.login,
+        password: creds.password,
         refreshToken: creds.refreshToken,
         operatorId: creds.operatorId,
         timeout: 10000,
@@ -931,6 +952,16 @@ async function startServer() {
       <span id="error-message">Произошла неизвестная ошибка. Пожалуйста, попробуйте снова.</span>
     </div>
 
+    <!-- Tabs for selecting authentication method -->
+    <div class="flex bg-black/40 p-1.5 rounded-2xl gap-1 mb-6 border border-zinc-800/40" id="auth-tabs">
+      <button onclick="setAuthMethod('sms')" id="tab-sms" class="flex-1 py-2.5 text-xs font-bold rounded-xl transition duration-200 text-white bg-[#E30613] shadow shadow-red-600/10 cursor-pointer">
+        По СМС
+      </button>
+      <button onclick="setAuthMethod('password')" id="tab-password" class="flex-1 py-2.5 text-xs font-bold rounded-xl transition duration-200 text-zinc-400 hover:text-white cursor-pointer hover:bg-zinc-800/30">
+        Договор и Пароль
+      </button>
+    </div>
+
     <!-- 1. Screen Enter Phone -->
     <div id="step1" class="space-y-5 animate-fade-in">
       <div>
@@ -944,6 +975,38 @@ async function startServer() {
       <button onclick="handleGetAccounts()" id="btn-get-accounts" class="w-full bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white text-xs font-semibold py-4.5 rounded-2xl transition justify-center items-center flex gap-2 shadow-lg shadow-red-600/10 cursor-pointer">
         <span>Проверить аккаунты</span>
         <svg id="spinner-get-accounts" class="w-4 h-4 animate-spin hidden" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      </button>
+
+      <div class="relative py-2 flex items-center justify-center">
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-zinc-800/60"></div></div>
+        <span class="relative bg-zinc-900 px-3 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Тестовый вход</span>
+      </div>
+
+      <button onclick="loginWithDemo()" class="w-full bg-zinc-950 hover:bg-zinc-850 text-zinc-350 active:scale-[0.98] text-xs font-semibold py-4 rounded-2xl transition flex items-center justify-center gap-2 border border-zinc-800/60 border-dashed cursor-pointer">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>Войти в режиме Демо (Для Модератора)</span>
+      </button>
+    </div>
+
+    <!-- 4. Screen Password Login -->
+    <div id="step-password" class="space-y-5 hidden animate-fade-in">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Логин (№ договора или телефон)</label>
+          <input type="text" id="pass-login" placeholder="Например, 520900240557" class="w-full bg-black/40 border border-zinc-800/80 rounded-2xl py-4.5 px-4 text-sm font-medium text-white focus:outline-none focus:border-red-650 transition-colors placeholder-zinc-700">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Пароль</label>
+          <input type="password" id="pass-password" placeholder="Введите пароль" class="w-full bg-black/40 border border-zinc-800/80 rounded-2xl py-4.5 px-4 text-sm font-medium text-white focus:outline-none focus:border-red-650 transition-colors placeholder-zinc-700">
+        </div>
+      </div>
+
+      <button onclick="handlePasswordLogin()" id="btn-password-login" class="w-full bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white text-xs font-semibold py-4.5 rounded-2xl transition justify-center items-center flex gap-2 cursor-pointer shadow-lg shadow-red-600/10">
+        <span>Войти и связать аккаунт</span>
+        <svg id="spinner-password-login" class="w-4 h-4 animate-spin hidden" viewBox="0 0 24 24" fill="none">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
@@ -1005,10 +1068,13 @@ async function startServer() {
     let phoneVal = "";
     let accounts = [];
     let selectedAccountIndex = 0;
+    let currentAuthMethod = "sms";
 
     const step1 = document.getElementById("step1");
     const step2 = document.getElementById("step2");
     const step3 = document.getElementById("step3");
+    const stepPassword = document.getElementById("step-password");
+    const authTabs = document.getElementById("auth-tabs");
 
     const phoneInput = document.getElementById("sms-phone");
     const smsCodeInput = document.getElementById("sms-code");
@@ -1037,16 +1103,42 @@ async function startServer() {
       }
     }
 
+    function setAuthMethod(method) {
+      clearError();
+      currentAuthMethod = method;
+      
+      const tabSms = document.getElementById("tab-sms");
+      const tabPassword = document.getElementById("tab-password");
+      
+      if (method === "sms") {
+        tabSms.className = "flex-1 py-2.5 text-xs font-bold rounded-xl transition duration-200 text-white bg-[#E30613] shadow shadow-red-600/10 cursor-pointer";
+        tabPassword.className = "flex-1 py-2.5 text-xs font-bold rounded-xl transition duration-200 text-zinc-400 hover:text-white cursor-pointer hover:bg-zinc-800/30";
+        
+        stepPassword.classList.add("hidden");
+        step1.classList.remove("hidden");
+        step2.classList.add("hidden");
+        step3.classList.add("hidden");
+      } else {
+        tabPassword.className = "flex-1 py-2.5 text-xs font-bold rounded-xl transition duration-200 text-white bg-[#E30613] shadow shadow-red-600/10 cursor-pointer";
+        tabSms.className = "flex-1 py-2.5 text-xs font-bold rounded-xl transition duration-200 text-zinc-400 hover:text-white cursor-pointer hover:bg-zinc-800/30";
+        
+        step1.classList.add("hidden");
+        step2.classList.add("hidden");
+        step3.classList.add("hidden");
+        stepPassword.classList.remove("hidden");
+      }
+    }
+
     // Step 1: Query contracts lists
     async function handleGetAccounts() {
       clearError();
-      const rawPhone = phoneInput.value.replace(/\\D/g, "");
+      const rawPhone = phoneInput.value.replace(/\D/g, "");
       if (!rawPhone || rawPhone.length < 10) {
         showError("Введите корректный номер телефона (например, +7 999 123-45-67).");
         return;
       }
 
-      phoneVal = "+7" + rawPhone.slice(-10);
+      phoneVal = "7" + rawPhone.slice(-10);
       toggleSpinner("spinner-get-accounts", true);
 
       try {
@@ -1068,6 +1160,7 @@ async function startServer() {
 
         renderAccounts();
         
+        if (authTabs) authTabs.classList.add("hidden");
         step1.classList.add("hidden");
         step2.classList.remove("hidden");
       } catch (err) {
@@ -1136,7 +1229,7 @@ async function startServer() {
     // Step 3: Verify SMS
     async function handleConfirmSms() {
       clearError();
-      const code = smsCodeInput.value.replace(/\\D/g, "");
+      const code = smsCodeInput.value.replace(/\D/g, "");
       if (!code || code.length !== 4) {
         showError("Длина проверочного СМС кода должна быть ровно 4 символа.");
         return;
@@ -1176,6 +1269,56 @@ async function startServer() {
       }
     }
 
+    // Password-based Login Submit
+    async function handlePasswordLogin() {
+      clearError();
+      const loginInput = document.getElementById("pass-login");
+      const passwordInput = document.getElementById("pass-password");
+      
+      const loginValRaw = loginInput.value.trim();
+      const passwordValRaw = passwordInput.value;
+      
+      if (!loginValRaw || !passwordValRaw) {
+        showError("Пожалуйста, введите логин и пароль.");
+        return;
+      }
+      
+      toggleSpinner("spinner-password-login", true);
+      
+      try {
+        const res = await fetch("/api/domru/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-domru-login": loginValRaw,
+            "x-domru-password": passwordValRaw
+          }
+        });
+        
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Неверный логин или пароль.");
+        }
+        
+        const data = await res.json();
+        
+        const finalCreds = {
+          login: loginValRaw,
+          password: passwordValRaw,
+          token: data.token,
+          refreshToken: data.refreshData.refreshToken,
+          operatorId: data.refreshData.operatorId,
+          isDemo: false
+        };
+        
+        completeYandexOAuth(finalCreds);
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        toggleSpinner("spinner-password-login", false);
+      }
+    }
+
     // Stateless Completion
     function completeYandexOAuth(creds) {
       if (!redirectUri) {
@@ -1203,6 +1346,7 @@ async function startServer() {
 
     // Nav Helpers
     function goBackToStep1() {
+      if (authTabs) authTabs.classList.remove("hidden");
       step2.classList.add("hidden");
       step1.classList.remove("hidden");
     }

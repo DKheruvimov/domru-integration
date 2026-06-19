@@ -177,7 +177,7 @@ async function refreshOnUnauthorized(ctx: ClientContext): Promise<void> {
 /** Обновить токен доступа */
 export async function refreshAccessToken(ctx: ClientContext): Promise<void> {
 	if (ctx.refreshToken && ctx.operatorId !== null && ctx.operatorId !== undefined) {
-		const url = `${BASE_URL}auth/v2/session/refresh`;
+		const url = `${BASE_URL}auth/v2/session/refresh`.replace(/([^:]\/)\/+/g, "$1");
 		const res = await fetchJson(ctx, url, {
 			method: "GET",
 			headers: {
@@ -193,7 +193,7 @@ export async function refreshAccessToken(ctx: ClientContext): Promise<void> {
 	}
 
 	if (ctx.login && ctx.password) {
-		const url = `${BASE_URL}auth/v2/auth/${ctx.login}/password`;
+		const url = `${BASE_URL}auth/v2/auth/${ctx.login}/password`.replace(/([^:]\/)\/+/g, "$1");
 		const now = new Date();
 		const timestamp = now.toISOString().replace(/\.\d{3}Z$/, ".000Z");
 		const hash1 = await sha1Base64(ctx.password);

@@ -22,7 +22,7 @@ export interface SmsConfirmResponse {
  * Получить список аккаунтов, привязанных к номеру телефона
  */
 export async function getAccountsByPhone(phone: string, timeout = 10000): Promise<SmsAccount[]> {
-	const url = `${BASE_URL}auth/v2/login/${phone}`;
+	const url = `${BASE_URL}auth/v2/login/${phone}`.replace(/([^:]\/)\/+/g, "$1");
 	const response = await axios.get(url, {
 		headers: {
 			...DEFAULT_HEADERS,
@@ -41,19 +41,27 @@ export async function getAccountsByPhone(phone: string, timeout = 10000): Promis
 }
 
 /**
- * Вспомогательная функция для генерации User-Agent
+ * Вспомогательная функция для генерации User-Agent с уникальным UUID устройства
  */
+function generateUUID(): string {
+	return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+		const r = (Math.random() * 16) | 0;
+		return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+	});
+}
+
 function getSmsUserAgent(account: SmsAccount): string {
 	const pId = !account.placeId ? "1" : String(account.placeId);
 	const opId = account.operatorId || 0;
-	return `Google sdkgphone64x8664 | Android 14 | erth | 8.26.0 (82600010) | | ${opId} | d5c78d0a-9cbe-4bea-b66a-b8296d947b62 | ${pId}`;
+	const uuid = generateUUID();
+	return `Google sdkgphone64x8664 | Android 14 | erth | 8.26.0 (82600010) | | ${opId} | ${uuid} | ${pId}`;
 }
 
 /**
  * Отправить SMS код подтверждения для выбранного аккаунта
  */
 export async function requestSmsCode(phone: string, account: SmsAccount, timeout = 10000): Promise<boolean> {
-	const url = `${BASE_URL}auth/v2/confirmation/${phone}`;
+	const url = `${BASE_URL}auth/v2/confirmation/${phone}`.replace(/([^:]\/)\/+/g, "$1");
 	const userAgent = getSmsUserAgent(account);
 
 	const payload = {
@@ -103,7 +111,7 @@ export async function confirmSmsCode(
 	account: SmsAccount,
 	timeout = 10000,
 ): Promise<SmsConfirmResponse> {
-	const url = `${BASE_URL}auth/v2/auth/${phone}/confirmation`;
+	const url = `${BASE_URL}auth/v2/auth/${phone}/confirmation`.replace(/([^:]\/)\/+/g, "$1");
 	const userAgent = getSmsUserAgent(account);
 
 	const payload = {
