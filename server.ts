@@ -3,9 +3,77 @@ import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { DomruClient, getAccountsByPhone, requestSmsCode, confirmSmsCode } from "./src/domru-js/index.js";
+import axios from "axios";
 
 // Bypass Russian Trusted CA / invalid / expired self-signed certificates for video streaming subdomains
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+import crypto from "crypto";
+
+const DATA_DIR = path.join(process.cwd(), "data");
+const TOKENS_FILE = path.join(DATA_DIR, "tokens.json");
+
+interface SavedCredentials {
+  login: string;
+  password?: string;
+  token?: string;
+  refreshToken?: string;
+  operatorId?: number;
+  isDemo: boolean;
+}
+
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function loadSavedTokens(): Record<string, SavedCredentials> {
+  ensureDataDir();
+  if (!fs.existsSync(TOKENS_FILE)) {
+    return {};
+  }
+  try {
+    const content = fs.readFileSync(TOKENS_FILE, "utf-8");
+    return JSON.parse(content);
+  } catch (err) {
+    console.error("Failed to load tokens file, resetting:", err);
+    return {};
+  }
+}
+
+function saveTokens(tokens: Record<string, SavedCredentials>) {
+  ensureDataDir();
+  try {
+    fs.writeFileSync(TOKENS_FILE, JSON.stringify(tokens, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Failed to save tokens file:", err);
+  }
+}
+
+function registerCredentials(creds: SavedCredentials): string {
+  const tokenKey = crypto.randomUUID();
+  const tokens = loadSavedTokens();
+  tokens[tokenKey] = creds;
+  saveTokens(tokens);
+  return tokenKey;
+}
+
+function getCredentials(tokenKey: string): SavedCredentials | null {
+  const tokens = loadSavedTokens();
+  return tokens[tokenKey] || null;
+}
+
+// Global cache for refreshed tokens to prevent repeated login overhead in subresources / segments
+const tokenCache = new Map<string, { token: string; expiresAt: number }>();
+
+async function streamToString(stream: any): Promise<string> {
+  const chunks: any[] = [];
+  for await (const chunk of stream) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks).toString("utf-8");
+}
 
 async function startServer() {
   const app = express();
@@ -488,7 +556,7 @@ async function startServer() {
     if (isDemo(req)) {
       // Return beautiful demo stream video file or public HLS stream URL (bunny stream is great)
       return res.json({
-        url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
         type: "HLS", // Mark as HLS or compatible so the frontend handles it
       });
     }
@@ -555,45 +623,120 @@ async function startServer() {
     res.setHeader("Access-Control-Allow-Headers", "*");
     res.setHeader("Access-Control-Expose-Headers", "*");
 
+    // Resolve token cache if available
+    const cacheKey = login || refreshToken || "";
+    let currentToken = token;
+    if (cacheKey && tokenCache.has(cacheKey)) {
+      const cached = tokenCache.get(cacheKey)!;
+      if (Date.now() < cached.expiresAt) {
+        currentToken = cached.token;
+      }
+    }
+
+    // AbortController to cancel downstream request if client closes connection
+    const abortController = new AbortController();
+    req.on("close", () => {
+      console.log(`[STREAM_PROXY] Client disconnected, aborting target fetch: ${targetUrl}`);
+      abortController.abort();
+    });
+
+    let attempts = 0;
+    let axiosResponse: any = null;
+
     try {
-      // Forward safe request headers from client to remote server (crucial for Range requests in Safari/iOS)
-      const requestHeaders: Record<string, string> = {
-        "User-Agent": (req.headers["user-agent"] as string) || "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36",
-        "Accept": (req.headers["accept"] as string) || "*/*"
-      };
+      while (attempts < 2) {
+        const requestHeaders: Record<string, string> = {
+          "User-Agent": (req.headers["user-agent"] as string) || "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36",
+          "Accept": (req.headers["accept"] as string) || "*/*"
+        };
 
-      if (req.headers["range"]) {
-        requestHeaders["Range"] = req.headers["range"] as string;
-      }
-      if (req.headers["if-range"]) {
-        requestHeaders["If-Range"] = req.headers["if-range"] as string;
-      }
+        const isM3u8 = targetUrl.includes(".m3u8") || 
+                       targetUrl.includes("manifest") || 
+                       targetUrl.includes("playlist");
 
-      // Add Authorization and Operator headers if request target is a Domru / Proptech site (important for decryption keys!)
-      const isDomruDomain = targetUrl.includes("proptech.ru") || targetUrl.includes("domru.ru") || targetUrl.includes("ertelecom.ru");
-      if (isDomruDomain) {
-        if (token) {
-          requestHeaders["Authorization"] = `Bearer ${token}`;
+        if (req.headers["range"]) {
+          requestHeaders["Range"] = req.headers["range"] as string;
+        } else if (!isM3u8) {
+          // Default to bytes=0- for segments / video streams to satisfy Domru camera requirements and prevent ECONNRESET
+          requestHeaders["Range"] = "bytes=0-";
         }
-        if (operatorId) {
-          requestHeaders["Operator"] = String(operatorId);
+        if (req.headers["if-range"]) {
+          requestHeaders["If-Range"] = req.headers["if-range"] as string;
         }
+
+        // Add Authorization and Operator headers if request target is a Domru / Proptech site (important for decryption keys!)
+        const isDomruDomain = targetUrl.includes("proptech.ru") || targetUrl.includes("domru.ru") || targetUrl.includes("ertelecom.ru");
+        if (isDomruDomain) {
+          if (currentToken) {
+            requestHeaders["Authorization"] = `Bearer ${currentToken}`;
+          }
+          if (operatorId) {
+            requestHeaders["Operator"] = String(operatorId);
+          }
+        }
+
+        console.log(`[STREAM_PROXY] Fetching target (attempt ${attempts + 1}): ${targetUrl} (isDomruDomain=${isDomruDomain}, Range=${requestHeaders["Range"] || 'none'})`);
+        
+        axiosResponse = await axios({
+          method: "get",
+          url: targetUrl,
+          headers: requestHeaders,
+          responseType: "stream",
+          validateStatus: () => true,
+          signal: abortController.signal,
+        });
+
+        console.log(`[STREAM_PROXY] Remote Response Status: ${axiosResponse.status} ${axiosResponse.statusText}`);
+
+        // If unauthorized (401) and we have credentials, try to refresh the token and retry
+        if (axiosResponse.status === 401 && (login || password || refreshToken) && attempts === 0) {
+          console.log(`[STREAM_PROXY] Received 401 from remote server, attempting to refresh token...`);
+          try {
+            const client = new DomruClient({
+              login,
+              password,
+              refreshToken,
+              operatorId: operatorId ? Number(operatorId) : undefined,
+              timeout: 10000,
+            });
+            await client.authenticate();
+            if (client.token) {
+              currentToken = client.token;
+              if (cacheKey) {
+                tokenCache.set(cacheKey, {
+                  token: client.token,
+                  expiresAt: Date.now() + 50 * 60 * 1000, // 50 minutes cache
+                });
+              }
+              console.log(`[STREAM_PROXY] Token refreshed successfully: ${currentToken}`);
+              attempts++;
+              continue;
+            }
+          } catch (refreshErr) {
+            console.error(`[STREAM_PROXY] Failed to refresh token:`, refreshErr);
+          }
+        }
+
+        break;
       }
 
-      console.log(`[STREAM_PROXY] Fetching target: ${targetUrl} (isDomruDomain=${isDomruDomain}, Range=${req.headers["range"] || 'none'})`);
-      const response = await fetch(targetUrl, {
-        headers: requestHeaders
-      });
-
-      console.log(`[STREAM_PROXY] Remote Response Status: ${response.status} ${response.statusText}`);
       // 200 OK or 206 Partial Content are both valid success codes
-      if (!response.ok && response.status !== 206) {
-        console.error(`[STREAM_PROXY] Error response from remote server: ${response.status}`);
-        return res.status(response.status).send(`Stream request failed: ${response.statusText}`);
+      if (axiosResponse.status !== 200 && axiosResponse.status !== 206) {
+        console.error(`[STREAM_PROXY] Error response from remote server: ${axiosResponse.status}`);
+        return res.status(axiosResponse.status).send(`Stream request failed: ${axiosResponse.statusText || 'Error'}`);
       }
 
       // Forward correct HTTP Status Code
-      res.status(response.status);
+      res.status(axiosResponse.status);
+
+      const contentType = String(axiosResponse.headers["content-type"] || "").toLowerCase();
+      console.log(`[STREAM_PROXY] Remote Content-Type: ${contentType}`);
+
+      const isM3u8 = targetUrl.includes(".m3u8") || 
+                     contentType.includes("mpegurl") || 
+                     contentType.includes("x-mpegurl") ||
+                     contentType.includes("application/vnd.apple.mpegurl") ||
+                     contentType.includes("application/x-mpegurl");
 
       // Copy key headers from remote response to client response
       const headersToForward = [
@@ -608,27 +751,31 @@ async function startServer() {
         "etag"
       ];
 
+      const isLiveStream = contentType.includes("flv") || 
+                           contentType.includes("mjpeg") || 
+                           targetUrl.includes("mjpeg") ||
+                           targetUrl.includes("/rtsp/");
+
       for (const h of headersToForward) {
-        const val = response.headers.get(h);
-        if (val !== null) {
-          res.setHeader(h, val);
+        // Exclude content-length for M3U8 files as we will modify the content length by rewriting URLs
+        if (isM3u8 && h === "content-length") {
+          continue;
+        }
+        // Exclude range and length headers for live streams to prevent connection drops and seeking issues
+        if (isLiveStream && (h === "content-length" || h === "content-range" || h === "accept-ranges")) {
+          continue;
+        }
+        const val = axiosResponse.headers[h];
+        if (val !== undefined && val !== null) {
+          res.setHeader(h, String(val));
         }
       }
-
-      const contentType = response.headers.get("content-type") || "";
-      console.log(`[STREAM_PROXY] Remote Content-Type: ${contentType}`);
-
-      const isM3u8 = targetUrl.includes(".m3u8") || 
-                     contentType.includes("mpegurl") || 
-                     contentType.includes("x-mpegurl") ||
-                     contentType.includes("application/vnd.apple.mpegurl") ||
-                     contentType.includes("application/x-mpegURL");
 
       if (isM3u8) {
         // Force correct M3U8 content-type just in case
         res.setHeader("Content-Type", contentType || "application/vnd.apple.mpegurl");
         
-        const text = await response.text();
+        const text = await streamToString(axiosResponse.data);
         console.log(`[STREAM_PROXY] Content looks like M3U8. First 150 chars:\n${text.substring(0, 150)}`);
         const lines = text.split(/\r?\n/);
         const hostHeader = req.headers.host || "localhost:3000";
@@ -638,7 +785,7 @@ async function startServer() {
         let authParams = "";
         if (login) authParams += `&login=${encodeURIComponent(login)}`;
         if (password) authParams += `&password=${encodeURIComponent(password)}`;
-        if (token) authParams += `&token=${encodeURIComponent(token)}`;
+        if (currentToken) authParams += `&token=${encodeURIComponent(currentToken)}`; // Use refreshed/current token!
         if (operatorId) authParams += `&operatorId=${encodeURIComponent(operatorId)}`;
         if (refreshToken) authParams += `&refreshToken=${encodeURIComponent(refreshToken)}`;
 
@@ -676,26 +823,8 @@ async function startServer() {
 
         res.send(rewrittenLines.join("\n"));
       } else {
-        // High-speed low-latency stream-through chunk bypass
-        if (response.body) {
-          if (typeof (response.body as any).pipe === 'function') {
-            (response.body as any).pipe(res);
-          } else {
-            // Web Standard ReadableStream
-            const reader = response.body.getReader();
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) {
-                break;
-              }
-              res.write(value);
-            }
-            res.end();
-          }
-        } else {
-          const arrayBuffer = await response.arrayBuffer();
-          res.send(Buffer.from(arrayBuffer));
-        }
+        // High-speed low-latency stream-through chunk bypass using Node.js stream pipe
+        axiosResponse.data.pipe(res);
       }
     } catch (err: any) {
       console.error("[STREAM_PROXY] Error fetching target stream url:", targetUrl, err);
@@ -853,8 +982,17 @@ async function startServer() {
         cleanToken = token.substring(3);
       }
 
-      const decodedStr = Buffer.from(cleanToken, "base64").toString("utf-8");
-      const creds = JSON.parse(decodedStr);
+      let creds = getCredentials(cleanToken);
+
+      if (!creds) {
+        try {
+          const decodedStr = Buffer.from(cleanToken, "base64").toString("utf-8");
+          creds = JSON.parse(decodedStr);
+        } catch (decodeErr) {
+          console.error("[TOKEN_DECODE] Failed to decode token as UUID or Base64:", decodeErr);
+          throw new Error("Invalid or expired token");
+        }
+      }
 
       if (creds.isDemo) {
         return {
@@ -897,6 +1035,21 @@ async function startServer() {
     const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
     return `${protocol}://${host}`;
   };
+
+  // Register OAuth authorization credentials to get a short UUID code (prevents Yandex database truncation errors)
+  app.post("/oauth/register", (req, res) => {
+    const creds = req.body;
+    if (!creds || !creds.login) {
+      return res.status(400).json({ error: "invalid_request", error_description: "Missing credentials" });
+    }
+    try {
+      const code = registerCredentials(creds);
+      res.json({ code });
+    } catch (err: any) {
+      console.error("[OAUTH_REGISTER] Failed to register credentials:", err);
+      res.status(500).json({ error: "server_error", error_description: err.message });
+    }
+  });
 
   // Yandex OAuth2 Endpoint: Authorization Consent Page (serves premium UX in Russian with direct Demo mode option)
   app.get("/oauth/authorize", (req, res) => {
@@ -1320,17 +1473,29 @@ async function startServer() {
     }
 
     // Stateless Completion
-    function completeYandexOAuth(creds) {
+    async function completeYandexOAuth(creds) {
       if (!redirectUri) {
         showError("Пожалуйста, откройте авторизацию через кабинет Яндекс Диалогов. Не передан redirect_uri.");
         return;
       }
 
-      const jsonStr = JSON.stringify(creds);
-      const base64Code = btoa(unescape(encodeURIComponent(jsonStr)));
-      
-      const finalUrl = redirectUri + "?code=" + base64Code + "&state=" + encodeURIComponent(stateVal);
-      window.location.href = finalUrl;
+      try {
+        const registerRes = await fetch("/oauth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(creds)
+        });
+        if (!registerRes.ok) {
+          throw new Error("Не удалось зарегистрировать авторизационную сессию на сервере.");
+        }
+        const regData = await registerRes.json();
+        const code = regData.code;
+
+        const finalUrl = redirectUri + "?code=" + code + "&state=" + encodeURIComponent(stateVal);
+        window.location.href = finalUrl;
+      } catch (err) {
+        showError(err.message);
+      }
     }
 
     function loginWithDemo() {

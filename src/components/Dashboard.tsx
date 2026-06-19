@@ -51,6 +51,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
   // Stream state
   const [activeCamera, setActiveCamera] = useState<string | null>(null);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [streamType, setStreamType] = useState<string | null>(null);
   const [loadingStream, setLoadingStream] = useState(false);
   const [streamLogs, setStreamLogs] = useState<string[]>([]);
   const [playerMode, setPlayerMode] = useState<"stream" | "snapshot">("stream");
@@ -257,6 +258,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
   useEffect(() => {
     if (!activeCamera) {
       setStreamUrl(null);
+      setStreamType(null);
       setHasStreamError(false);
       return;
     }
@@ -280,10 +282,12 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
 
         addStreamLog(`Получен ответ: тип=${data.type || 'unknown'}, URL=${data.url}`);
         setStreamUrl(data.url);
+        setStreamType(data.type || 'unknown');
       } catch (err: any) {
         console.error(err);
         addStreamLog(`⛔ Сбой получения потока: ${err.message}`);
         setStreamUrl(null);
+        setStreamType(null);
         setHasStreamError(true);
       } finally {
         setLoadingStream(false);
@@ -293,14 +297,21 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
     fetchStream();
   }, [activeCamera]);
 
-  // HLS stream handler using Ref and Hls.js with detailed logs and listeners
+  // HLS/FLV stream handler using Ref and Hls.js/mpegts.js with detailed logs and listeners
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !streamUrl) return;
+    if (!video || !streamUrl || !streamType) return;
 
     addStreamLog("--- НАЧАЛО ИНИЦИАЛИЗАЦИИ ВИДЕОПОТОКА ---");
     addStreamLog(`URL потока: ${streamUrl}`);
+    addStreamLog(`Формат потока (тип): ${streamType}`);
     addStreamLog(`Браузер (User Agent): ${navigator.userAgent}`);
+    
+    // For MJPEG streams, rendering is handled via <img> tag in JSX. No setup needed.
+    if (streamType === "mjpeg") {
+      addStreamLog("MJPEG-поток инициализирован для отображения в <img>.");
+      return;
+    }
     
     const nativeHlsSupported = video.canPlayType("application/vnd.apple.mpegurl") !== "";
     addStreamLog(`Родная поддержка HLS (canPlayType): ${nativeHlsSupported ? "ДА" : "НЕТ"}`);
@@ -349,15 +360,69 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
     video.addEventListener("error", handleVideoError);
 
     let hlsInstance: any = null;
+    let mpegtsPlayer: any = null;
 
-    const isHls = streamUrl.includes(".m3u8") || 
-                  streamUrl.includes("hls") || 
+    const isHls = streamType === "hls" || 
+                  streamUrl.includes(".m3u8") || 
                   streamUrl.includes("manifest") || 
-                  streamUrl.includes("playlist") ||
-                  streamUrl.includes("stream-proxy") ||
-                  (activeCamera && !streamUrl.includes("mjpeg"));
+                  streamUrl.includes("playlist");
 
-    if (isHls) {
+    const isFlv = streamType === "flv" || 
+                  streamType === "rtsp" ||
+                  streamUrl.includes(".flv") || 
+                  streamUrl.includes("/rtsp/") ||
+                  streamUrl.includes("%2Frtsp%2F");
+
+    if (isFlv) {
+      addStreamLog("Формат потока распознан как FLV. Запуск mpegts.js процессора...");
+      const loadMpegts = async () => {
+        if (!(window as any).mpegts) {
+          addStreamLog("Запрашиваем дистрибутив mpegts.js v1.7.3 из CDN...");
+          await new Promise<void>((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = "https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js";
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error("Не удалось загрузить mpegts.js с удаленного CDN"));
+            document.head.appendChild(script);
+          });
+          addStreamLog("Движок mpegts.js успешно импортирован на страницу.");
+        }
+
+        const mpegts = (window as any).mpegts;
+        if (mpegts && mpegts.isSupported()) {
+          addStreamLog("mpegts.js официально поддерживается браузером. Инициализируем плеер...");
+          mpegtsPlayer = mpegts.createPlayer({
+            type: 'flv', // Correct format type is 'flv'
+            isLive: true,
+            url: streamUrl,
+            cors: true
+          }, {
+            enableStashBuffer: false,
+            liveBufferLatencyChasing: true
+          });
+
+          mpegtsPlayer.attachMediaElement(video);
+          mpegtsPlayer.load();
+          mpegtsPlayer.play().catch((e: any) => {
+            addStreamLog(`⚠ Авто-старт mpegts.js запрещен браузером: ${e.message}. Требуется ручной запуск.`);
+          });
+
+          // Log mpegts player errors
+          mpegtsPlayer.on('error', (type: any, detail: any, info: any) => {
+            addStreamLog(`⛔ mpegts.js Ошибка: Тип=${type}, Детали=${detail}, Инфо=${JSON.stringify(info)}`);
+            setHasStreamError(true);
+          });
+        } else {
+          addStreamLog("⚠ Окружение не поддерживает mpegts.js. Пробуем запуск через встроенный src.");
+          video.src = streamUrl;
+        }
+      };
+
+      loadMpegts().catch((e) => {
+        addStreamLog(`⛔ Инициализация mpegts.js завершилась ошибкой: ${e.message}`);
+        video.src = streamUrl;
+      });
+    } else if (isHls) {
       addStreamLog("Формат потока распознан как HLS (M3U8). Запуск HLS-процессора...");
       
       const useNative = nativeHlsSupported && !forceHlsJS;
@@ -454,7 +519,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
         });
       }
     } else {
-      addStreamLog("Протокол отличный от HLS (MJPEG / MP4). Передаем адрес напрямую в src HTML5.");
+      addStreamLog(`Протокол отличный от HLS/FLV (${streamType}). Передаем адрес напрямую в src HTML5.`);
       video.src = streamUrl;
     }
 
@@ -474,8 +539,12 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
         addStreamLog("Очистка системных ресурсов: Hls.js экземпляр уничтожен.");
         hlsInstance.destroy();
       }
+      if (mpegtsPlayer) {
+        addStreamLog("Очистка системных ресурсов: mpegts.js экземпляр уничтожен.");
+        mpegtsPlayer.destroy();
+      }
     };
-  }, [streamUrl, forceHlsJS]);
+  }, [streamUrl, streamType, forceHlsJS]);
 
   // Handle open door command
   const triggerOpenDoor = async (deviceId: number) => {
@@ -899,8 +968,17 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
                           Экраны домофонов Dom.ru иногда выдают сырой RTSP-адрес. Веб-браузеры не умеют декодировать RTSP без медиасервера-нарезчика. Скопируйте ссылку ниже и откройте в плеере (например, VLC).
                         </p>
                       </div>
+                    ) : streamType === "mjpeg" ? (
+                      <img
+                        src={streamUrl}
+                        alt="MJPEG Video Stream"
+                        className="w-full h-full object-cover"
+                        onError={() => {
+                          addStreamLog("⛔ Сбой загрузки MJPEG-потока.");
+                        }}
+                      />
                     ) : (
-                      /* Render dynamic live player using videoRef with Hls.js support */
+                      /* Render dynamic live player using videoRef with Hls.js/mpegts.js support */
                       <video
                         ref={videoRef}
                         controls
