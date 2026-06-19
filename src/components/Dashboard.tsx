@@ -550,7 +550,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
   return (
     <div className="space-y-6" id="dashboard_panel">
       {/* Top Banner / Stats */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-805/65 p-6 rounded-[2rem] shadow-sm animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-805/65 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] shadow-sm animate-fade-in">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-[#E30613]/10 dark:bg-[#E30613]/15 text-[#E30613] rounded-2xl">
             <Home className="w-6 h-6" />
@@ -566,17 +566,17 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-xs text-zinc-500 mt-1">
-              <User className="w-3.5 h-3.5" />
-              <span>{selectedPlace ? selectedPlace.subscriberName : "Загрузка…"}</span>
-              <span className="bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] rounded-lg font-mono text-zinc-650 dark:text-zinc-350">
+        <div className="flex items-center gap-2 text-xs text-zinc-500 mt-1 flex-wrap">
+              <User className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate max-w-[120px] sm:max-w-none">{selectedPlace ? selectedPlace.subscriberName : "Загрузка…"}</span>
+              <span className="bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] rounded-lg font-mono text-zinc-650 dark:text-zinc-350 whitespace-nowrap shrink-0">
                 Договор: {selectedPlace?.accountId}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
           {/* Places selector if multiple addresses */}
           {places.length > 1 && (
             <select
@@ -585,7 +585,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
                 const f = places.find((p) => p.id === Number(e.target.value));
                 if (f) setSelectedPlace(f);
               }}
-              className="text-xs border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 px-3 py-2 rounded-xl focus:outline-none focus:ring-0"
+              className="text-xs border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 px-3 py-2 rounded-xl focus:outline-none focus:ring-0 w-full sm:w-auto max-w-[200px] sm:max-w-xs md:max-w-md truncate"
               id="place_select_dropdown"
             >
               {places.map((p, idx) => (
@@ -626,9 +626,9 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Left Column (Finance + Guest Key codes) */}
-        <div className="space-y-6 md:col-span-1">
+        <div className="space-y-6 md:col-span-1 min-w-0 w-full">
           {/* Account Balance Widget */}
-          <div className="bg-[#18181B] border border-zinc-800 dark:border-zinc-800/80 rounded-[2rem] p-6 shadow-lg relative overflow-hidden text-white" id="widget_finances">
+          <div className="bg-[#18181B] border border-zinc-800 dark:border-zinc-800/80 rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 shadow-lg relative overflow-hidden text-white" id="widget_finances">
             <div className="absolute top-0 right-0 w-32 h-32 bg-[#E30613]/10 rounded-full blur-3xl pointer-events-none"></div>
             <div className="flex items-center gap-2 text-zinc-400 mb-4">
               <CreditCard className="w-4 h-4 text-[#E30613]" />
@@ -654,7 +654,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
           </div>
 
           {/* Guest PIN Pass Codes */}
-          <div className="bg-white dark:bg-[#18181B] border border-zinc-150 dark:border-zinc-805/70 rounded-[2rem] p-6 shadow-sm" id="widget_temporal_pins">
+          <div className="bg-white dark:bg-[#18181B] border border-zinc-150 dark:border-zinc-805/70 rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 shadow-sm" id="widget_temporal_pins">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 text-zinc-400">
                 <KeyRound className="w-4 h-4 text-[#E30613]" />
@@ -693,9 +693,9 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
         </div>
 
         {/* Center/Right Columns (Doors controllers & Active video streams) */}
-        <div className="space-y-6 md:col-span-2">
+        <div className="space-y-6 md:col-span-2 min-w-0 w-full">
           {/* Smart Door Access controllers */}
-          <div className="bg-white dark:bg-[#18181B] border border-zinc-150 dark:border-zinc-805/70 p-6 rounded-[2rem] shadow-xs" id="widget_intercoms">
+          <div className="bg-white dark:bg-[#18181B] border border-zinc-150 dark:border-zinc-805/70 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] shadow-xs" id="widget_intercoms">
             <div className="flex items-center gap-2 text-zinc-400 mb-4">
               <Sliders className="w-4 h-4 text-[#E30613]" />
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Устройства контроля доступа</span>
@@ -805,7 +805,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
             };
 
             return (
-              <div className="bg-white dark:bg-[#18181B] text-zinc-900 dark:text-white border border-zinc-150 dark:border-zinc-805/70 p-6 rounded-[2rem] shadow-sm flex flex-col space-y-4 animate-fade-in" id="cctv_visualizer">
+              <div className="bg-white dark:bg-[#18181B] text-zinc-900 dark:text-white border border-zinc-150 dark:border-zinc-805/70 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] shadow-sm flex flex-col space-y-4 animate-fade-in" id="cctv_visualizer">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-sans">
                     <Video className="w-4 h-4 text-[#E30613] animate-pulse" />
@@ -1051,7 +1051,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
         })()}
 
           {/* Historical Logs & Call Alarm triggers */}
-          <div className="bg-white dark:bg-[#18181B] border border-zinc-150 dark:border-zinc-805/70 p-6 rounded-[2rem] shadow-sm animate-fade-in" id="widget_events">
+          <div className="bg-white dark:bg-[#18181B] border border-zinc-150 dark:border-zinc-805/70 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] shadow-sm animate-fade-in" id="widget_events">
             <div className="flex items-center gap-2 text-zinc-455 mb-4 border-b border-zinc-100 dark:border-zinc-800 pb-3">
               <History className="w-4 h-4 text-[#E30613]" />
               <span className="text-xs font-bold uppercase tracking-wider font-sans">История событий (Логи домофона)</span>

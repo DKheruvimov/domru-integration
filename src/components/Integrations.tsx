@@ -116,7 +116,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
   return (
     <div className="space-y-8 animate-fade-in" id="integrations_panel">
       {/* Header section with badge */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200/60 dark:border-zinc-800/80 shadow-xs relative overflow-hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-200/60 dark:border-zinc-800/80 shadow-xs relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-red-550/5 dark:bg-red-500/5 rounded-full blur-2xl pointer-events-none"></div>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -136,13 +136,13 @@ export default function Integrations({ credentials }: IntegrationsProps) {
       </div>
 
       {/* Grid of Main Configuration and Guides */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
         
         {/* Left column: Parameters & Domains Map (8 cols) */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="lg:col-span-8 space-y-6 sm:space-y-8 min-w-0 w-full">
           
           {/* 1. Настройка домена и ключей */}
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200/60 dark:border-zinc-800/80 shadow-xs space-y-5">
+          <div className="bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-200/60 dark:border-zinc-800/80 shadow-xs space-y-5">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
               <Settings className="w-4 h-4 text-zinc-400" />
               <span>Глобальные параметры интеграции</span>
@@ -199,7 +199,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
           </div>
 
           {/* 2. Яндекс Диалоги: Ссылки и Настройки для привязки навыка */}
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200/60 dark:border-zinc-800/80 shadow-xs space-y-6">
+          <div className="bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-200/60 dark:border-zinc-800/80 shadow-xs space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
                 <Smartphone className="w-4.5 h-4.5 text-[#E30613]" />
@@ -284,7 +284,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
           </div>
 
           {/* 3. Интерактивная Симуляция API Яндекс Smart Home */}
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200/60 dark:border-zinc-800/80 shadow-xs space-y-5">
+          <div className="bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-200/60 dark:border-zinc-800/80 shadow-xs space-y-5">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
               <Cpu className="w-4.5 h-4.5 text-indigo-500" />
               <span>Песочница и симуляция запроса от Умного Дома Яндекса</span>
@@ -370,10 +370,10 @@ export default function Integrations({ credentials }: IntegrationsProps) {
         </div>
 
         {/* Right column: Quick info cards & stats (4 cols) */}
-        <div className="lg:col-span-4 space-y-8">
+        <div className="lg:col-span-4 space-y-6 sm:space-y-8 min-w-0 w-full">
           
           {/* Интеграция с Алисой: Шаги для обычного пользователя */}
-          <div className="bg-gradient-to-b from-white to-zinc-50 dark:from-zinc-900 dark:to-zinc-950 p-6 rounded-3xl border border-zinc-200/60 dark:border-zinc-800/80 shadow-xs space-y-6">
+          <div className="bg-gradient-to-b from-white to-zinc-50 dark:from-zinc-900 dark:to-zinc-950 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-200/60 dark:border-zinc-800/80 shadow-xs space-y-6">
             <h2 className="text-xs font-extrabold text-zinc-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-500" />
               <span>Пошаговый чеклист связывания</span>
@@ -431,7 +431,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
           </div>
 
           {/* Безопасность и HTTPS */}
-          <div className="bg-zinc-550/5 dark:bg-zinc-900/40 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-805 space-y-4">
+          <div className="bg-zinc-550/5 dark:bg-zinc-900/40 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-805 space-y-4">
             <h3 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
               <Shield className="w-4 h-4 text-emerald-500" />
               Требования к безопасности

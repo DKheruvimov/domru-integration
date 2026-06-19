@@ -221,25 +221,25 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto animate-fade-in" id="login_form_container">
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-[2rem] shadow-xl overflow-hidden p-8">
+    <div className="w-full max-w-md mx-auto animate-fade-in px-2 sm:px-0" id="login_form_container">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-[1.5rem] sm:rounded-[2rem] shadow-xl overflow-hidden p-4 sm:p-8">
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center p-3 bg-[#E30613]/10 dark:bg-[#E30613]/15 text-[#E30613] rounded-2xl mb-4">
-            <Cpu className="w-8 h-8 animate-pulse" />
+          <div className="inline-flex items-center justify-center p-2.5 sm:p-3 bg-[#E30613]/10 dark:bg-[#E30613]/15 text-[#E30613] rounded-2xl mb-3 sm:mb-4">
+            <Cpu className="w-7 h-7 sm:w-8 sm:h-8 animate-pulse" />
           </div>
-          <h2 className="text-2xl font-bold text-zinc-950 dark:text-white tracking-tight font-display">
+          <h2 className="text-xl sm:text-2xl font-bold text-zinc-950 dark:text-white tracking-tight font-display">
             Dom.ru Proptech Client
           </h2>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             Интерактивный пульт управления умными устройствами
           </p>
         </div>
 
         {/* Sandbox vs Real API Toggle */}
-        <div className="grid grid-cols-2 gap-3 mb-6 p-1 bg-zinc-100 dark:bg-zinc-800 rounded-2xl">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-5 sm:mb-6 p-1 bg-zinc-100 dark:bg-zinc-800 rounded-2xl">
           <button
             type="button"
-            className={`py-2 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-all ${
+            className={`py-2 text-[10px] sm:text-xs font-semibold rounded-xl flex items-center justify-center gap-1 transition-all ${
               isDemo
                 ? "bg-white dark:bg-zinc-700 text-[#E30613] dark:text-red-400 shadow-sm"
                 : "text-zinc-650 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
@@ -250,12 +250,12 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             }}
             id="mode_demo_btn"
           >
-            <Code className="w-3.5 h-3.5" />
+            <Code className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             Песочница (Демо)
           </button>
           <button
             type="button"
-            className={`py-2 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-all ${
+            className={`py-2 text-[10px] sm:text-xs font-semibold rounded-xl flex items-center justify-center gap-1 transition-all ${
               !isDemo
                 ? "bg-white dark:bg-zinc-700 text-[#E30613] dark:text-red-400 shadow-sm"
                 : "text-zinc-650 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
@@ -266,16 +266,16 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             }}
             id="mode_real_btn"
           >
-            <ShieldCheck className="w-3.5 h-3.5" />
+            <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             Реальный API
           </button>
         </div>
 
         {/* Auth Method Toggle tabs */}
-        <div className="grid grid-cols-2 gap-2 mb-6 border-b border-zinc-100 dark:border-zinc-805 pb-3">
+        <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-5 sm:mb-6 border-b border-zinc-100 dark:border-zinc-805 pb-3">
           <button
             type="button"
-            className={`py-1.5 text-xs font-medium rounded-xl flex items-center justify-center gap-1.5 transition-all ${
+            className={`py-1.5 text-[10px] sm:text-xs font-medium rounded-xl flex items-center justify-center gap-1 transition-all ${
               authMethod === "password"
                 ? "bg-red-500/5 dark:bg-red-500/10 text-[#E30613] dark:text-red-350 font-semibold shadow-2xs"
                 : "text-zinc-550 hover:text-zinc-850 dark:hover:text-zinc-200"
@@ -286,12 +286,12 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             }}
             id="tab_password_btn"
           >
-            <Key className="w-3.5 h-3.5" />
+            <Key className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             По логину и паролю
           </button>
           <button
             type="button"
-            className={`py-1.5 text-xs font-medium rounded-xl flex items-center justify-center gap-1.5 transition-all ${
+            className={`py-1.5 text-[10px] sm:text-xs font-medium rounded-xl flex items-center justify-center gap-1 transition-all ${
               authMethod === "sms"
                 ? "bg-red-500/5 dark:bg-red-500/10 text-[#E30613] dark:text-red-350 font-semibold shadow-2xs"
                 : "text-zinc-550 hover:text-zinc-850 dark:hover:text-zinc-200"
@@ -302,7 +302,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             }}
             id="tab_sms_btn"
           >
-            <MessageSquare className="w-3.5 h-3.5" />
+            <MessageSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             По СМС коду
           </button>
         </div>
