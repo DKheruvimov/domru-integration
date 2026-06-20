@@ -1648,10 +1648,14 @@ async function startServer() {
 
         for (const dev of devs) {
           const deviceId = `device_${place.id}_${dev.id}`;
-          let yandexType = "devices.types.smart_lock";
+          // Map Dom.ru device types to valid Yandex Smart Home device types
+          // Reference: https://yandex.ru/dev/dialogs/smart-home/doc/ru/concepts/device-types
+          let yandexType = "devices.types.openable.door_lock"; // intercom/door → openable.door_lock
 
           if (dev.type === "gate" || dev.type === "barrier") {
-            yandexType = "devices.types.openable";
+            yandexType = "devices.types.openable"; // gate/barrier → openable
+          } else if (dev.type === "camera") {
+            yandexType = "devices.types.camera"; // camera devices
           }
 
           yandexDevices.push({
