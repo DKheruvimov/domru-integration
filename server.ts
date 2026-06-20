@@ -1613,6 +1613,10 @@ async function startServer() {
           );
           try {
             cameras = await client.getCameras();
+            if (cameras.length > 0) {
+              console.log("[DISCOVERY] Camera object sample keys:", Object.keys(cameras[0] as any).join(", "));
+              console.log("[DISCOVERY] Camera[0] raw:", JSON.stringify(cameras[0]).substring(0, 300));
+            }
           } catch (err) {
             console.error("Yandex recovery: failed to fetch cameras list:", err);
             cameras = [];
@@ -1685,20 +1689,26 @@ async function startServer() {
 
       // Map CCTV Security Cameras
       for (const cam of cameras) {
-        const camId = `camera_${cam.id}`;
-        const matchingPlace = places.find(p => p.id === cam.placeId);
+        // Dom.ru API may return id as numeric or under different key names
+        const rawCamId = (cam as any).id ?? (cam as any).cameraId ?? (cam as any).ID ?? (cam as any).externalId;
+        if (!rawCamId) {
+          console.warn("[DISCOVERY] Camera skipped — no id field found. Keys:", Object.keys(cam as any).join(", "));
+          continue;
+        }
+        const camId = `camera_${rawCamId}`;
+        const matchingPlace = places.find((p: any) => p.id === (cam as any).placeId || p.id === (cam as any).groupId);
         const address = matchingPlace?.place?.address?.visibleAddress || "Видеонаблюдение";
 
         yandexDevices.push({
           id: camId,
-          name: cam.name || "Камера",
+          name: (cam as any).name || "Камера",
           description: "IP-камера безопасности Forpost",
           type: "devices.types.camera",
           room: address,
           capabilities: [
             {
               type: "devices.capabilities.video_stream",
-              retrievable: true,
+              retrievable: false,
               parameters: {
                 protocols: ["hls"]
               }
@@ -1773,7 +1783,7 @@ async function startServer() {
               {
                 type: "devices.capabilities.video_stream",
                 state: {
-                  instance: "stream",
+                  instance: "get_stream",
                   value: {
                     stream_url: streamUrl,
                     protocol: "hls"
@@ -1833,6 +1843,35 @@ async function startServer() {
         const resCaps: any[] = [];
 
         for (const cap of capabilities) {
+          // Handle video_stream action — Yandex sends get_stream to request HLS URL
+          if (cap.type === "devices.capabilities.video_stream" && cap.state?.instance === "get_stream") {
+            const cameraId = devId.replace("camera_", "");
+            let streamUrl = "";
+
+            try {
+              if (isDemo) {
+                streamUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+              } else {
+                const streamInfo = await client.getStreamUrl(cameraId);
+                if (streamInfo?.url) {
+                  streamUrl = `${getBaseUrl(req)}/api/domru/stream/${cameraId}`;
+                }
+              }
+            } catch (streamErr) {
+              console.error(`[Yandex action] Failed to get stream for camera ${cameraId}:`, streamErr);
+            }
+
+            resCaps.push({
+              type: "devices.capabilities.video_stream",
+              state: {
+                instance: "get_stream",
+                action_result: { status: streamUrl ? "DONE" : "ERROR" },
+                value: streamUrl ? { stream_url: streamUrl, protocol: "hls" } : undefined
+              }
+            });
+            continue;
+          }
+
           if (cap.type === "devices.capabilities.on_off") {
             const valve = cap.state?.value;
             let status = "DONE";
