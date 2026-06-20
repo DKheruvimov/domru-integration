@@ -1776,7 +1776,8 @@ async function startServer() {
               type: "devices.capabilities.video_stream",
               retrievable: false,
               parameters: {
-                protocols: ["hls"]
+                protocols: ["hls"],
+                audio_supported: true
               }
             }
           ],
