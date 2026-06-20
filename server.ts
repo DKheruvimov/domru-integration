@@ -590,7 +590,11 @@ async function startServer() {
 
   // Support OPTIONS on the stream-proxy for preflight requests
   app.options("/api/domru/stream-proxy", (req, res) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    const origin = req.headers.origin || "https://yastatic.net";
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    if (req.headers.origin) {
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
     res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "*");
     res.setHeader("Access-Control-Expose-Headers", "*");
@@ -611,11 +615,18 @@ async function startServer() {
     const operatorId = (req.query.operatorId as string) || (req.headers["x-domru-operator-id"] as string) || "";
     const refreshToken = (req.query.refreshToken as string) || (req.headers["x-domru-refresh-token"] as string) || "";
 
-    // Set explicit CORS headers so the client can request HLS playlist and chunks from this endpoint without restrictions
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    // Set explicit CORS headers dynamically to support credentials-based requests and match Yandex specifications
+    const origin = req.headers.origin || "https://yastatic.net";
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    if (req.headers.origin) {
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
     res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "*");
     res.setHeader("Access-Control-Expose-Headers", "*");
+
+    // Disable Nginx proxy buffering for real-time video streaming to prevent segment delivery delays
+    res.setHeader("X-Accel-Buffering", "no");
 
     // Resolve token cache if available
     const cacheKey = login || refreshToken || "";
