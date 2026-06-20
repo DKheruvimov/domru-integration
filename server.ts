@@ -1693,19 +1693,19 @@ async function startServer() {
 
       // Map CCTV Security Cameras
       for (const cam of cameras) {
-        // Dom.ru API may return id as numeric or under different key names
-        const rawCamId = (cam as any).id ?? (cam as any).cameraId ?? (cam as any).ID ?? (cam as any).externalId;
+        // Dom.ru Forpost API returns uppercase field names: ID, Name, IsActive
+        const rawCamId = (cam as any).ID ?? (cam as any).id ?? (cam as any).cameraId ?? (cam as any).externalId;
         if (!rawCamId) {
           console.warn("[DISCOVERY] Camera skipped — no id field found. Keys:", Object.keys(cam as any).join(", "));
           continue;
         }
         const camId = `camera_${rawCamId}`;
-        const matchingPlace = places.find((p: any) => p.id === (cam as any).placeId || p.id === (cam as any).groupId);
-        const address = matchingPlace?.place?.address?.visibleAddress || "Видеонаблюдение";
+        const camName = (cam as any).Name ?? (cam as any).name ?? "Камера";
+        const address = "Видеонаблюдение";
 
         yandexDevices.push({
           id: camId,
-          name: (cam as any).name || "Камера",
+          name: camName,
           description: "IP-камера безопасности Forpost",
           type: "devices.types.camera",
           room: address,
