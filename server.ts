@@ -1069,9 +1069,9 @@ async function startServer() {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yandex Умный Дом — Авторизация Dom.ru/Forpost</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
   <style>
-    body { font-family: "Inter", sans-serif; background-color: #0c0a09; color: #f5f5f4; }
+    body { font-family: "Inter", sans-serif; background-color: #09090b; color: #f4f4f5; }
     .animate-fade-in {
       animation: fadeIn 0.3s ease-out forwards;
     }
@@ -1082,23 +1082,23 @@ async function startServer() {
   </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#121214] via-[#0d0d0f] to-[#121214]">
-  <div class="w-full max-w-md bg-zinc-900 border border-zinc-800/80 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
+  <div class="w-full max-w-md bg-zinc-900 border border-zinc-800/80 rounded-[2rem] p-8 sm:p-10 shadow-2xl relative overflow-hidden">
     <!-- Red ambient backdrop -->
-    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-red-600/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-[#E30613]/10 rounded-full blur-3xl pointer-events-none"></div>
 
     <!-- Header info -->
     <div class="text-center mb-8 relative">
-      <div class="w-16 h-16 bg-gradient-to-tr from-red-600 to-[#E30613] rounded-2xl flex items-center justify-center mx-auto mb-4 hover:scale-105 transition-transform shadow-lg shadow-red-600/20">
+      <div class="w-16 h-16 bg-[#E30613] rounded-2xl flex items-center justify-center mx-auto mb-4 hover:scale-105 transition-transform shadow-lg shadow-[#E30613]/20">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8 text-white">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.02 5.912L12 16.5H9v3H6v-3l1.588-1.588A6.002 6.002 0 0115.75 5.25z" />
         </svg>
       </div>
       <h1 class="text-xl font-bold tracking-tight text-white mb-2">Связка с Алисой</h1>
-      <p class="text-xs text-zinc-400 max-w-xs mx-auto">Подключите ваши умные домофоны и уличные камеры Forpost к Умному Дому Яндекса за несколько простых шагов.</p>
+      <p class="text-xs text-zinc-400 max-w-xs mx-auto leading-relaxed">Подключите ваши умные домофоны и уличные камеры Forpost к Умному Дому Яндекса за несколько простых шагов.</p>
     </div>
 
     <!-- Custom Danger/Success Banner -->
-    <div id="error-alert" class="hidden p-4 rounded-2xl bg-red-950/40 border border-red-800/50 text-red-400 text-xs mb-6 flex gap-2 items-start">
+    <div id="error-alert" class="hidden p-4 rounded-xl bg-red-950/40 border border-red-800/50 text-red-400 text-xs mb-6 flex gap-2 items-start">
       <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
@@ -1106,11 +1106,11 @@ async function startServer() {
     </div>
 
     <!-- Tabs for selecting authentication method -->
-    <div class="flex bg-black/40 p-1.5 rounded-2xl gap-1 mb-6 border border-zinc-800/40" id="auth-tabs">
-      <button onclick="setAuthMethod('sms')" id="tab-sms" class="flex-1 py-2.5 text-xs font-bold rounded-xl transition duration-200 text-white bg-[#E30613] shadow shadow-red-600/10 cursor-pointer">
+    <div class="flex bg-black/40 p-1 rounded-2xl gap-1 mb-6 border border-zinc-800/60" id="auth-tabs">
+      <button onclick="setAuthMethod('sms')" id="tab-sms" class="flex-1 py-3 text-sm font-semibold rounded-xl transition duration-200 text-white bg-[#E30613] shadow-md shadow-[#E30613]/10 cursor-pointer">
         По СМС
       </button>
-      <button onclick="setAuthMethod('password')" id="tab-password" class="flex-1 py-2.5 text-xs font-bold rounded-xl transition duration-200 text-zinc-400 hover:text-white cursor-pointer hover:bg-zinc-800/30">
+      <button onclick="setAuthMethod('password')" id="tab-password" class="flex-1 py-3 text-sm font-semibold rounded-xl transition duration-200 text-zinc-400 hover:text-white cursor-pointer hover:bg-zinc-800/30">
         Договор и Пароль
       </button>
     </div>
@@ -1118,14 +1118,14 @@ async function startServer() {
     <!-- 1. Screen Enter Phone -->
     <div id="step1" class="space-y-5 animate-fade-in">
       <div>
-        <label class="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Ваш номер телефона</label>
+        <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Ваш номер телефона</label>
         <div class="relative">
-          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-550 font-semibold text-sm">+7</span>
-          <input type="tel" id="sms-phone" placeholder="999 123-4567" class="w-full bg-black/40 border border-zinc-800/80 rounded-2xl py-4.5 pl-12 pr-4 text-sm font-medium text-white focus:outline-none focus:border-red-650 transition-colors placeholder-zinc-700">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 font-semibold text-sm">+7</span>
+          <input type="tel" id="sms-phone" placeholder="999 123-4567" class="w-full bg-black/40 border border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-[#E30613]/20 focus:border-[#E30613] transition-all placeholder-zinc-700">
         </div>
       </div>
       
-      <button onclick="handleGetAccounts()" id="btn-get-accounts" class="w-full bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white text-xs font-semibold py-4.5 rounded-2xl transition justify-center items-center flex gap-2 shadow-lg shadow-red-600/10 cursor-pointer">
+      <button onclick="handleGetAccounts()" id="btn-get-accounts" class="w-full bg-[#E30613] hover:bg-[#c20510] active:scale-[0.98] text-white text-sm font-semibold py-3 px-4 rounded-xl transition justify-center items-center flex gap-2 shadow-lg shadow-[#E30613]/10 cursor-pointer">
         <span>Проверить аккаунты</span>
         <svg id="spinner-get-accounts" class="w-4 h-4 animate-spin hidden" viewBox="0 0 24 24" fill="none">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -1134,11 +1134,11 @@ async function startServer() {
       </button>
 
       <div class="relative py-2 flex items-center justify-center">
-        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-zinc-800/60"></div></div>
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-zinc-800"></div></div>
         <span class="relative bg-zinc-900 px-3 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Тестовый вход</span>
       </div>
 
-      <button onclick="loginWithDemo()" class="w-full bg-zinc-950 hover:bg-zinc-850 text-zinc-350 active:scale-[0.98] text-xs font-semibold py-4 rounded-2xl transition flex items-center justify-center gap-2 border border-zinc-800/60 border-dashed cursor-pointer">
+      <button onclick="loginWithDemo()" class="w-full bg-zinc-950/80 hover:bg-zinc-900 text-zinc-300 hover:text-white active:scale-[0.98] text-xs font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 border border-zinc-800 border-dashed cursor-pointer">
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
         <span>Войти в режиме Демо (Для Модератора)</span>
       </button>
@@ -1148,16 +1148,16 @@ async function startServer() {
     <div id="step-password" class="space-y-5 hidden animate-fade-in">
       <div class="space-y-4">
         <div>
-          <label class="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Логин (№ договора или телефон)</label>
-          <input type="text" id="pass-login" placeholder="Например, 520900240557" class="w-full bg-black/40 border border-zinc-800/80 rounded-2xl py-4.5 px-4 text-sm font-medium text-white focus:outline-none focus:border-red-650 transition-colors placeholder-zinc-700">
+          <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Логин (№ договора или телефон)</label>
+          <input type="text" id="pass-login" placeholder="Например, 520900240557" class="w-full bg-black/40 border border-zinc-800 rounded-xl py-3 px-4 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-[#E30613]/20 focus:border-[#E30613] transition-all placeholder-zinc-700">
         </div>
         <div>
-          <label class="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Пароль</label>
-          <input type="password" id="pass-password" placeholder="Введите пароль" class="w-full bg-black/40 border border-zinc-800/80 rounded-2xl py-4.5 px-4 text-sm font-medium text-white focus:outline-none focus:border-red-650 transition-colors placeholder-zinc-700">
+          <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Пароль</label>
+          <input type="password" id="pass-password" placeholder="Введите пароль" class="w-full bg-black/40 border border-zinc-800 rounded-xl py-3 px-4 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-[#E30613]/20 focus:border-[#E30613] transition-all placeholder-zinc-700">
         </div>
       </div>
 
-      <button onclick="handlePasswordLogin()" id="btn-password-login" class="w-full bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white text-xs font-semibold py-4.5 rounded-2xl transition justify-center items-center flex gap-2 cursor-pointer shadow-lg shadow-red-600/10">
+      <button onclick="handlePasswordLogin()" id="btn-password-login" class="w-full bg-[#E30613] hover:bg-[#c20510] active:scale-[0.98] text-white text-sm font-semibold py-3 px-4 rounded-xl transition justify-center items-center flex gap-2 cursor-pointer shadow-lg shadow-[#E30613]/10">
         <span>Войти и связать аккаунт</span>
         <svg id="spinner-password-login" class="w-4 h-4 animate-spin hidden" viewBox="0 0 24 24" fill="none">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -1166,11 +1166,11 @@ async function startServer() {
       </button>
 
       <div class="relative py-2 flex items-center justify-center">
-        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-zinc-800/60"></div></div>
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-zinc-800"></div></div>
         <span class="relative bg-zinc-900 px-3 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Тестовый вход</span>
       </div>
 
-      <button onclick="loginWithDemo()" class="w-full bg-zinc-950 hover:bg-zinc-850 text-zinc-350 active:scale-[0.98] text-xs font-semibold py-4 rounded-2xl transition flex items-center justify-center gap-2 border border-zinc-800/60 border-dashed cursor-pointer">
+      <button onclick="loginWithDemo()" class="w-full bg-zinc-950/80 hover:bg-zinc-900 text-zinc-300 hover:text-white active:scale-[0.98] text-xs font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 border border-zinc-800 border-dashed cursor-pointer">
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
         <span>Войти в режиме Демо (Для Модератора)</span>
       </button>
@@ -1179,11 +1179,11 @@ async function startServer() {
     <!-- 2. Screen Account Choose -->
     <div id="step2" class="space-y-5 hidden animate-fade-in">
       <div>
-        <label class="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2.5">Выберите договор / адрес</label>
-        <div id="accounts-container" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
+        <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Выберите договор / адрес</label>
+        <div id="accounts-container" class="space-y-2.5 max-h-60 overflow-y-auto pr-1"></div>
       </div>
 
-      <button onclick="handleSendSms()" id="btn-send-sms" class="w-full bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white text-xs font-semibold py-4.5 rounded-2xl transition justify-center items-center flex gap-2 cursor-pointer shadow-lg shadow-red-600/10">
+      <button onclick="handleSendSms()" id="btn-send-sms" class="w-full bg-[#E30613] hover:bg-[#c20510] active:scale-[0.98] text-white text-sm font-semibold py-3 px-4 rounded-xl transition justify-center items-center flex gap-2 cursor-pointer shadow-lg shadow-[#E30613]/10">
         <span>Выслать СМС код подтверждения</span>
         <svg id="spinner-send-sms" class="w-4 h-4 animate-spin hidden" viewBox="0 0 24 24" fill="none">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -1191,7 +1191,7 @@ async function startServer() {
         </svg>
       </button>
 
-      <button onclick="goBackToStep1()" class="w-full bg-transparent hover:bg-zinc-800 text-zinc-400 text-xs font-semibold py-3.5 rounded-2xl transition cursor-pointer border border-zinc-800">
+      <button onclick="goBackToStep1()" class="w-full bg-transparent hover:bg-zinc-850 text-zinc-400 hover:text-white text-xs font-semibold py-2.5 rounded-xl transition cursor-pointer border border-zinc-800">
         Изменить телефон
       </button>
     </div>
@@ -1199,11 +1199,11 @@ async function startServer() {
     <!-- 3. Screen Code SMS -->
     <div id="step3" class="space-y-5 hidden animate-fade-in">
       <div>
-        <label class="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2.5">СМС код отправлен на +7<span id="label-target-phone"></span></label>
-        <input type="text" id="sms-code" placeholder="Код подтверждения" class="w-full bg-black/40 border border-zinc-800/80 rounded-2xl py-4.5 text-center text-lg tracking-[0.4rem] font-bold text-white focus:outline-none focus:border-red-600 transition-colors placeholder-zinc-700">
+        <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">СМС код отправлен на +7<span id="label-target-phone"></span></label>
+        <input type="text" id="sms-code" placeholder="Код" class="w-full bg-black/40 border border-zinc-800 rounded-xl py-3 text-center text-xl tracking-[0.6rem] font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#E30613]/25 focus:border-[#E30613] transition-all placeholder-zinc-700">
       </div>
 
-      <button onclick="handleConfirmSms()" id="btn-confirm-sms" class="w-full bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white text-xs font-semibold py-4.5 rounded-2xl transition justify-center items-center flex gap-2 cursor-pointer shadow-lg shadow-red-600/10">
+      <button onclick="handleConfirmSms()" id="btn-confirm-sms" class="w-full bg-[#E30613] hover:bg-[#c20510] active:scale-[0.98] text-white text-sm font-semibold py-3 px-4 rounded-xl transition justify-center items-center flex gap-2 cursor-pointer shadow-lg shadow-[#E30613]/10">
         <span>Привязать аккаунт к Яндексу</span>
         <svg id="spinner-confirm-sms" class="w-4 h-4 animate-spin hidden" viewBox="0 0 24 24" fill="none">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -1211,7 +1211,7 @@ async function startServer() {
         </svg>
       </button>
 
-      <button onclick="goBackToStep2()" class="w-full bg-transparent hover:bg-zinc-800 text-zinc-400 text-xs font-semibold py-3.5 rounded-2xl transition cursor-pointer border border-zinc-800">
+      <button onclick="goBackToStep2()" class="w-full bg-transparent hover:bg-zinc-850 text-zinc-400 hover:text-white text-xs font-semibold py-2.5 rounded-xl transition cursor-pointer border border-zinc-800">
         Выбрать другой адрес
       </button>
     </div>
@@ -1264,16 +1264,16 @@ async function startServer() {
       const tabPassword = document.getElementById("tab-password");
       
       if (method === "sms") {
-        tabSms.className = "flex-1 py-2.5 text-xs font-bold rounded-xl transition duration-200 text-white bg-[#E30613] shadow shadow-red-600/10 cursor-pointer";
-        tabPassword.className = "flex-1 py-2.5 text-xs font-bold rounded-xl transition duration-200 text-zinc-400 hover:text-white cursor-pointer hover:bg-zinc-800/30";
+        tabSms.className = "flex-1 py-3 text-sm font-semibold rounded-xl transition duration-200 text-white bg-[#E30613] shadow-md shadow-[#E30613]/10 cursor-pointer";
+        tabPassword.className = "flex-1 py-3 text-sm font-semibold rounded-xl transition duration-200 text-zinc-400 hover:text-white cursor-pointer hover:bg-zinc-800/30";
         
         stepPassword.classList.add("hidden");
         step1.classList.remove("hidden");
         step2.classList.add("hidden");
         step3.classList.add("hidden");
       } else {
-        tabPassword.className = "flex-1 py-2.5 text-xs font-bold rounded-xl transition duration-200 text-white bg-[#E30613] shadow shadow-red-600/10 cursor-pointer";
-        tabSms.className = "flex-1 py-2.5 text-xs font-bold rounded-xl transition duration-200 text-zinc-400 hover:text-white cursor-pointer hover:bg-zinc-800/30";
+        tabPassword.className = "flex-1 py-3 text-sm font-semibold rounded-xl transition duration-200 text-white bg-[#E30613] shadow-md shadow-[#E30613]/10 cursor-pointer";
+        tabSms.className = "flex-1 py-3 text-sm font-semibold rounded-xl transition duration-200 text-zinc-400 hover:text-white cursor-pointer hover:bg-zinc-800/30";
         
         step1.classList.add("hidden");
         step2.classList.add("hidden");
@@ -1331,12 +1331,12 @@ async function startServer() {
       accounts.forEach((acc, idx) => {
         const checked = idx === 0 ? "checked" : "";
         const elem = document.createElement("label");
-        elem.className = "flex items-start gap-3 p-4 bg-black/40 border border-zinc-800/80 rounded-2xl cursor-pointer hover:border-red-650 transition-all block relative select-none";
+        elem.className = "flex items-start gap-3 p-4 bg-black/40 border border-zinc-800 rounded-xl cursor-pointer hover:border-[#E30613]/50 focus-within:border-[#E30613]/55 transition-all block relative select-none";
         elem.innerHTML = \`
-          <input type="radio" name="selected_acc" value="\${idx}" \${checked} class="mt-1 accent-red-600 shrink-0">
-          <div class="text-xs">
+          <input type="radio" name="selected_acc" value="\${idx}" \${checked} class="mt-1 accent-[#E30613] shrink-0">
+          <div class="text-xs text-left">
             <p class="font-bold text-white mb-0.5 leading-tight">\${acc.address}</p>
-            <p class="text-[10px] text-zinc-550">Договор: \${acc.accountId} | Провайдер ID \${acc.operatorId}</p>
+            <p class="text-[10px] text-zinc-500">Договор: \${acc.accountId} | Провайдер ID \${acc.operatorId}</p>
           </div>
         \`;
         container.appendChild(elem);
