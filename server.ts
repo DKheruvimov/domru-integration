@@ -75,6 +75,75 @@ async function streamToString(stream: any): Promise<string> {
   return Buffer.concat(chunks).toString("utf-8");
 }
 
+function parseMpegTsCodecs(buffer: Buffer): string[] {
+  const packetSize = 188;
+  let pmtPid = -1;
+  const codecs: string[] = [];
+
+  for (let i = 0; i < buffer.length - packetSize; i++) {
+    if (buffer[i] === 0x47 && buffer[i + packetSize] === 0x47) {
+      const pid = ((buffer[i + 1] & 0x1f) << 8) | buffer[i + 2];
+      
+      // Parse PAT (PID 0)
+      if (pid === 0) {
+        const hasAdaptation = (buffer[i + 3] & 0x20) !== 0;
+        let payloadOffset = 4;
+        if (hasAdaptation) {
+          payloadOffset += 1 + buffer[i + 4];
+        }
+        const pusi = (buffer[i + 1] & 0x40) !== 0;
+        if (pusi) {
+          payloadOffset += 1 + buffer[i + payloadOffset];
+        }
+        if (buffer[i + payloadOffset] === 0x00) {
+          pmtPid = ((buffer[i + payloadOffset + 10] & 0x1f) << 8) | buffer[i + payloadOffset + 11];
+        }
+      }
+
+      // Parse PMT (PID = pmtPid)
+      if (pmtPid !== -1 && pid === pmtPid) {
+        const hasAdaptation = (buffer[i + 3] & 0x20) !== 0;
+        let payloadOffset = 4;
+        if (hasAdaptation) {
+          payloadOffset += 1 + buffer[i + 4];
+        }
+        const pusi = (buffer[i + 1] & 0x40) !== 0;
+        if (pusi) {
+          payloadOffset += 1 + buffer[i + payloadOffset];
+        }
+        if (buffer[i + payloadOffset] === 0x02) {
+          const sectionLength = ((buffer[i + payloadOffset + 1] & 0x0f) << 8) | buffer[i + payloadOffset + 2];
+          const programInfoLength = ((buffer[i + payloadOffset + 10] & 0x0f) << 8) | buffer[i + payloadOffset + 11];
+          let streamOffset = payloadOffset + 12 + programInfoLength;
+          const endOffset = payloadOffset + 3 + sectionLength - 4;
+
+          while (streamOffset < endOffset) {
+            const streamType = buffer[i + streamOffset];
+            const elementaryPid = ((buffer[i + streamOffset + 1] & 0x1f) << 8) | buffer[i + streamOffset + 2];
+            const esInfoLength = ((buffer[i + streamOffset + 3] & 0x0f) << 8) | buffer[i + streamOffset + 4];
+            
+            let codecName = `Unknown (0x${streamType.toString(16)})`;
+            if (streamType === 0x1b) codecName = "H.264 Video (0x1b)";
+            else if (streamType === 0x24) codecName = "H.265/HEVC Video (0x24)";
+            else if (streamType === 0x0f) codecName = "AAC Audio (0x0f)";
+            else if (streamType === 0x03 || streamType === 0x04) codecName = "MP3 Audio (0x03/0x04)";
+            else if (streamType === 0x06) codecName = "AC-3/Subtitle/Private (0x06)";
+            else if (streamType === 0x80) codecName = "G.711 PCMA/LPCM (0x80)";
+            else if (streamType === 0x81) codecName = "AC-3 Audio (0x81)";
+            else if (streamType === 0x82) codecName = "SCTE-35 (0x82)";
+            else if (streamType === 0x87) codecName = "E-AC-3 Audio (0x87)";
+            
+            codecs.push(`PID ${elementaryPid}: ${codecName}`);
+            streamOffset += 5 + esInfoLength;
+          }
+          break;
+        }
+      }
+    }
+  }
+  return codecs;
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -553,6 +622,85 @@ async function startServer() {
       res.json(cameras);
     } catch (err: any) {
       handleClientError(err, res);
+    }
+  });
+
+  // API Route: Debug stream codecs
+  app.get("/api/domru/debug-codec/:cameraId", async (req, res) => {
+    const { cameraId } = req.params;
+    if (isDemo(req)) {
+      return res.json({
+        isDemo: true,
+        streamUrl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+        codecs: ["PID 256: H.264 Video (0x1b)", "PID 257: AAC Audio (0x0f)"]
+      });
+    }
+
+    try {
+      const client = getDomruInstance(req);
+      const stream = await client.getStreamUrl(cameraId);
+      if (!stream || !stream.url) {
+        return res.status(404).json({ error: "No stream URL found for camera" });
+      }
+
+      const originalUrl = stream.url;
+      let codecs: string[] = [];
+      let playlistText = "";
+      let firstSegmentUrl = "";
+      let fetchError = "";
+
+      if (originalUrl.includes(".m3u8")) {
+        try {
+          // Fetch m3u8 playlist
+          const playListRes = await axios.get(originalUrl, {
+            timeout: 5000,
+            headers: {
+              "User-Agent": "Mozilla/5.0",
+              "Authorization": client.token ? `Bearer ${client.token}` : "",
+              "Operator": client.refreshData.operatorId ? String(client.refreshData.operatorId) : ""
+            }
+          });
+          playlistText = playListRes.data;
+
+          const lines = playlistText.split(/\r?\n/);
+          let firstTsLine = lines.find(line => line.trim() && !line.trim().startsWith("#"));
+          if (firstTsLine) {
+            firstTsLine = firstTsLine.trim();
+            firstSegmentUrl = new URL(firstTsLine, originalUrl).toString();
+
+            // Fetch first 150KB of the TS segment
+            const tsRes = await axios.get(firstSegmentUrl, {
+              responseType: "arraybuffer",
+              timeout: 8000,
+              headers: {
+                "User-Agent": "Mozilla/5.0",
+                "Range": "bytes=0-150000",
+                "Authorization": client.token ? `Bearer ${client.token}` : "",
+                "Operator": client.refreshData.operatorId ? String(client.refreshData.operatorId) : ""
+              }
+            });
+            const segmentBuf = Buffer.from(tsRes.data);
+            codecs = parseMpegTsCodecs(segmentBuf);
+          } else {
+            fetchError = "No TS segment found in playlist";
+          }
+        } catch (err: any) {
+          fetchError = err.message || String(err);
+        }
+      } else {
+        fetchError = `Stream is not HLS (type: ${stream.type}). URL: ${originalUrl}`;
+      }
+
+      res.json({
+        type: stream.type,
+        originalUrl,
+        firstSegmentUrl,
+        codecs,
+        fetchError,
+        playlistExcerpt: playlistText ? playlistText.substring(0, 500) : undefined
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to debug codecs" });
     }
   });
 
