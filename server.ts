@@ -589,7 +589,7 @@ async function startServer() {
   });
 
   // Support OPTIONS on the stream-proxy for preflight requests
-  app.options("/api/domru/stream-proxy", (req, res) => {
+  app.options("/api/domru/stream-proxy*", (req, res) => {
     const origin = req.headers.origin || "https://yastatic.net";
     res.setHeader("Access-Control-Allow-Origin", origin);
     if (req.headers.origin) {
@@ -602,7 +602,7 @@ async function startServer() {
   });
 
   // API Route: CORS/MixedContent secure proxy for domestic HLS/M3U8 streams
-  app.get("/api/domru/stream-proxy", async (req, res) => {
+  app.get("/api/domru/stream-proxy*", async (req, res) => {
     const targetUrl = req.query.url as string;
     if (!targetUrl) {
       return res.status(400).send("Parameter 'url' is required.");
@@ -814,7 +814,15 @@ async function startServer() {
           if (!trimmed.startsWith("#")) {
             try {
               const resolved = new URL(trimmed, targetUrl).toString();
-              return `${protocol}://${hostHeader}/api/domru/stream-proxy?url=${encodeURIComponent(resolved)}${authParams}`;
+              let filename = "segment.ts";
+              try {
+                const parsed = new URL(resolved);
+                const last = parsed.pathname.substring(parsed.pathname.lastIndexOf("/") + 1);
+                if (last) {
+                  filename = last;
+                }
+              } catch {}
+              return `${protocol}://${hostHeader}/api/domru/stream-proxy/${filename}?url=${encodeURIComponent(resolved)}${authParams}`;
             } catch {
               return trimmed;
             }
@@ -825,7 +833,15 @@ async function startServer() {
             trimmed = trimmed.replace(/URI="([^"]+)"/g, (match, p1) => {
               try {
                 const resolved = new URL(p1, targetUrl).toString();
-                const proxied = `${protocol}://${hostHeader}/api/domru/stream-proxy?url=${encodeURIComponent(resolved)}${authParams}`;
+                let filename = "key.key";
+                try {
+                  const parsed = new URL(resolved);
+                  const last = parsed.pathname.substring(parsed.pathname.lastIndexOf("/") + 1);
+                  if (last) {
+                    filename = last;
+                  }
+                } catch {}
+                const proxied = `${protocol}://${hostHeader}/api/domru/stream-proxy/${filename}?url=${encodeURIComponent(resolved)}${authParams}`;
                 return `URI="${proxied}"`;
               } catch {
                 return match;
@@ -1066,7 +1082,16 @@ async function startServer() {
   };
 
   const getProxiedStreamUrl = (req: express.Request, targetUrl: string, client: any): string => {
-    let proxiedUrl = `${getBaseUrl(req)}/api/domru/stream-proxy?url=${encodeURIComponent(targetUrl)}`;
+    let filename = "index.m3u8";
+    try {
+      const parsed = new URL(targetUrl);
+      const last = parsed.pathname.substring(parsed.pathname.lastIndexOf("/") + 1);
+      if (last) {
+        filename = last;
+      }
+    } catch {}
+
+    let proxiedUrl = `${getBaseUrl(req)}/api/domru/stream-proxy/${filename}?url=${encodeURIComponent(targetUrl)}`;
     const token = client.token;
     const operatorId = client.refreshData.operatorId;
     const refreshToken = client.refreshData.refreshToken;
@@ -1797,41 +1822,9 @@ async function startServer() {
         const devId = reqDev.id;
 
         if (devId.startsWith("camera_")) {
-          const cameraId = devId.replace("camera_", "");
-          let streamUrl = "";
-
-          if (isDemo) {
-            // High-quality mock HLS stream segment
-            streamUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-          } else {
-            try {
-              const streamInfo = await client.getStreamUrl(cameraId);
-              if (streamInfo && streamInfo.url) {
-                // Return dynamic CORS-proxied dynamic URL
-                streamUrl = getProxiedStreamUrl(req, streamInfo.url, client);
-              } else {
-                streamUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-              }
-            } catch (err) {
-              console.error(`Yandex query: failed to resolve stream for camera ${cameraId}:`, err);
-              streamUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-            }
-          }
-
+          // The video_stream capability is action-only (retrievable: false) and must not be included in state query responses
           resDevices.push({
-            id: devId,
-            capabilities: [
-              {
-                type: "devices.capabilities.video_stream",
-                state: {
-                  instance: "get_stream",
-                  value: {
-                    stream_url: streamUrl,
-                    protocol: "hls"
-                  }
-                }
-              }
-            ]
+            id: devId
           });
         } else if (devId.startsWith("device_")) {
           // Openers are pulse actuators. Responding default closed (value: false) is appropriate.
@@ -1867,6 +1860,8 @@ async function startServer() {
   app.post("/v1.0/user/devices/action", async (req, res) => {
     const requestId = getRequestId(req);
     res.setHeader("X-Request-Id", requestId);
+
+    console.log("[YANDEX_ACTION_REQ]", JSON.stringify(req.body, null, 2));
 
     try {
       const { client, isDemo } = getDomruInstanceFromToken(req);
@@ -1964,12 +1959,15 @@ async function startServer() {
         });
       }
 
-      res.json({
+      const responsePayload = {
         request_id: requestId,
         payload: {
           devices: resDevices
         }
-      });
+      };
+
+      console.log("[YANDEX_ACTION_RES]", JSON.stringify(responsePayload, null, 2));
+      res.json(responsePayload);
 
     } catch (err: any) {
       console.error("Yandex action failure:", err);
