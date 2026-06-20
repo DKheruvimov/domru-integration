@@ -982,7 +982,11 @@ async function startServer() {
         cleanToken = token.substring(3);
       }
 
+      console.log(`[TOKEN_DEBUG] Raw token (first 60): ${token.substring(0, 60)}`);
+      console.log(`[TOKEN_DEBUG] Clean token: ${cleanToken}`);
+
       let creds = getCredentials(cleanToken);
+      console.log(`[TOKEN_DEBUG] getCredentials result: ${creds ? "FOUND" : "NOT_FOUND"}`);
 
       if (!creds) {
         try {
