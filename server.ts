@@ -767,13 +767,13 @@ async function startServer() {
 
       if (isM3u8) {
         // Force correct M3U8 content-type just in case
-        res.setHeader("Content-Type", contentType || "application/vnd.apple.mpegurl");
+        res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
         
         const text = await streamToString(axiosResponse.data);
         console.log(`[STREAM_PROXY] Content looks like M3U8. First 150 chars:\n${text.substring(0, 150)}`);
         const lines = text.split(/\r?\n/);
         const hostHeader = req.headers.host || "localhost:3000";
-        const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+        const protocol = (req.secure || req.headers["x-forwarded-proto"] === "https" || (!hostHeader.includes("localhost") && !hostHeader.includes("127.0.0.1"))) ? "https" : "http";
 
         // Assemble auth headers as query options to propagate credentials to subsegments / subresources
         let authParams = "";
@@ -1036,7 +1036,7 @@ async function startServer() {
   // Helper to construct fully qualified stream URLs in production environment
   const getBaseUrl = (req: express.Request) => {
     const host = req.headers.host || "localhost:3000";
-    const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+    const protocol = (req.secure || req.headers["x-forwarded-proto"] === "https" || (!host.includes("localhost") && !host.includes("127.0.0.1"))) ? "https" : "http";
     return `${protocol}://${host}`;
   };
 
