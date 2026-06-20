@@ -880,9 +880,6 @@ async function startServer() {
         return res.status(axiosResponse.status).send(`Stream request failed: ${axiosResponse.statusText || 'Error'}`);
       }
 
-      // Forward correct HTTP Status Code
-      res.status(axiosResponse.status);
-
       const contentType = String(axiosResponse.headers["content-type"] || "").toLowerCase();
       console.log(`[STREAM_PROXY] Remote Content-Type: ${contentType}`);
 
@@ -896,6 +893,14 @@ async function startServer() {
                    targetUrl.endsWith(".ts") ||
                    contentType.includes("mp2t") || 
                    contentType.includes("video/mp2t");
+
+      // Forward correct HTTP Status Code
+      // If it's a TS segment, we force 200 OK because we strip content-length and range headers to transcode the audio on the fly
+      if (isTs) {
+        res.status(200);
+      } else {
+        res.status(axiosResponse.status);
+      }
 
       // Copy key headers from remote response to client response
       const headersToForward = [
@@ -920,8 +925,9 @@ async function startServer() {
         if (isM3u8 && h === "content-length") {
           continue;
         }
-        // Exclude content-type for TS files as we will override it to video/mp2t
-        if (isTs && h === "content-type") {
+        // Exclude content-type, content-length, content-range, and accept-ranges for TS files
+        // as transcoding on the fly invalidates the original range metadata and changes segment size.
+        if (isTs && (h === "content-type" || h === "content-length" || h === "content-range" || h === "accept-ranges")) {
           continue;
         }
         // Exclude range and length headers for live streams to prevent connection drops and seeking issues
