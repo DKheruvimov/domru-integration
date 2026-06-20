@@ -1005,9 +1005,55 @@ async function startServer() {
         if (isTs) {
           // Force correct content-type for TS segments
           res.setHeader("Content-Type", "video/mp2t");
+
+          try {
+            const { spawn } = await import("child_process");
+            const ffmpeg = spawn("ffmpeg", [
+              "-i", "pipe:0",
+              "-map", "0:v",
+              "-map", "0:a?",
+              "-c:v", "copy",
+              "-c:a", "aac",
+              "-b:a", "128k",
+              "-f", "mpegts",
+              "pipe:1"
+            ]);
+
+            let closed = false;
+            const cleanup = () => {
+              if (!closed) {
+                closed = true;
+                try {
+                  ffmpeg.kill("SIGKILL");
+                } catch {}
+              }
+            };
+
+            ffmpeg.on("error", (err) => {
+              console.error("[STREAM_PROXY] Failed to spawn ffmpeg:", err);
+              cleanup();
+              // Fallback to direct pipe if ffmpeg fails to spawn
+              if (!res.headersSent) {
+                axiosResponse.data.pipe(res);
+              }
+            });
+
+            ffmpeg.on("exit", () => cleanup());
+            req.on("close", () => cleanup());
+            res.on("error", () => cleanup());
+            axiosResponse.data.on("error", () => cleanup());
+
+            // Pipe remote data stream into ffmpeg stdin, and ffmpeg stdout to client response
+            axiosResponse.data.pipe(ffmpeg.stdin);
+            ffmpeg.stdout.pipe(res);
+          } catch (spawnErr) {
+            console.error("[STREAM_PROXY] Error initiating transcoding:", spawnErr);
+            axiosResponse.data.pipe(res);
+          }
+        } else {
+          // High-speed low-latency stream-through chunk bypass using Node.js stream pipe
+          axiosResponse.data.pipe(res);
         }
-        // High-speed low-latency stream-through chunk bypass using Node.js stream pipe
-        axiosResponse.data.pipe(res);
       }
     } catch (err: any) {
       console.error("[STREAM_PROXY] Error fetching target stream url:", targetUrl, err);
