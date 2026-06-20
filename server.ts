@@ -1015,6 +1015,9 @@ async function startServer() {
           try {
             const { spawn } = await import("child_process");
             const ffmpeg = spawn("ffmpeg", [
+              "-loglevel", "warning",
+              "-copyts",
+              "-avoid_negative_ts", "disabled",
               "-i", "pipe:0",
               "-map", "0:v",
               "-map", "0:a?",
@@ -1022,6 +1025,7 @@ async function startServer() {
               "-c:a", "aac",
               "-b:a", "128k",
               "-f", "mpegts",
+              "-muxdelay", "0",
               "pipe:1"
             ]);
 
@@ -1034,6 +1038,10 @@ async function startServer() {
                 } catch {}
               }
             };
+
+            ffmpeg.stderr.on("data", (data) => {
+              console.error(`[STREAM_PROXY_FFMPEG] ${data.toString().trim()}`);
+            });
 
             ffmpeg.on("error", (err) => {
               console.error("[STREAM_PROXY] Failed to spawn ffmpeg:", err);
