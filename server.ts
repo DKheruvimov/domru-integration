@@ -1028,6 +1028,21 @@ async function startServer() {
             }
           }
 
+          // Case 3: Rewrite codecs in stream info tag to declare AAC instead of MP3
+          if (trimmed.startsWith("#EXT-X-STREAM-INF:")) {
+            trimmed = trimmed.replace(/CODECS="([^"]+)"/g, (match, codecsAttr) => {
+              const codecs = codecsAttr.split(",").map(c => c.trim());
+              const updatedCodecs = codecs.map(c => {
+                const lower = c.toLowerCase();
+                if (lower.includes("mp3") || lower.includes("mp4a.40.34") || lower.includes("mp4a.40.3") || lower.includes("mp4a.40.4")) {
+                  return "mp4a.40.2"; // Force AAC-LC
+                }
+                return c;
+              });
+              return `CODECS="${updatedCodecs.join(",")}"`;
+            });
+          }
+
           // Case 2: Tag lines specifying a subresource URI (e.g. encryption keys, e.g. URI="...")
           if (trimmed.includes("URI=")) {
             trimmed = trimmed.replace(/URI="([^"]+)"/g, (match, p1) => {
