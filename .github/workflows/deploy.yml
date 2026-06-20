@@ -56,13 +56,14 @@ jobs:
             docker pull dom-ru.cr.cloud.ru/yandex-domru-intercom-bridge:latest
             
             echo "==== Launching new container ===="
-            # We map port 3100 on the host to 3000 in the container and specify Yandex & Google DNS
+            # We map port 3100 on the host to 3000 in the container, mount data volume for token persistence, and specify Yandex & Google DNS
             docker run -d \
               --name yandex-domru-intercom-bridge \
               --restart always \
               --dns 77.88.8.8 \
               --dns 8.8.8.8 \
               -p 3100:3000 \
+              -v /home/denis/apps/domru-integration/data:/app/data \
               --log-opt max-size=10m --log-opt max-file=3 \
               dom-ru.cr.cloud.ru/yandex-domru-intercom-bridge:latest
             

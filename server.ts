@@ -678,6 +678,7 @@ async function startServer() {
           responseType: "stream",
           validateStatus: () => true,
           signal: abortController.signal,
+          timeout: 10000,
         });
 
         console.log(`[STREAM_PROXY] Remote Response Status: ${axiosResponse.status} ${axiosResponse.statusText}`);
@@ -732,6 +733,11 @@ async function startServer() {
                      contentType.includes("application/vnd.apple.mpegurl") ||
                      contentType.includes("application/x-mpegurl");
 
+      const isTs = targetUrl.includes(".ts") || 
+                   targetUrl.endsWith(".ts") ||
+                   contentType.includes("mp2t") || 
+                   contentType.includes("video/mp2t");
+
       // Copy key headers from remote response to client response
       const headersToForward = [
         "content-type",
@@ -753,6 +759,10 @@ async function startServer() {
       for (const h of headersToForward) {
         // Exclude content-length for M3U8 files as we will modify the content length by rewriting URLs
         if (isM3u8 && h === "content-length") {
+          continue;
+        }
+        // Exclude content-type for TS files as we will override it to video/mp2t
+        if (isTs && h === "content-type") {
           continue;
         }
         // Exclude range and length headers for live streams to prevent connection drops and seeking issues
@@ -817,6 +827,10 @@ async function startServer() {
 
         res.send(rewrittenLines.join("\n"));
       } else {
+        if (isTs) {
+          // Force correct content-type for TS segments
+          res.setHeader("Content-Type", "video/mp2t");
+        }
         // High-speed low-latency stream-through chunk bypass using Node.js stream pipe
         axiosResponse.data.pipe(res);
       }
