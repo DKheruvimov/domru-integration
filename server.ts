@@ -125,13 +125,17 @@ function parseMpegTsCodecs(buffer: Buffer): string[] {
             let codecName = `Unknown (0x${streamType.toString(16)})`;
             if (streamType === 0x1b) codecName = "H.264 Video (0x1b)";
             else if (streamType === 0x24) codecName = "H.265/HEVC Video (0x24)";
-            else if (streamType === 0x0f) codecName = "AAC Audio (0x0f)";
+            else if (streamType === 0x02) codecName = "MPEG-2 Audio (0x02)";
             else if (streamType === 0x03 || streamType === 0x04) codecName = "MP3 Audio (0x03/0x04)";
-            else if (streamType === 0x06) codecName = "AC-3/Subtitle/Private (0x06)";
+            else if (streamType === 0x0f) codecName = "AAC Audio (0x0f)";
+            else if (streamType === 0x11) codecName = "LATM AAC Audio (0x11)";
             else if (streamType === 0x80) codecName = "G.711 PCMA/LPCM (0x80)";
-            else if (streamType === 0x81) codecName = "AC-3 Audio (0x81)";
+            else if (streamType === 0x81 || streamType === 0x85) codecName = "AC-3 Audio (0x81/0x85)";
             else if (streamType === 0x82) codecName = "SCTE-35 (0x82)";
-            else if (streamType === 0x87) codecName = "E-AC-3 Audio (0x87)";
+            else if (streamType === 0x83) codecName = "LPCM/PCMU Audio (0x83)";
+            else if (streamType === 0x86 || streamType === 0x87) codecName = "E-AC-3 Audio (0x86/0x87)";
+            else if (streamType === 0x8a) codecName = "DTS Audio (0x8a)";
+            else if (streamType === 0x06) codecName = "AC-3/Subtitle/Private (0x06)";
             
             codecs.push(`PID ${elementaryPid}: ${codecName}`);
             streamOffset += 5 + esInfoLength;
@@ -1028,19 +1032,28 @@ async function startServer() {
             }
           }
 
-          // Case 3: Rewrite codecs in stream info tag to declare AAC instead of MP3
+          // Case 3: Rewrite codecs in stream info tag to declare AAC instead of MP3, and guarantee an audio codec
           if (trimmed.startsWith("#EXT-X-STREAM-INF:")) {
-            trimmed = trimmed.replace(/CODECS="([^"]+)"/g, (match, codecsAttr) => {
-              const codecs = codecsAttr.split(",").map(c => c.trim());
-              const updatedCodecs = codecs.map(c => {
-                const lower = c.toLowerCase();
-                if (lower.includes("mp3") || lower.includes("mp4a.40.34") || lower.includes("mp4a.40.3") || lower.includes("mp4a.40.4")) {
-                  return "mp4a.40.2"; // Force AAC-LC
+            if (trimmed.includes("CODECS=")) {
+              trimmed = trimmed.replace(/CODECS="([^"]+)"/g, (match, codecsAttr) => {
+                const codecs = codecsAttr.split(",").map(c => c.trim());
+                let hasAudio = false;
+                const updatedCodecs = codecs.map(c => {
+                  const lower = c.toLowerCase();
+                  if (lower.includes("mp3") || lower.includes("mp4a") || lower.includes("aac")) {
+                    hasAudio = true;
+                    return "mp4a.40.2"; // Force AAC-LC
+                  }
+                  return c;
+                });
+                if (!hasAudio) {
+                  updatedCodecs.push("mp4a.40.2");
                 }
-                return c;
+                return `CODECS="${updatedCodecs.join(",")}"`;
               });
-              return `CODECS="${updatedCodecs.join(",")}"`;
-            });
+            } else {
+              trimmed += ',CODECS="avc1.4d401f,mp4a.40.2"';
+            }
           }
 
           // Case 2: Tag lines specifying a subresource URI (e.g. encryption keys, e.g. URI="...")
@@ -1074,21 +1087,66 @@ async function startServer() {
           res.setHeader("Content-Type", "video/mp2t");
 
           try {
+            // Buffer the TS segment data to inspect and parse its codecs
+            const chunks: Buffer[] = [];
+            for await (const chunk of axiosResponse.data) {
+              chunks.push(chunk);
+            }
+            const segmentBuffer = Buffer.concat(chunks);
+
+            const codecs = parseMpegTsCodecs(segmentBuffer);
+            const hasAudio = codecs.some(c => c.toLowerCase().includes("audio"));
+            console.log(`[STREAM_PROXY] Segment codecs: [${codecs.join(", ")}], hasAudio=${hasAudio}`);
+
             const { spawn } = await import("child_process");
-            const ffmpeg = spawn("ffmpeg", [
-              "-loglevel", "warning",
-              "-copyts",
-              "-avoid_negative_ts", "disabled",
-              "-i", "pipe:0",
-              "-map", "0:v",
-              "-map", "0:a?",
-              "-c:v", "copy",
-              "-c:a", "aac",
-              "-b:a", "128k",
-              "-f", "mpegts",
-              "-muxdelay", "0",
-              "pipe:1"
-            ]);
+            let ffmpegArgs: string[] = [];
+
+            if (hasAudio) {
+              // Input has audio stream: copy video track and transcode audio to AAC
+              ffmpegArgs = [
+                "-loglevel", "warning",
+                "-copyts",
+                "-avoid_negative_ts", "disabled",
+                "-f", "mpegts",
+                "-probesize", "5000000",
+                "-analyzeduration", "5000000",
+                "-i", "pipe:0",
+                "-map", "0:v",
+                "-map", "0:a",
+                "-c:v", "copy",
+                "-c:a", "aac",
+                "-b:a", "128k",
+                "-af", "aresample=async=1",
+                "-f", "mpegts",
+                "-muxdelay", "0",
+                "pipe:1"
+              ];
+            } else {
+              // Input has no audio: merge with a silent audio stream (anullsrc) to prevent players failing
+              // NOTE: we do NOT use -copyts here because anullsrc generates PTS from 0
+              // while the video segment has an arbitrary PTS offset — mixing them with -copyts
+              // would produce a huge gap that breaks HLS segment continuity.
+              ffmpegArgs = [
+                "-loglevel", "warning",
+                "-f", "lavfi",
+                "-i", "anullsrc=channel_layout=mono:sample_rate=8000",
+                "-f", "mpegts",
+                "-probesize", "5000000",
+                "-analyzeduration", "5000000",
+                "-i", "pipe:0",
+                "-map", "1:v",
+                "-map", "0:a",
+                "-c:v", "copy",
+                "-c:a", "aac",
+                "-b:a", "64k",
+                "-shortest",
+                "-f", "mpegts",
+                "-muxdelay", "0",
+                "pipe:1"
+              ];
+            }
+
+            const ffmpeg = spawn("ffmpeg", ffmpegArgs);
 
             let closed = false;
             const cleanup = () => {
@@ -1109,21 +1167,23 @@ async function startServer() {
               cleanup();
               // Fallback to direct pipe if ffmpeg fails to spawn
               if (!res.headersSent) {
-                axiosResponse.data.pipe(res);
+                res.send(segmentBuffer);
               }
             });
 
             ffmpeg.on("exit", () => cleanup());
             req.on("close", () => cleanup());
             res.on("error", () => cleanup());
-            axiosResponse.data.on("error", () => cleanup());
 
-            // Pipe remote data stream into ffmpeg stdin, and ffmpeg stdout to client response
-            axiosResponse.data.pipe(ffmpeg.stdin);
+            // Write buffered data to ffmpeg stdin and pipe stdout to client response
+            ffmpeg.stdin.write(segmentBuffer);
+            ffmpeg.stdin.end();
             ffmpeg.stdout.pipe(res);
           } catch (spawnErr) {
             console.error("[STREAM_PROXY] Error initiating transcoding:", spawnErr);
-            axiosResponse.data.pipe(res);
+            if (!res.headersSent) {
+              axiosResponse.data.pipe(res);
+            }
           }
         } else {
           // High-speed low-latency stream-through chunk bypass using Node.js stream pipe
