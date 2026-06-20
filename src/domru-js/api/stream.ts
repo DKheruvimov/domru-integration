@@ -66,13 +66,30 @@ export async function getStreamUrl(
 			ctx.log.debug(`Полный ответ: ${JSON.stringify(json, null, 2).substring(0, 1000)}`);
 
 			const inner = json.data ?? {};
-			const streamUrl = extractStreamUrl(inner);
+			let streamUrl = extractStreamUrl(inner);
 
 			if (!streamUrl) {
 				ctx.log.warn(
 					`URL потока не найден. Доступные ключи: [${Object.keys(inner).join(", ")}]`,
 				);
 				continue;
+			}
+
+			// Translate RTSP/FLV stream URLs to HLS format for wider compatibility (especially Yandex Smart Home)
+			if (streamUrl.includes("/rtsp/")) {
+				try {
+					let translatedUrl = streamUrl.replace("/rtsp/", "/hls/");
+					const parsed = new URL(translatedUrl);
+					const pathParts = parsed.pathname.split("/");
+					if (pathParts.length > 0) {
+						pathParts[pathParts.length - 1] = "playlist.m3u8";
+					}
+					parsed.pathname = pathParts.join("/");
+					streamUrl = parsed.toString();
+					ctx.log.info(`Транслирован RTSP поток в HLS: ${streamUrl}`);
+				} catch (e) {
+					ctx.log.warn(`Не удалось транслировать RTSP в HLS: ${String(e)}`);
+				}
 			}
 
 			return { url: streamUrl, type: detectStreamType(streamUrl) };

@@ -167,6 +167,12 @@ async function startServer() {
       refreshToken,
       operatorId,
       timeout: 10000,
+      logger: {
+        info: (msg: string, ...args: any[]) => console.log(`[DomruClient:INFO] ${msg}`, ...args),
+        warn: (msg: string, ...args: any[]) => console.warn(`[DomruClient:WARN] ${msg}`, ...args),
+        error: (msg: string, ...args: any[]) => console.error(`[DomruClient:ERROR] ${msg}`, ...args),
+        debug: (msg: string, ...args: any[]) => console.log(`[DomruClient:DEBUG] ${msg}`, ...args),
+      }
     });
 
     // Manually push access token if already provided to save login cycles
@@ -564,21 +570,9 @@ async function startServer() {
     try {
       const client = getDomruInstance(req);
       const stream = await client.getStreamUrl(cameraId);
-      if (stream && stream.url && !stream.url.toLowerCase().startsWith("rtsp://")) {
+      if (stream && stream.url) {
         const originalUrl = stream.url;
-        // Wrap with our secure gateway proxy to bypass browser sandboxing restrictions (CORS & HTTPS Mixed Content)
-        const login = req.headers["x-domru-login"] || "";
-        const password = req.headers["x-domru-password"] || "";
-        const token = req.headers["x-domru-token"] || "";
-        const operatorId = req.headers["x-domru-operator-id"] || "";
-        const refreshToken = req.headers["x-domru-refresh-token"] || "";
-
-        let proxiedUrl = `/api/domru/stream-proxy?url=${encodeURIComponent(originalUrl)}`;
-        if (login) proxiedUrl += `&login=${encodeURIComponent(login as string)}`;
-        if (password) proxiedUrl += `&password=${encodeURIComponent(password as string)}`;
-        if (token) proxiedUrl += `&token=${encodeURIComponent(token as string)}`;
-        if (operatorId) proxiedUrl += `&operatorId=${encodeURIComponent(operatorId as string)}`;
-        if (refreshToken) proxiedUrl += `&refreshToken=${encodeURIComponent(refreshToken as string)}`;
+        const proxiedUrl = getProxiedStreamUrl(req, originalUrl, client);
 
         console.log(`[STREAM_ROUTE] Generated secure authenticated proxy stream URL for Camera ${cameraId}`);
         res.json({
@@ -1012,6 +1006,12 @@ async function startServer() {
         refreshToken: creds.refreshToken,
         operatorId: creds.operatorId,
         timeout: 10000,
+        logger: {
+          info: (msg: string, ...args: any[]) => console.log(`[DomruClient:INFO] ${msg}`, ...args),
+          warn: (msg: string, ...args: any[]) => console.warn(`[DomruClient:WARN] ${msg}`, ...args),
+          error: (msg: string, ...args: any[]) => console.error(`[DomruClient:ERROR] ${msg}`, ...args),
+          debug: (msg: string, ...args: any[]) => console.log(`[DomruClient:DEBUG] ${msg}`, ...args),
+        }
       });
 
       if (creds.token) {
@@ -1038,6 +1038,18 @@ async function startServer() {
     const host = req.headers.host || "localhost:3000";
     const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
     return `${protocol}://${host}`;
+  };
+
+  const getProxiedStreamUrl = (req: express.Request, targetUrl: string, client: any): string => {
+    let proxiedUrl = `${getBaseUrl(req)}/api/domru/stream-proxy?url=${encodeURIComponent(targetUrl)}`;
+    const token = client.token;
+    const operatorId = client.refreshData.operatorId;
+    const refreshToken = client.refreshData.refreshToken;
+
+    if (token) proxiedUrl += `&token=${encodeURIComponent(token)}`;
+    if (operatorId) proxiedUrl += `&operatorId=${encodeURIComponent(operatorId)}`;
+    if (refreshToken) proxiedUrl += `&refreshToken=${encodeURIComponent(refreshToken)}`;
+    return proxiedUrl;
   };
 
   // Register OAuth authorization credentials to get a short UUID code (prevents Yandex database truncation errors)
@@ -1606,12 +1618,13 @@ async function startServer() {
           // Concurrently fetch all devices across all available places
           await Promise.all(
             places.map(async (place) => {
+              const targetPlaceId = place.place?.id || place.id;
               try {
-                const devs = await client.getDevices(place.id);
-                devicesByPlace[place.id] = devs;
+                const devs = await client.getDevices(targetPlaceId);
+                devicesByPlace[targetPlaceId] = devs;
               } catch (err) {
-                console.error(`Yandex recovery: failed to fetch devices for place ${place.id}:`, err);
-                devicesByPlace[place.id] = [];
+                console.error(`Yandex recovery: failed to fetch devices for place ${targetPlaceId}:`, err);
+                devicesByPlace[targetPlaceId] = [];
               }
             })
           );
@@ -1651,11 +1664,12 @@ async function startServer() {
 
       // Map Intercom / Door / Gate physical openers
       for (const place of places) {
-        const devs = devicesByPlace[place.id] || [];
-        const address = place.place?.address?.visibleAddress || `Договор ${place.id}`;
+        const targetPlaceId = place.place?.id || place.id;
+        const devs = devicesByPlace[targetPlaceId] || [];
+        const address = place.place?.address?.visibleAddress || `Договор ${targetPlaceId}`;
 
         for (const dev of devs) {
-          const deviceId = `device_${place.id}_${dev.id}`;
+          const deviceId = `device_${targetPlaceId}_${dev.id}`;
           // Map Dom.ru device types to valid Yandex Smart Home device types
           // Reference: https://yandex.ru/dev/dialogs/smart-home/doc/ru/concepts/device-types
           let yandexType = "devices.types.openable.door_lock"; // intercom/door → openable.door_lock
@@ -1771,7 +1785,7 @@ async function startServer() {
               const streamInfo = await client.getStreamUrl(cameraId);
               if (streamInfo && streamInfo.url) {
                 // Return dynamic CORS-proxied dynamic URL
-                streamUrl = `${getBaseUrl(req)}/api/domru/stream-proxy?url=${encodeURIComponent(streamInfo.url)}`;
+                streamUrl = getProxiedStreamUrl(req, streamInfo.url, client);
               } else {
                 streamUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
               }
@@ -1858,7 +1872,7 @@ async function startServer() {
               } else {
                 const streamInfo = await client.getStreamUrl(cameraId);
                 if (streamInfo?.url) {
-                  streamUrl = `${getBaseUrl(req)}/api/domru/stream/${cameraId}`;
+                  streamUrl = getProxiedStreamUrl(req, streamInfo.url, client);
                 }
               }
             } catch (streamErr) {
