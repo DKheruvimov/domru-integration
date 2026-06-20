@@ -644,14 +644,26 @@ async function startServer() {
       }
 
       const originalUrl = stream.url;
-      let codecs: string[] = [];
-      let playlistText = "";
-      let firstSegmentUrl = "";
-      let fetchError = "";
+      const proxiedPlaylistUrl = getProxiedStreamUrl(req, originalUrl, client);
 
+      // Check if ffmpeg is installed and functional
+      let ffmpegInstalled = false;
+      let ffmpegVersion = "";
+      try {
+        const { execSync } = await import("child_process");
+        ffmpegVersion = execSync("ffmpeg -version").toString().split("\n")[0];
+        ffmpegInstalled = true;
+      } catch (err: any) {
+        ffmpegVersion = `Error: ${err.message}`;
+      }
+
+      // Fetch original codecs
+      let originalCodecs: string[] = [];
+      let originalPlaylistText = "";
+      let originalFirstSegmentUrl = "";
+      let originalFetchError = "";
       if (originalUrl.includes(".m3u8")) {
         try {
-          // Fetch m3u8 playlist
           const playListRes = await axios.get(originalUrl, {
             timeout: 5000,
             headers: {
@@ -660,16 +672,13 @@ async function startServer() {
               "Operator": client.refreshData.operatorId ? String(client.refreshData.operatorId) : ""
             }
           });
-          playlistText = playListRes.data;
-
-          const lines = playlistText.split(/\r?\n/);
+          originalPlaylistText = playListRes.data;
+          const lines = originalPlaylistText.split(/\r?\n/);
           let firstTsLine = lines.find(line => line.trim() && !line.trim().startsWith("#"));
           if (firstTsLine) {
             firstTsLine = firstTsLine.trim();
-            firstSegmentUrl = new URL(firstTsLine, originalUrl).toString();
-
-            // Fetch first 150KB of the TS segment
-            const tsRes = await axios.get(firstSegmentUrl, {
+            originalFirstSegmentUrl = new URL(firstTsLine, originalUrl).toString();
+            const tsRes = await axios.get(originalFirstSegmentUrl, {
               responseType: "arraybuffer",
               timeout: 8000,
               headers: {
@@ -679,25 +688,62 @@ async function startServer() {
                 "Operator": client.refreshData.operatorId ? String(client.refreshData.operatorId) : ""
               }
             });
-            const segmentBuf = Buffer.from(tsRes.data);
-            codecs = parseMpegTsCodecs(segmentBuf);
+            originalCodecs = parseMpegTsCodecs(Buffer.from(tsRes.data));
           } else {
-            fetchError = "No TS segment found in playlist";
+            originalFetchError = "No TS segment found in original playlist";
           }
         } catch (err: any) {
-          fetchError = err.message || String(err);
+          originalFetchError = err.message || String(err);
         }
       } else {
-        fetchError = `Stream is not HLS (type: ${stream.type}). URL: ${originalUrl}`;
+        originalFetchError = `Stream is not HLS (type: ${stream.type})`;
+      }
+
+      // Fetch proxied codecs via local loopback to avoid DNS loopback issues in Docker
+      const localBaseUrl = `http://127.0.0.1:${process.env.PORT || 3000}`;
+      const relativePlaylistUrl = proxiedPlaylistUrl.replace(/https?:\/\/[^\/]+/, localBaseUrl);
+
+      let proxiedPlaylistText = "";
+      let proxiedFirstSegmentUrl = "";
+      let proxiedCodecs: string[] = [];
+      let transcodeError = "";
+
+      try {
+        const proxiedPlayListRes = await axios.get(relativePlaylistUrl, { timeout: 5000 });
+        proxiedPlaylistText = proxiedPlayListRes.data;
+        const lines = proxiedPlaylistText.split(/\r?\n/);
+        let firstTsLine = lines.find(line => line.trim() && !line.trim().startsWith("#"));
+        if (firstTsLine) {
+          firstTsLine = firstTsLine.trim();
+          const localSegmentUrl = firstTsLine.replace(/https?:\/\/[^\/]+/, localBaseUrl);
+          proxiedFirstSegmentUrl = firstTsLine;
+
+          const tsRes = await axios.get(localSegmentUrl, {
+            responseType: "arraybuffer",
+            timeout: 10000
+          });
+          proxiedCodecs = parseMpegTsCodecs(Buffer.from(tsRes.data));
+        } else {
+          transcodeError = "No TS segment found in proxied playlist";
+        }
+      } catch (err: any) {
+        transcodeError = err.message || String(err);
       }
 
       res.json({
         type: stream.type,
+        ffmpegInstalled,
+        ffmpegVersion,
         originalUrl,
-        firstSegmentUrl,
-        codecs,
-        fetchError,
-        playlistExcerpt: playlistText ? playlistText.substring(0, 500) : undefined
+        proxiedPlaylistUrl,
+        originalFirstSegmentUrl,
+        proxiedFirstSegmentUrl,
+        originalCodecs,
+        proxiedCodecs,
+        originalFetchError,
+        transcodeError,
+        originalPlaylistExcerpt: originalPlaylistText ? originalPlaylistText.substring(0, 500) : undefined,
+        proxiedPlaylistExcerpt: proxiedPlaylistText ? proxiedPlaylistText.substring(0, 500) : undefined
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message || "Failed to debug codecs" });
