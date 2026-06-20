@@ -1672,7 +1672,7 @@ async function startServer() {
           const deviceId = `device_${targetPlaceId}_${dev.id}`;
           // Map Dom.ru device types to valid Yandex Smart Home device types
           // Reference: https://yandex.ru/dev/dialogs/smart-home/doc/ru/concepts/device-types
-          let yandexType = "devices.types.openable.door_lock"; // intercom/door → openable.door_lock
+          let yandexType = "devices.types.smart_lock"; // intercom/door → smart_lock
 
           if (dev.type === "gate" || dev.type === "barrier") {
             yandexType = "devices.types.openable"; // gate/barrier → openable
