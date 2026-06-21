@@ -67,9 +67,9 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300" id="app_root">
+    <div className="min-h-screen bg-zinc-100 dark:bg-[#0B0F12] text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300" id="app_root">
       {credentials === null ? (
-        <div className="flex flex-col items-center justify-center min-h-screen p-4 relative bg-zinc-50 dark:bg-zinc-950 transition-colors duration-300">
+        <div className="flex flex-col items-center justify-center min-h-screen p-4 relative bg-zinc-100 dark:bg-[#0B0F12] transition-colors duration-300">
           {/* Floating Theme Switcher on Login View */}
           <div className="absolute top-6 right-6 flex items-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md p-1.5 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800" id="floating_theme_selector">
             <button
@@ -106,10 +106,12 @@ export default function App() {
               <Monitor className="w-4 h-4" />
             </button>
           </div>
-          <LoginForm onLoginSuccess={handleLoginSuccess} />
+          <div className="dark w-full max-w-md flex flex-col items-center">
+            <LoginForm onLoginSuccess={handleLoginSuccess} />
+          </div>
         </div>
       ) : (
-        <div className="flex flex-col min-h-screen">
+        <div className="dark flex flex-col min-h-screen flex-1 text-zinc-900 dark:text-zinc-100 font-sans">
           {/* Header Bar */}
           <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-805 sticky top-0 z-30 shadow-xs" id="main_header">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
