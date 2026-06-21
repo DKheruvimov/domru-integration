@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AppCredentials } from "../types";
-import { Key, User, ShieldCheck, Cpu, Code, MessageSquare, Phone, MapPin, ChevronRight, Lock, ArrowLeft } from "lucide-react";
+import { Key, User, ShieldCheck, Cpu, Code, MessageSquare, Phone, MapPin, ChevronRight, Lock, ArrowLeft, Home, Settings } from "lucide-react";
 
 interface LoginFormProps {
   onLoginSuccess: (creds: AppCredentials) => void;
@@ -31,6 +31,22 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [smsAccounts, setSmsAccounts] = useState<SmsAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<SmsAccount | null>(null);
   const [otpCode, setOtpCode] = useState("");
+
+  // Автоматическое заполнение полей в режиме демо для удобства тестирования
+  useEffect(() => {
+    if (isDemo) {
+      if (authMethod === "password") {
+        setLogin("demo_user");
+        setPassword("demo-password");
+      } else {
+        setPhone("79991234567");
+      }
+    } else {
+      setLogin("");
+      setPassword("");
+      setPhone("");
+    }
+  }, [isDemo, authMethod]);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,80 +237,45 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto animate-fade-in px-2 sm:px-0" id="login_form_container">
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-[1.5rem] sm:rounded-[2rem] shadow-xl overflow-hidden p-4 sm:p-8">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center p-2.5 sm:p-3 bg-[#E30613]/10 dark:bg-[#E30613]/15 text-[#E30613] rounded-2xl mb-3 sm:mb-4">
-            <Cpu className="w-7 h-7 sm:w-8 sm:h-8 animate-pulse" />
+    <div className="w-full max-w-md mx-auto animate-fade-in px-3 sm:px-0" id="login_form_container">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800/80 rounded-[2rem] shadow-xl overflow-hidden p-6 sm:p-8">
+        
+        {/* Dom.ru Signature Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center gap-2 mb-4">
+            <div className="bg-[#E30613] w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shadow-[#E30613]/25 transform hover:rotate-6 transition-all duration-300">
+              <Home className="w-6 h-6 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="flex items-center gap-1">
+                <span className="font-display font-black text-2xl tracking-tighter text-zinc-900 dark:text-white">
+                  дом
+                </span>
+                <span className="bg-[#E30613] text-white text-[13px] font-black px-2 py-0.5 rounded-full inline-flex items-center justify-center min-w-[28px] h-6 shadow-sm">
+                  ru
+                </span>
+              </div>
+              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-extrabold uppercase tracking-widest block mt-0.5">
+                Умный Дом
+              </span>
+            </div>
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-zinc-950 dark:text-white tracking-tight font-display">
-            Dom.ru Proptech Client
+          <h2 className="text-xl font-extrabold text-zinc-900 dark:text-white tracking-tight font-display">
+            Вход в личный кабинет
           </h2>
-          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            Интерактивный пульт управления умными устройствами
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 font-medium">
+            Управление домофоном, камерами и услугами доступа
           </p>
         </div>
 
-        {/* Sandbox vs Real API Toggle */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-5 sm:mb-6 p-1 bg-zinc-100 dark:bg-zinc-800 rounded-2xl">
+        {/* Auth Method Navigation Tabs */}
+        <div className="flex bg-zinc-100 dark:bg-zinc-800/60 p-1 rounded-full mb-6 border border-zinc-200/20 dark:border-zinc-700/30">
           <button
             type="button"
-            className={`py-2 text-[10px] sm:text-xs font-semibold rounded-xl flex items-center justify-center gap-1 transition-all ${
-              isDemo
-                ? "bg-white dark:bg-zinc-700 text-[#E30613] dark:text-red-400 shadow-sm"
-                : "text-zinc-650 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-            }`}
-            onClick={() => {
-              setIsDemo(true);
-              handleResetSms();
-            }}
-            id="mode_demo_btn"
-          >
-            <Code className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            Песочница (Демо)
-          </button>
-          <button
-            type="button"
-            className={`py-2 text-[10px] sm:text-xs font-semibold rounded-xl flex items-center justify-center gap-1 transition-all ${
-              !isDemo
-                ? "bg-white dark:bg-zinc-700 text-[#E30613] dark:text-red-400 shadow-sm"
-                : "text-zinc-650 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-            }`}
-            onClick={() => {
-              setIsDemo(false);
-              handleResetSms();
-            }}
-            id="mode_real_btn"
-          >
-            <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            Реальный API
-          </button>
-        </div>
-
-        {/* Auth Method Toggle tabs */}
-        <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-5 sm:mb-6 border-b border-zinc-100 dark:border-zinc-805 pb-3">
-          <button
-            type="button"
-            className={`py-1.5 text-[10px] sm:text-xs font-medium rounded-xl flex items-center justify-center gap-1 transition-all ${
-              authMethod === "password"
-                ? "bg-red-500/5 dark:bg-red-500/10 text-[#E30613] dark:text-red-350 font-semibold shadow-2xs"
-                : "text-zinc-550 hover:text-zinc-850 dark:hover:text-zinc-200"
-            }`}
-            onClick={() => {
-              setAuthMethod("password");
-              setError("");
-            }}
-            id="tab_password_btn"
-          >
-            <Key className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            По логину и паролю
-          </button>
-          <button
-            type="button"
-            className={`py-1.5 text-[10px] sm:text-xs font-medium rounded-xl flex items-center justify-center gap-1 transition-all ${
+            className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all duration-200 ${
               authMethod === "sms"
-                ? "bg-red-500/5 dark:bg-red-500/10 text-[#E30613] dark:text-red-350 font-semibold shadow-2xs"
-                : "text-zinc-550 hover:text-zinc-850 dark:hover:text-zinc-200"
+                ? "bg-[#E30613] text-white shadow-md shadow-[#E30613]/15"
+                : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-250"
             }`}
             onClick={() => {
               setAuthMethod("sms");
@@ -302,13 +283,27 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             }}
             id="tab_sms_btn"
           >
-            <MessageSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            По СМС коду
+            По СМС-коду
+          </button>
+          <button
+            type="button"
+            className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all duration-200 ${
+              authMethod === "password"
+                ? "bg-[#E30613] text-white shadow-md shadow-[#E30613]/15"
+                : "text-zinc-550 hover:text-zinc-800 dark:hover:text-zinc-250"
+            }`}
+            onClick={() => {
+              setAuthMethod("password");
+              setError("");
+            }}
+            id="tab_password_btn"
+          >
+            По паролю
           </button>
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-xs text-red-600 dark:text-red-400 rounded-xl" id="auth_error_box">
+          <div className="mb-6 p-3.5 bg-red-50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/40 text-xs text-red-655 dark:text-red-400 rounded-2xl" id="auth_error_box">
             {error}
           </div>
         )}
@@ -316,61 +311,47 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         {/* --- METHOD: PASSWORD --- */}
         {authMethod === "password" && (
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            {!isDemo && (
-              <>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">
-                    Логин или № Договора
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                    <input
-                      type="text"
-                      required
-                      value={login}
-                      onChange={(e) => setLogin(e.target.value)}
-                      placeholder="79000000000"
-                      className="w-full pl-10 pr-4 py-2 text-sm bg-zinc-55 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E30613]/20 focus:border-[#E30613] text-zinc-900 dark:text-white"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">
-                    Пароль
-                  </label>
-                  <div className="relative">
-                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pl-10 pr-4 py-2 text-sm bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E30613]/20 focus:border-[#E30613] text-zinc-900 dark:text-white"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            {isDemo ? (
-              <div className="py-4 text-center text-xs text-zinc-500 dark:text-zinc-400 bg-red-50/40 dark:bg-red-950/10 border border-red-100/50 dark:border-red-900/20 rounded-xl px-4">
-                ✨ Вы запускаете клиент в режиме имитации. Будут сгенерированы детальные тестовые адреса, домофоны и видеопотоки. Отличный вариант для быстрого знакомства с библиотекой!
+            <div>
+              <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-1.5 ml-1">
+                Логин или № Договора
+              </label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <input
+                  type="text"
+                  required
+                  value={login}
+                  onChange={(e) => setLogin(e.target.value)}
+                  placeholder="79000000000 или 123456789"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800/45 border border-zinc-200 dark:border-zinc-800/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E30613]/15 focus:border-[#E30613] text-zinc-900 dark:text-white transition"
+                />
               </div>
-            ) : (
-              <div className="py-4 text-xs text-zinc-500 dark:text-zinc-400 bg-amber-50/40 dark:bg-amber-950/10 border border-amber-100/50 dark:border-amber-900/20 rounded-xl px-4 flex gap-2">
-                ⚠️ Запросы к Dom.ru API выполняются через серверный HTTPS-прокси. Ваши пароли не логируются и используются только для прямой авторизации в Ertelecom.
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-1.5 ml-1">
+                Пароль
+              </label>
+              <div className="relative">
+                <Key className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800/45 border border-zinc-200 dark:border-zinc-800/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E30613]/15 focus:border-[#E30613] text-zinc-900 dark:text-white transition"
+                />
               </div>
-            )}
+            </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 text-sm font-semibold text-white bg-[#E30613] hover:bg-[#c20510] rounded-xl transition duration-150 disabled:opacity-50 shadow-md flex items-center justify-center font-display uppercase tracking-wider"
+              className="w-full mt-2 py-3 text-xs font-bold text-white bg-[#E30613] hover:bg-[#c20510] active:scale-[0.98] rounded-full transition disabled:opacity-50 shadow-md shadow-[#E30613]/15 uppercase tracking-wider flex items-center justify-center gap-1.5"
               id="login_submit_btn"
             >
-              {loading ? "Аутентификация…" : isDemo ? "Запустить песочницу" : "Войти"}
+              {loading ? "Аутентификация…" : isDemo ? "Войти в демо-кабинет" : "Войти"}
             </button>
           </form>
         )}
@@ -382,35 +363,29 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             {smsStep === "phone" && (
               <form onSubmit={handleFetchSmsAccounts} className="space-y-4" id="sms_phone_step_form">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">
+                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-1.5 ml-1">
                     Номер мобильного телефона
                   </label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                     <input
                       type="tel"
                       required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="79001234567"
-                      className="w-full pl-10 pr-4 py-2 text-sm bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E30613]/20 focus:border-[#E30613] text-zinc-900 dark:text-white"
+                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800/45 border border-zinc-200 dark:border-zinc-800/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E30613]/15 focus:border-[#E30613] text-zinc-900 dark:text-white transition"
                     />
                   </div>
-                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-2">
-                    Введите 11 цифр номера, начиная с 7. Например, 79234567890
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-2 font-medium">
+                    Введите 11 цифр номера телефона, начиная с 7. Например, 79234567890
                   </p>
                 </div>
-
-                {isDemo && (
-                  <div className="py-4 text-center text-xs text-zinc-500 dark:text-zinc-400 bg-red-50/40 dark:bg-red-950/10 border border-red-100/50 dark:border-red-900/20 rounded-xl px-4">
-                    🛠️ Вы находитесь в демо-режиме (Имитация). Вы можете использовать любой тестовый телефон, чтобы воспроизвести шаги авторизации по СМС!
-                  </div>
-                )}
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-2.5 text-sm font-semibold text-white bg-[#E30613] hover:bg-[#c20510] rounded-xl transition duration-150 disabled:opacity-50 shadow-md flex items-center justify-center gap-2 font-display uppercase tracking-wider"
+                  className="w-full py-3 text-xs font-bold text-white bg-[#E30613] hover:bg-[#c20510] active:scale-[0.98] rounded-full transition disabled:opacity-50 shadow-md shadow-[#E30613]/15 uppercase tracking-wider flex items-center justify-center gap-2"
                   id="sms_find_contracts_btn"
                 >
                   {loading ? "Поиск договоров…" : "Найти договоры"}
@@ -425,18 +400,18 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 <div className="flex items-center justify-between mb-2">
                   <button
                     onClick={handleResetSms}
-                    className="text-xs text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
+                    className="text-xs text-[#E30613] dark:text-red-400 hover:underline flex items-center gap-1 font-bold"
                     id="sms_back_to_phone_btn"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     К вводу телефона
                   </button>
-                  <span className="text-xs text-zinc-400 font-mono">
+                  <span className="text-xs text-zinc-400 font-mono font-bold bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-lg">
                     {phone}
                   </span>
                 </div>
 
-                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400">
                   Выберите договор для входа:
                 </label>
 
@@ -445,20 +420,20 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     <div
                       key={idx}
                       onClick={() => setSelectedAccount(acc)}
-                      className={`p-3.5 rounded-xl border text-left cursor-pointer transition ${
+                      className={`p-3.5 rounded-2xl border text-left cursor-pointer transition ${
                         selectedAccount?.accountId === acc.accountId
-                          ? "border-teal-500 bg-teal-50/20 dark:bg-teal-950/20"
-                          : "border-zinc-200 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/30 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50"
+                          ? "border-[#E30613] bg-[#E30613]/5 dark:bg-[#E30613]/10"
+                          : "border-zinc-200 dark:border-zinc-800 bg-zinc-50/20 dark:bg-zinc-900/20 hover:bg-zinc-100/30 dark:hover:bg-zinc-800/30"
                       }`}
                     >
                       <div className="flex items-start gap-2.5">
-                        <MapPin className="w-4 h-4 text-teal-500 mt-0.5 shrink-0" />
+                        <MapPin className="w-4 h-4 text-[#E30613] mt-0.5 shrink-0" />
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-zinc-900 dark:text-white leading-snug">
+                          <p className="text-xs sm:text-sm font-bold text-zinc-905 dark:text-white leading-snug">
                             {acc.address}
                           </p>
-                          <div className="flex justify-between items-center mt-2.5 text-[11px] text-zinc-400 dark:text-zinc-500">
-                            <span>Договор: <strong className="text-zinc-600 dark:text-zinc-300 font-mono">{acc.accountId}</strong></span>
+                          <div className="flex justify-between items-center mt-2.5 text-[10px] text-zinc-400 dark:text-zinc-500">
+                            <span>Договор: <strong className="text-zinc-700 dark:text-zinc-300 font-mono font-bold">{acc.accountId}</strong></span>
                             <span>ID: {acc.subscriberId}</span>
                           </div>
                         </div>
@@ -471,7 +446,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   type="button"
                   onClick={handleRequestOtp}
                   disabled={loading || !selectedAccount}
-                  className="w-full py-2.5 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-500 rounded-xl transition duration-150 disabled:opacity-50 shadow-md flex items-center justify-center gap-2"
+                  className="w-full py-3 text-xs font-bold text-white bg-[#E30613] hover:bg-[#c20510] active:scale-[0.98] rounded-full transition disabled:opacity-50 shadow-md shadow-[#E30613]/15 uppercase tracking-wider flex items-center justify-center gap-2"
                   id="sms_request_code_btn"
                 >
                   {loading ? "Отправка кода…" : "Отправить СМС-код"}
@@ -487,24 +462,24 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   <button
                     type="button"
                     onClick={handleResetSms}
-                    className="text-xs text-[#E30613] dark:text-red-400 hover:underline flex items-center gap-1 font-semibold"
+                    className="text-xs text-[#E30613] dark:text-red-400 hover:underline flex items-center gap-1 font-bold"
                     id="sms_reset_form_btn"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     Начать заново
                   </button>
-                  <span className="text-xs text-zinc-400 font-mono">
+                  <span className="text-xs text-zinc-400 font-mono font-bold bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-lg">
                     {phone}
                   </span>
                 </div>
 
-                <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl mb-4">
+                <div className="p-3.5 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-2xl mb-4">
                   <div className="flex gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                     <MapPin className="w-4 h-4 text-[#E30613] shrink-0" />
                     <div>
-                      <p className="font-semibold text-zinc-800 dark:text-zinc-200">Адрес доставки кода:</p>
-                      <p className="mt-0.5 line-clamp-2">{selectedAccount?.address}</p>
-                      <p className="mt-1 font-mono text-[11px] text-zinc-400 dark:text-zinc-500">
+                      <p className="font-bold text-zinc-800 dark:text-zinc-200">Адрес доставки кода:</p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 line-clamp-2">{selectedAccount?.address}</p>
+                      <p className="mt-1 font-mono text-[10px] font-bold text-zinc-400 dark:text-zinc-500">
                         № Договора: {selectedAccount?.accountId}
                       </p>
                     </div>
@@ -512,26 +487,26 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">
+                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-1.5 ml-1">
                     СМС-код подтверждения
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                     <input
                       type="text"
                       required
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
-                      placeholder="Введите 4-значный код"
-                      className="w-full pl-10 pr-4 py-2 text-sm bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E30613]/20 focus:border-[#E30613] text-zinc-900 dark:text-white font-mono tracking-widest text-center"
+                      placeholder="Код из СМС"
+                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-zinc-55 bg-zinc-50 dark:bg-zinc-800/45 border border-zinc-200 dark:border-zinc-800/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E30613]/15 focus:border-[#E30613] text-zinc-900 dark:text-white font-mono tracking-widest text-center transition"
                     />
                   </div>
                   {isDemo ? (
-                    <p className="text-[11px] text-[#E30613] dark:text-red-400 mt-2 text-center bg-[#E30613]/10 py-1.5 rounded-lg font-medium">
-                      💡 В режиме Песочницы введите любой 4-значный код (например, 1234)
+                    <p className="text-[11px] text-[#E30613] dark:text-red-400 mt-2 text-center bg-[#E30613]/10 dark:bg-[#E30613]/15 py-2 rounded-xl font-semibold">
+                      💡 В режиме Песочницы введите любой код (например, 1234)
                     </p>
                   ) : (
-                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-2">
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-2 font-medium">
                       Введите код, полученный в СМС-сообщении на ваш мобильный телефон
                     </p>
                   )}
@@ -540,19 +515,78 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 <button
                   type="submit"
                   disabled={loading || !otpCode}
-                  className="w-full py-2.5 text-sm font-semibold text-white bg-[#E30613] hover:bg-[#c20510] rounded-xl transition duration-150 disabled:opacity-50 shadow-md flex items-center justify-center font-display uppercase tracking-wider"
+                  className="w-full py-3 text-xs font-bold text-white bg-[#E30613] hover:bg-[#c20510] active:scale-[0.98] rounded-full transition disabled:opacity-50 shadow-md shadow-[#E30613]/15 uppercase tracking-wider flex items-center justify-center"
                   id="sms_confirm_submit_btn"
                 >
-                  {loading ? "Проверка…" : "Войти"}
+                  {loading ? "Проверка…" : "Войти в личный кабинет"}
                 </button>
               </form>
             )}
           </div>
         )}
+
+        {/* Collapsible Developer Panel Accordion */}
+        <details className="mt-6 border-t border-zinc-100 dark:border-zinc-800 pt-4 group">
+          <summary className="list-none flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer select-none">
+            <span className="flex items-center gap-1.5 font-bold">
+              <Settings className="w-3.5 h-3.5 group-open:rotate-45 transition-transform duration-300" />
+              Параметры разработчика (Dev)
+            </span>
+            <span className="font-mono text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full text-zinc-500">
+              {isDemo ? "Песочница" : "Реальный API"}
+            </span>
+          </summary>
+          
+          <div className="mt-4 space-y-4 pt-1 animate-fade-in">
+            <div>
+              <span className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-wider mb-2 ml-1">
+                Подключение к API:
+              </span>
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-100 dark:bg-zinc-850 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDemo(true);
+                    handleResetSms();
+                  }}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                    isDemo
+                      ? "bg-white dark:bg-zinc-700 text-[#E30613] shadow-xs"
+                      : "text-zinc-500 hover:text-zinc-800 dark:hover:text-white"
+                  }`}
+                >
+                  Песочница (Демо)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDemo(false);
+                    handleResetSms();
+                  }}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                    !isDemo
+                      ? "bg-white dark:bg-zinc-700 text-[#E30613] shadow-xs"
+                      : "text-zinc-500 hover:text-zinc-800 dark:hover:text-white"
+                  }`}
+                >
+                  Реальный API
+                </button>
+              </div>
+            </div>
+
+            <div className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 bg-zinc-50/50 dark:bg-zinc-900/40 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/80">
+              {isDemo ? (
+                <p>✨ Вы работаете в изолированной песочнице с эмулированными данными. Кабинет сгенерирует виртуальные домофоны и видеопотоки, не требуя реального контракта.</p>
+              ) : (
+                <p>⚠️ Запросы будут передаваться к реальному API провайдера Dom.ru (Эр-Телеком). Ваши учетные данные используются только для генерации сессионных OAuth-токенов.</p>
+              )}
+            </div>
+          </div>
+        </details>
       </div>
 
-      <div className="text-center mt-6 text-xs text-zinc-500 dark:text-zinc-400 flex items-center justify-center gap-1">
-        Разработано на базе <span className="font-mono text-[#E30613] dark:text-red-400 font-bold text-[11px]">S0yora/domru-js</span>
+      <div className="text-center mt-6 text-xs text-zinc-400 dark:text-zinc-500 flex items-center justify-center gap-1 font-medium">
+        Разработано на базе <span className="font-mono text-[#E30613] dark:text-red-400 font-extrabold text-[11px]">S0yora/domru-js</span>
       </div>
     </div>
   );

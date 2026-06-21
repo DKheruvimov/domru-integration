@@ -4,7 +4,7 @@ import LoginForm from "./components/LoginForm";
 import Dashboard from "./components/Dashboard";
 import CodeBrowser from "./components/CodeBrowser";
 import Integrations from "./components/Integrations";
-import { Cpu, Terminal, LayoutDashboard, Database, ExternalLink, Sun, Moon, Monitor, Layers } from "lucide-react";
+import { Cpu, Terminal, LayoutDashboard, Database, ExternalLink, Sun, Moon, Monitor, Layers, X, Code, Home } from "lucide-react";
 
 export default function App() {
   const [credentials, setCredentials] = useState<AppCredentials | null>(() => {
@@ -18,7 +18,8 @@ export default function App() {
     }
     return null;
   });
-  const [activeTab, setActiveTab] = useState<"dashboard" | "code" | "integrations">("dashboard");
+  const [showDevPanel, setShowDevPanel] = useState(false);
+  const [devTab, setDevTab] = useState<"integrations" | "code">("integrations");
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
     return (saved as "light" | "dark" | "system") || "system";
@@ -62,6 +63,7 @@ export default function App() {
   const handleLogout = () => {
     setCredentials(null);
     localStorage.removeItem("domru_credentials");
+    setShowDevPanel(false);
   };
 
   return (
@@ -74,7 +76,7 @@ export default function App() {
               onClick={() => setTheme("light")}
               className={`p-2 rounded-xl transition-all ${
                 theme === "light"
-                  ? "bg-white dark:bg-zinc-800 text-amber-500 shadow-sm"
+                  ? "bg-white dark:bg-zinc-800 text-[#E30613] shadow-sm"
                   : "text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
               }`}
               title="Светлая тема"
@@ -111,73 +113,47 @@ export default function App() {
           {/* Header Bar */}
           <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-805 sticky top-0 z-30 shadow-xs" id="main_header">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              {/* Desktop layout: hidden on mobile/tablet */}
-              <div className="hidden lg:flex justify-between h-16 items-center">
-                {/* Brand / Logo */}
-                <div className="flex items-center gap-2.5">
-                  <div className="bg-[#E30613] w-9 h-9 rounded-xl flex items-center justify-center shadow-md transform hover:scale-105 transition-transform duration-300">
-                    <div className="w-4 h-4 border-2 border-white rounded-xs"></div>
+              <div className="flex justify-between h-16 items-center">
+                {/* Brand / Logo (Dom.ru style) */}
+                <div className="flex items-center gap-2">
+                  <div className="bg-[#E30613] w-8 h-8 rounded-xl flex items-center justify-center shadow-md transform hover:rotate-6 transition-transform duration-300">
+                    <Home className="w-4.5 h-4.5 text-white" />
                   </div>
-                  <div>
-                    <span className="font-display font-semibold text-sm tracking-tight text-zinc-950 dark:text-white">
-                      Dom.ru Proptech
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-display font-black text-xl tracking-tighter text-zinc-950 dark:text-white flex items-center gap-1">
+                      дом
+                      <span className="bg-[#E30613] text-white text-[11px] font-black px-1.5 py-0.5 rounded-full inline-flex items-center justify-center min-w-[22px] h-5 shadow-xs">
+                        ru
+                      </span>
                     </span>
-                    <span className="text-[10px] font-mono text-[#E30613] dark:text-red-400 font-semibold block uppercase tracking-wider">
-                      Client Dashboard v2.4.0
+                    <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-extrabold uppercase tracking-wider pl-2 border-l border-zinc-200 dark:border-zinc-800 ml-1">
+                      Умный Дом
                     </span>
                   </div>
                 </div>
 
-                {/* Center Tabs */}
-                <div className="flex space-x-1 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl animate-fade-in" id="tab_control_container">
-                  <button
-                    onClick={() => setActiveTab("dashboard")}
-                    className={`px-4 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all duration-300 ${
-                      activeTab === "dashboard"
-                        ? "bg-white dark:bg-zinc-700 text-[#E30613] dark:text-red-400 shadow-sm"
-                        : "text-zinc-650 hover:text-zinc-955 dark:text-zinc-400 dark:hover:text-zinc-250"
-                    }`}
-                    id="tab_dashboard_btn"
-                  >
-                    <LayoutDashboard className="w-3.5 h-3.5" />
-                    Панель управления
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("integrations")}
-                    className={`px-4 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all duration-300 ${
-                      activeTab === "integrations"
-                        ? "bg-white dark:bg-zinc-700 text-[#E30613] dark:text-red-400 shadow-sm"
-                        : "text-zinc-650 hover:text-zinc-955 dark:text-zinc-400 dark:hover:text-zinc-250"
-                    }`}
-                    id="tab_integrations_btn"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    Интеграции
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("code")}
-                    className={`px-4 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all duration-300 ${
-                      activeTab === "code"
-                        ? "bg-white dark:bg-zinc-700 text-[#E30613] dark:text-red-400 shadow-sm"
-                        : "text-zinc-650 hover:text-zinc-955 dark:text-zinc-400 dark:hover:text-zinc-250"
-                    }`}
-                    id="tab_code_btn"
-                  >
-                    <Terminal className="w-3.5 h-3.5" />
-                    Инспектор кода библиотеки
-                  </button>
-                </div>
-
-                {/* Right Badge */}
+                {/* Header Controls */}
                 <div className="flex items-center gap-3">
-                  <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-805 font-mono text-xs rounded-xl text-zinc-500 shadow-2xs">
+                  {/* Status Badge */}
+                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-zinc-55 bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-805 font-mono text-xs rounded-xl text-zinc-500 shadow-2xs">
                     <Database className="w-3.5 h-3.5 text-[#E30613] animate-pulse" />
                     <span>
                       {credentials.isDemo
-                        ? "Sandbox Mode"
-                        : `Operator: ${credentials.operatorId || "Active"}`}
+                        ? "Песочница"
+                        : `Личный кабинет`}
                     </span>
                   </div>
+
+                  {/* Dev Panel Trigger Button */}
+                  <button
+                    onClick={() => setShowDevPanel(true)}
+                    className="px-3.5 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/85 text-zinc-700 dark:text-zinc-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer border border-zinc-200/30"
+                    id="dev_panel_trigger"
+                  >
+                    <Code className="w-3.5 h-3.5 text-[#E30613]" />
+                    <span className="hidden md:inline">Панель разработчика</span>
+                    <span className="md:hidden">Dev</span>
+                  </button>
 
                   {/* Header Theme Switcher Segmented Control */}
                   <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl" id="header_theme_switcher">
@@ -196,7 +172,7 @@ export default function App() {
                       onClick={() => setTheme("dark")}
                       className={`p-1.5 rounded-lg transition-all ${
                         theme === "dark"
-                          ? "bg-white dark:bg-zinc-700 text-red-500 shadow-xs"
+                          ? "bg-white dark:bg-zinc-700 text-[#E30613] shadow-xs"
                           : "text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
                       }`}
                       title="Темная тема"
@@ -215,138 +191,95 @@ export default function App() {
                       <Monitor className="w-3.5 h-3.5" />
                     </button>
                   </div>
-
-                  <a
-                    href="https://github.com/S0yora/domru-js"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 rounded-lg transition-colors"
-                    title="Open Original GitHub Repo"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </div>
-              </div>
-
-              {/* Mobile layout: clean stacked structure */}
-              <div className="flex lg:hidden flex-col py-3 gap-2">
-                {/* Top row: Logo on left, switcher and github on right */}
-                <div className="flex justify-between items-center pb-1">
-                  <div className="flex items-center gap-2">
-                    <div className="bg-[#E30613] w-8 h-8 rounded-lg flex items-center justify-center shadow-md">
-                      <div className="w-3.1 h-3.1 border-2 border-white rounded-xs"></div>
-                    </div>
-                    <div>
-                      <span className="font-display font-bold text-xs text-zinc-950 dark:text-white block">
-                        Dom.ru Proptech
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* Header Theme Switcher compact */}
-                    <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg">
-                      <button
-                        onClick={() => setTheme("light")}
-                        className={`p-1 rounded-md transition-all ${
-                          theme === "light"
-                            ? "bg-white dark:bg-zinc-700 text-amber-550 shadow-xs"
-                            : "text-zinc-400"
-                        }`}
-                        title="Светлая"
-                      >
-                        <Sun className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => setTheme("dark")}
-                        className={`p-1 rounded-md transition-all ${
-                          theme === "dark"
-                            ? "bg-white dark:bg-[#18181B] text-red-500 shadow-xs"
-                            : "text-zinc-400"
-                        }`}
-                        title="Темная"
-                      >
-                        <Moon className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => setTheme("system")}
-                        className={`p-1 rounded-md transition-all ${
-                          theme === "system"
-                            ? "bg-white dark:bg-zinc-700 text-purple-400 shadow-xs"
-                            : "text-zinc-400"
-                        }`}
-                        title="Авто"
-                      >
-                        <Monitor className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    <a
-                      href="https://github.com/S0yora/domru-js"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 rounded-md"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                </div>
-
-                {/* Bottom row: Scrollable navigation pills */}
-                <div className="pt-2 overflow-x-auto scrollbar-none -mx-4 px-4 flex gap-1.5 items-center whitespace-nowrap">
-                  <button
-                    onClick={() => setActiveTab("dashboard")}
-                    className={`px-3 py-1.5 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shrink-0 ${
-                      activeTab === "dashboard"
-                        ? "bg-[#E30613]/10 text-[#E30613] dark:bg-[#E30613]/20 dark:text-red-400"
-                        : "bg-zinc-100 text-zinc-500 hover:text-zinc-900 dark:bg-zinc-800/40 dark:text-zinc-400"
-                    }`}
-                  >
-                    <LayoutDashboard className="w-3 h-3" />
-                    Панель управления
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("integrations")}
-                    className={`px-3 py-1.5 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shrink-0 ${
-                      activeTab === "integrations"
-                        ? "bg-[#E30613]/10 text-[#E30613] dark:bg-[#E30613]/20 dark:text-red-400"
-                        : "bg-zinc-100 text-zinc-500 hover:text-zinc-900 dark:bg-zinc-800/40 dark:text-zinc-400"
-                    }`}
-                  >
-                    <Layers className="w-3 h-3" />
-                    Интеграции
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("code")}
-                    className={`px-3 py-1.5 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shrink-0 ${
-                      activeTab === "code"
-                        ? "bg-[#E30613]/10 text-[#E30613] dark:bg-[#E30613]/20 dark:text-red-400"
-                        : "bg-zinc-100 text-zinc-500 hover:text-zinc-900 dark:bg-zinc-800/40 dark:text-zinc-400"
-                    }`}
-                  >
-                    <Terminal className="w-3 h-3" />
-                    Инспектор кода библиотеки
-                  </button>
                 </div>
               </div>
             </div>
           </header>
 
-          {/* Main Content Area */}
-          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8" id="main_content">
-            {activeTab === "dashboard" ? (
-              <Dashboard credentials={credentials} onLogout={handleLogout} />
-            ) : activeTab === "integrations" ? (
-              <Integrations credentials={credentials} />
-            ) : (
-              <CodeBrowser />
-            )}
+          {/* Main User Content Area */}
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in" id="main_content">
+            <Dashboard credentials={credentials} onLogout={handleLogout} />
           </main>
 
           {/* Micro Footer */}
           <footer className="border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 py-4 text-center text-xs text-zinc-400 font-mono">
-            <span>Кастомизировано для интерактивного анализа и модификации • AI Studio Build</span>
+            <span>дом.ru умный дом • клиентская панель управления</span>
           </footer>
+
+          {/* Premium Developer Overlay Modal */}
+          {showDevPanel && (
+            <div className="fixed inset-0 z-50 flex items-center justify-end animate-fade-in" id="dev_overlay_modal">
+              {/* Backdrop */}
+              <div 
+                className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs transition-opacity" 
+                onClick={() => setShowDevPanel(false)}
+              />
+
+              {/* Modal Body / Drawer */}
+              <div className="relative w-full max-w-4xl h-full bg-zinc-50 dark:bg-zinc-950 shadow-2xl flex flex-col z-10 border-l border-zinc-200 dark:border-zinc-850 animate-slide-in">
+                {/* Header */}
+                <div className="flex justify-between items-center px-6 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-805">
+                  <div className="flex items-center gap-2">
+                    <Terminal className="w-5 h-5 text-[#E30613] animate-pulse" />
+                    <h2 className="text-base font-bold text-zinc-900 dark:text-white">Панель отладки и интеграции (Dev)</h2>
+                  </div>
+                  <button 
+                    onClick={() => setShowDevPanel(false)}
+                    className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Sub navigation inside drawer */}
+                <div className="bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-6 py-2 flex items-center justify-between">
+                  <div className="flex bg-zinc-200/50 dark:bg-zinc-800/80 p-0.5 rounded-xl gap-0.5">
+                    <button
+                      onClick={() => setDevTab("integrations")}
+                      className={`px-4 py-2 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all ${
+                        devTab === "integrations"
+                          ? "bg-white dark:bg-zinc-700 text-[#E30613] shadow-xs"
+                          : "text-zinc-650 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
+                      }`}
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      Интеграция с Алисой (Яндекс)
+                    </button>
+                    <button
+                      onClick={() => setDevTab("code")}
+                      className={`px-4 py-2 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all ${
+                        devTab === "code"
+                          ? "bg-white dark:bg-zinc-700 text-[#E30613] shadow-xs"
+                          : "text-zinc-650 hover:text-zinc-955 dark:text-zinc-400 dark:hover:text-white"
+                      }`}
+                    >
+                      <Cpu className="w-3.5 h-3.5" />
+                      Инспектор библиотеки (domru-js)
+                    </button>
+                  </div>
+
+                  <a
+                    href="https://github.com/S0yora/domru-js"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-zinc-450 hover:text-zinc-700 dark:hover:text-zinc-200 font-mono flex items-center gap-1 hover:underline"
+                  >
+                    <span>Оригинальный SDK</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                {/* Scrollable Modal Content */}
+                <div className="flex-1 overflow-y-auto p-6" id="dev_modal_scrollable">
+                  {devTab === "integrations" ? (
+                    <Integrations credentials={credentials} />
+                  ) : (
+                    <CodeBrowser />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

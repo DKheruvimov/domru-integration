@@ -1064,64 +1064,74 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
                   </div>
 
                   {/* Real-time Diagnostics Terminal Console */}
-                  <div className="border border-zinc-150 dark:border-zinc-805/85 bg-zinc-50/50 dark:bg-[#111113] rounded-[1.5rem] p-4 font-mono text-[11px] leading-relaxed select-text shadow-inner animate-fade-in">
-                    <div className="flex items-center justify-between border-b border-zinc-110 dark:border-zinc-800/60 pb-2 mb-2 text-zinc-500 dark:text-zinc-400 font-sans">
-                      <div className="flex items-center gap-2 font-sans font-bold uppercase text-[9px] tracking-wider text-[#E30613] dark:text-red-400">
-                        <Terminal className="w-3.5 h-3.5 animate-pulse" />
-                        <span>Консоль Диагностики и Отладки Потока Dom.ru</span>
+                  <details className="group mt-3 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/10 dark:bg-zinc-900/10 overflow-hidden animate-fade-in">
+                    <summary className="px-4 py-2.5 text-[10px] font-bold tracking-wider text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer flex items-center justify-between font-sans select-none list-none">
+                      <span className="flex items-center gap-1.5">
+                        <Terminal className="w-3.5 h-3.5 text-[#E30613] group-open:animate-pulse" />
+                        Техническая диагностика потока (Dev-логи)
+                      </span>
+                      <span className="text-[9px] bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full text-zinc-500 font-mono font-bold">
+                        {streamLogs.length} событий
+                      </span>
+                    </summary>
+                    <div className="p-4 border-t border-zinc-150 dark:border-zinc-800 bg-zinc-50/50 dark:bg-[#111113] font-mono text-[11px] leading-relaxed select-text shadow-inner">
+                      <div className="flex items-center justify-between border-b border-zinc-110 dark:border-zinc-800/60 pb-2 mb-2 text-zinc-500 dark:text-zinc-400 font-sans">
+                        <div className="flex items-center gap-2 font-sans font-bold uppercase text-[9px] tracking-wider text-[#E30613] dark:text-red-400">
+                          <span>Журнал событий плеера</span>
+                        </div>
+                        <button
+                          onClick={() => setStreamLogs([])}
+                          className="text-[9px] text-[#E30613] hover:text-[#c20510] font-bold cursor-pointer"
+                        >
+                          Очистить
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setStreamLogs([])}
-                        className="text-[9px] text-zinc-600 dark:text-zinc-400 hover:text-white bg-white dark:bg-zinc-900 hover:bg-[#E30613] border border-zinc-200 dark:border-zinc-800 px-2.5 py-0.5 rounded transition"
-                      >
-                        Очистить консоль
-                      </button>
-                    </div>
 
-                    <div className="text-zinc-550 mb-2 truncate text-[10px]">
-                      <span className="text-zinc-400 font-bold font-sans">URL источника:</span>{" "}
-                      <code className="text-zinc-600 dark:text-zinc-350 break-all select-all hover:bg-zinc-101 dark:hover:bg-zinc-900 p-0.5 rounded transition">{streamUrl}</code>
-                    </div>
+                      <div className="text-zinc-550 mb-2 truncate text-[10px]">
+                        <span className="text-zinc-400 font-bold font-sans">URL источника:</span>{" "}
+                        <code className="text-zinc-600 dark:text-zinc-350 break-all select-all hover:bg-zinc-100 dark:hover:bg-zinc-900 p-0.5 rounded transition">{streamUrl}</code>
+                      </div>
 
-                    <div className="bg-white dark:bg-black/30 border border-zinc-150 dark:border-zinc-850 rounded-xl p-3 h-48 overflow-y-auto space-y-1.5 text-zinc-700 dark:text-zinc-350" id="video_logs_scroller">
-                      {streamLogs.length > 0 ? (
-                        streamLogs.map((log, index) => {
-                          let colorClass = "text-zinc-505 dark:text-zinc-400 font-mono";
-                          if (log.includes("⛔") || log.includes("🚨")) {
-                            colorClass = "text-rose-600 dark:text-rose-300 font-semibold bg-rose-500/5 px-1 rounded border-l-2 border-rose-500";
-                          } else if (log.includes("⚠️") || log.includes("⚠")) {
-                            colorClass = "text-amber-600 dark:text-amber-400 bg-amber-500/5 px-1 rounded border-l-2 border-amber-500 font-semibold";
-                          } else if (log.includes("▶") || log.includes("успешно") || log.includes("готов")) {
-                            colorClass = "text-emerald-500 dark:text-emerald-450 font-semibold bg-emerald-500/5 px-1 rounded border-l-2 border-emerald-500";
-                          } else if (log.includes("Hls.js") || log.includes("HTML5")) {
-                            colorClass = "text-[#E30613]/85 dark:text-red-350";
-                          }
-                          return (
-                            <div key={index} className={`${colorClass} whitespace-pre-wrap text-[10px]`}>
-                              {log}
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="text-center text-zinc-400 dark:text-zinc-650 mt-16 text-[10px] font-sans font-medium">Консоль отладки пуста. Ожидаются события видеоплеера...</div>
-                      )}
-                    </div>
+                      <div className="bg-white dark:bg-black/30 border border-zinc-150 dark:border-zinc-850 rounded-xl p-3 h-48 overflow-y-auto space-y-1.5 text-zinc-700 dark:text-zinc-350" id="video_logs_scroller">
+                        {streamLogs.length > 0 ? (
+                          streamLogs.map((log, index) => {
+                            let colorClass = "text-zinc-505 dark:text-zinc-400 font-mono";
+                            if (log.includes("⛔") || log.includes("🚨")) {
+                              colorClass = "text-rose-600 dark:text-rose-300 font-semibold bg-rose-500/5 px-1 rounded border-l-2 border-rose-500";
+                            } else if (log.includes("⚠️") || log.includes("⚠")) {
+                              colorClass = "text-amber-600 dark:text-amber-455 bg-amber-500/5 px-1 rounded border-l-2 border-amber-500 font-semibold";
+                            } else if (log.includes("▶") || log.includes("успешно") || log.includes("готов")) {
+                              colorClass = "text-emerald-500 dark:text-emerald-450 font-semibold bg-emerald-500/5 px-1 rounded border-l-2 border-emerald-500";
+                            } else if (log.includes("Hls.js") || log.includes("HTML5")) {
+                              colorClass = "text-[#E30613]/85 dark:text-red-350";
+                            }
+                            return (
+                              <div key={index} className={`${colorClass} whitespace-pre-wrap text-[10px]`}>
+                                {log}
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-center text-zinc-400 dark:text-zinc-650 mt-16 text-[10px] font-sans font-medium">Консоль отладки пуста. Ожидаются события видеоплеера...</div>
+                        )}
+                      </div>
 
-                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[9px] text-zinc-500 dark:text-zinc-400 pt-2 border-t border-zinc-150 dark:border-zinc-800/60 font-sans">
-                      <div className="flex items-center gap-1 font-medium">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        Зелёный: Успешный запуск
-                      </div>
-                      <div className="flex items-center gap-1 font-medium">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                        Красный: Сбой или Блокировка
-                      </div>
-                      <div className="flex items-center gap-1 font-medium">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                        Жёлтый: Буферизация / Mixed-Content
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[9px] text-zinc-500 dark:text-zinc-400 pt-2 border-t border-zinc-150 dark:border-zinc-800/60 font-sans">
+                        <div className="flex items-center gap-1 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          Зелёный: Успешный запуск
+                        </div>
+                        <div className="flex items-center gap-1 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                          Красный: Сбой или Блокировка
+                        </div>
+                        <div className="flex items-center gap-1 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                          Жёлтый: Буферизация / Mixed-Content
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </details>
                 </div>
               )}
             </div>
