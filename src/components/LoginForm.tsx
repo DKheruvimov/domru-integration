@@ -18,7 +18,7 @@ export interface SmsAccount {
 export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
-  const [isDemo, setIsDemo] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
