@@ -223,10 +223,10 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                     <span className="text-[10px] font-mono px-2 py-0.5 bg-[#E30613]/10 text-[#E30613] rounded font-bold uppercase tracking-wider">Webhook</span>
                     <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200">Адрес обработчика (Endpoint URL)</span>
                   </div>
-                  <p className="text-[11px] text-zinc-400 tracking-wide font-mono select-all bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded inline-block">{yandexUrls.discovery.replace("/user/devices", "")}</p>
+                  <p className="text-[11px] text-zinc-400 tracking-wide font-mono select-all bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded inline-block">{endpointBase + "/"}</p>
                 </div>
                 <button
-                  onClick={() => handleCopy(yandexUrls.discovery.replace("/user/devices", ""), "y_base")}
+                  onClick={() => handleCopy(endpointBase + "/", "y_base")}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/80 hover:border-zinc-350 dark:hover:border-zinc-600 rounded-xl transition-all self-end md:self-auto cursor-pointer text-zinc-700 dark:text-zinc-200"
                 >
                   {copiedField === "y_base" ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
@@ -272,14 +272,32 @@ export default function Integrations({ credentials }: IntegrationsProps) {
 
             </div>
 
-            <div className="bg-zinc-50 dark:bg-zinc-800/40 p-4 border border-zinc-250/20 dark:border-zinc-805 rounded-2xl space-y-1.5">
+            <div className="bg-zinc-50 dark:bg-zinc-800/40 p-5 border border-zinc-250/20 dark:border-zinc-805 rounded-2xl space-y-3">
               <span className="text-[11px] font-extrabold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5 text-[#E30613]" />
-                Как настроить Клиентские Идентификаторы в Яндексе?
+                Последовательность заполнения полей в Яндекс Диалогах:
               </span>
-              <p className="text-xs text-zinc-500 leading-relaxed">
-                В секции <b>«Идентификатор клиента (Client ID)»</b> и <b>«Секрет клиента (Client Secret)»</b> в Яндекс Диалогах вы можете указать любые произвольные строки (например, <code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-zinc-800 dark:text-zinc-300">yandex-client-abc</code>), так как авторизационный шлюз бэкенда принимает и упаковывает контекст напрямую в подписанный Stateless-токен.
-              </p>
+              <div className="text-xs space-y-2.5 text-zinc-500 dark:text-zinc-450">
+                <p>
+                  1. В разделе <b>Backend</b> выберите <b>Endpoint URL</b> и вставьте значение:
+                  <br />
+                  <code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-zinc-800 dark:text-zinc-300 select-all font-mono text-[11px]">{endpointBase}/</code>
+                </p>
+                <p>
+                  2. В разделе <b>Тип доступа</b> выберите <b>Приватный</b>.
+                </p>
+                <p>
+                  3. В разделе <b>Связка аккаунтов</b> включите опцию и укажите:
+                </p>
+                <ul className="list-disc list-inside pl-2 space-y-1.5">
+                  <li><b>Идентификатор приложения (Client ID):</b> любая произвольная строка (например, <code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-zinc-800 dark:text-zinc-300 font-mono text-[11px]">yandex-client-abc</code>)</li>
+                  <li><b>Секрет приложения (Client Secret):</b> любая произвольная строка (например, <code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-zinc-800 dark:text-zinc-300 font-mono text-[11px]">yandex-secret-123</code>)</li>
+                  <li><b>URL авторизации:</b> <code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-zinc-800 dark:text-zinc-300 font-mono text-[11px]">{yandexUrls.auth}</code></li>
+                  <li><b>URL для получения токена:</b> <code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-zinc-800 dark:text-zinc-300 font-mono text-[11px]">{yandexUrls.token}</code></li>
+                  <li><b>URL для обновления токена:</b> <code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-zinc-800 dark:text-zinc-300 font-mono text-[11px]">{yandexUrls.token}</code></li>
+                  <li><b>Идентификатор группы действий:</b> оставьте пустым</li>
+                </ul>
+              </div>
             </div>
           </div>
 
