@@ -18,47 +18,7 @@ export default function MyHomeView({
 }: MyHomeViewProps) {
   return (
     <div className="space-y-6">
-      {/* Announcements Banners matching the mobile style */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Banner 1 */}
-        <div className="bg-gradient-to-r from-purple-55 via-indigo-55/50 to-red-50/30 dark:from-purple-950/40 dark:via-indigo-950/20 dark:to-[#E30613]/10 border border-purple-100 dark:border-indigo-900/30 p-5 rounded-3xl relative overflow-hidden flex justify-between items-center group shadow-md">
-          <div className="space-y-2 z-10 max-w-[68%]">
-            <h3 className="font-extrabold text-purple-950 dark:text-white text-base tracking-tight leading-tight">
-              Подключайте тариф ПРО
-            </h3>
-            <p className="text-xs text-purple-900/70 dark:text-zinc-300 leading-normal">
-              Предложение специально для вас: неограниченный видеоархив и расширенный доступ.
-            </p>
-            <button className="mt-2.5 px-4 py-2 bg-purple-650 hover:bg-purple-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white rounded-full text-xs font-bold transition shadow-xs cursor-pointer">
-              Подключить
-            </button>
-          </div>
-          <div className="text-5xl select-none transform group-hover:rotate-6 transition duration-300 z-10 pr-2">
-            📦
-          </div>
-        </div>
 
-        {/* Banner 2 */}
-        <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 p-5 rounded-3xl flex justify-between items-center group shadow-md">
-          <div className="space-y-2 z-10 max-w-[70%]">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-500 animate-pulse" />
-              <h3 className="font-extrabold text-zinc-900 dark:text-white text-sm tracking-tight leading-tight">
-                Подтвердите ваши ключи
-              </h3>
-            </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
-              Подтвердите достоверность ключей для корректной работы сервисов безопасности.
-            </p>
-            <button className="mt-2 px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-full text-xs font-bold transition shadow-xs cursor-pointer">
-              Подтвердить
-            </button>
-          </div>
-          <div className="text-4xl opacity-30 group-hover:opacity-50 transition duration-300 pr-2 select-none">
-            🛡️
-          </div>
-        </div>
-      </div>
 
       {/* Smart Access Devices sections */}
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-[2rem] shadow-md">

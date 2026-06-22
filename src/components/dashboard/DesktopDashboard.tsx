@@ -8,8 +8,8 @@ import CabinetView from "./CabinetView";
 import CctvPlayer from "./CctvPlayer";
 
 interface DesktopDashboardProps {
-  activeTab: "myhome" | "events" | "people" | "cabinet";
-  setActiveTab: (tab: "myhome" | "events" | "people" | "cabinet") => void;
+  activeTab: "myhome" | "events" | "people";
+  setActiveTab: (tab: "myhome" | "events" | "people") => void;
   places: SmartPlace[];
   selectedPlace: SmartPlace | null;
   setSelectedPlace: (p: SmartPlace) => void;
@@ -40,6 +40,8 @@ interface DesktopDashboardProps {
   groupedEvents: Record<string, HistoryEvent[]>;
   onLogout: () => void;
   loadData: () => void;
+  isCabinetOpen: boolean;
+  setIsCabinetOpen: (open: boolean) => void;
 }
 
 export default function DesktopDashboard({
@@ -75,6 +77,8 @@ export default function DesktopDashboard({
   groupedEvents,
   onLogout,
   loadData,
+  isCabinetOpen,
+  setIsCabinetOpen,
 }: DesktopDashboardProps) {
   return (
     <div className="space-y-6" id="desktop_dashboard">
@@ -127,7 +131,7 @@ export default function DesktopDashboard({
       </div>
 
       {/* Tabs Navigation Bar (Centered) */}
-      <div className="grid grid-cols-4 gap-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 p-1 rounded-2xl shadow-lg max-w-xl mx-auto">
+      <div className="grid grid-cols-3 gap-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 p-1 rounded-2xl shadow-lg max-w-xl mx-auto">
         <button
           onClick={() => setActiveTab("myhome")}
           className={`py-3 text-[11px] font-extrabold rounded-xl flex flex-row items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
@@ -160,17 +164,6 @@ export default function DesktopDashboard({
         >
           <Users className="w-4 h-4" />
           <span>Люди</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("cabinet")}
-          className={`py-3 text-[11px] font-extrabold rounded-xl flex flex-row items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
-            activeTab === "cabinet"
-              ? "bg-[#E30613] text-white shadow-md shadow-[#E30613]/20"
-              : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
-          }`}
-        >
-          <Sliders className="w-4 h-4" />
-          <span>Кабинет</span>
         </button>
       </div>
 
@@ -218,9 +211,6 @@ export default function DesktopDashboard({
             )}
             {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
             {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} />}
-            {activeTab === "cabinet" && (
-              <CabinetView selectedPlace={selectedPlace} onLogout={onLogout} />
-            )}
           </div>
         </div>
       ) : (
@@ -237,9 +227,26 @@ export default function DesktopDashboard({
           )}
           {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
           {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} />}
-          {activeTab === "cabinet" && (
-            <CabinetView selectedPlace={selectedPlace} onLogout={onLogout} />
-          )}
+        </div>
+      )}
+
+      {/* Cabinet Modal Overlay */}
+      {isCabinetOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-[#101418] w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[2rem] shadow-2xl relative animate-scale-up">
+            <div className="sticky top-0 bg-white/80 dark:bg-[#101418]/80 backdrop-blur-md z-10 flex justify-between items-center p-6 border-b border-zinc-200 dark:border-zinc-800">
+              <h3 className="font-extrabold text-xl">Личный кабинет</h3>
+              <button 
+                onClick={() => setIsCabinetOpen(false)}
+                className="w-8 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4">
+              <CabinetView selectedPlace={selectedPlace} onLogout={onLogout} />
+            </div>
+          </div>
         </div>
       )}
     </div>

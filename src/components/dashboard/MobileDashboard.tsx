@@ -8,8 +8,8 @@ import CabinetView from "./CabinetView";
 import CctvPlayer from "./CctvPlayer";
 
 interface MobileDashboardProps {
-  activeTab: "myhome" | "events" | "people" | "cabinet";
-  setActiveTab: (tab: "myhome" | "events" | "people" | "cabinet") => void;
+  activeTab: "myhome" | "events" | "people";
+  setActiveTab: (tab: "myhome" | "events" | "people") => void;
   places: SmartPlace[];
   selectedPlace: SmartPlace | null;
   setSelectedPlace: (p: SmartPlace) => void;
@@ -40,6 +40,8 @@ interface MobileDashboardProps {
   groupedEvents: Record<string, HistoryEvent[]>;
   onLogout: () => void;
   loadData: () => void;
+  isCabinetOpen: boolean;
+  setIsCabinetOpen: (open: boolean) => void;
 }
 
 export default function MobileDashboard({
@@ -75,6 +77,8 @@ export default function MobileDashboard({
   groupedEvents,
   onLogout,
   loadData,
+  isCabinetOpen,
+  setIsCabinetOpen,
 }: MobileDashboardProps) {
   return (
     <div className="flex flex-col space-y-6 pb-24" id="mobile_dashboard">
@@ -168,12 +172,29 @@ export default function MobileDashboard({
         )}
         {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
         {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} />}
-        {activeTab === "cabinet" && <CabinetView selectedPlace={selectedPlace} onLogout={onLogout} />}
       </div>
 
-      {/* Mobile-friendly bottom fixed navbar */}
+      {isCabinetOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white dark:bg-[#101418] w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl relative animate-slide-up">
+            <div className="sticky top-0 bg-white/80 dark:bg-[#101418]/80 backdrop-blur-md z-10 flex justify-between items-center p-4 border-b border-zinc-200 dark:border-zinc-800">
+              <h3 className="font-extrabold text-lg">Личный кабинет</h3>
+              <button 
+                onClick={() => setIsCabinetOpen(false)}
+                className="w-8 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-2">
+              <CabinetView selectedPlace={selectedPlace} onLogout={onLogout} />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#101418] border-t border-zinc-200 dark:border-zinc-800/80 p-2 shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.08)] dark:shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.3)]">
-        <div className="grid grid-cols-4 max-w-md mx-auto">
+        <div className="grid grid-cols-3 max-w-md mx-auto">
           <button
             onClick={() => setActiveTab("myhome")}
             className={`py-1.5 text-[10px] font-bold rounded-xl flex flex-col items-center justify-center gap-0.5 transition cursor-pointer ${
@@ -206,17 +227,6 @@ export default function MobileDashboard({
           >
             <Users className="w-5 h-5" />
             <span>Люди</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("cabinet")}
-            className={`py-1.5 text-[10px] font-bold rounded-xl flex flex-col items-center justify-center gap-0.5 transition cursor-pointer ${
-              activeTab === "cabinet"
-                ? "text-[#E30613]"
-                : "text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-300"
-            }`}
-          >
-            <Sliders className="w-5 h-5" />
-            <span>Кабинет</span>
           </button>
         </div>
       </div>

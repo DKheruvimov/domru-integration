@@ -19,6 +19,7 @@ export default function App() {
     return null;
   });
   const [showDevPanel, setShowDevPanel] = useState(false);
+  const [isCabinetOpen, setIsCabinetOpen] = useState(false);
   const [devTab, setDevTab] = useState<"integrations" | "code">("integrations");
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
@@ -136,15 +137,14 @@ export default function App() {
 
                 {/* Header Controls */}
                 <div className="flex items-center gap-3">
-                  {/* Status Badge */}
-                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-800 font-mono text-xs rounded-xl text-zinc-500 shadow-2xs">
-                    <Database className="w-3.5 h-3.5 text-[#E30613] animate-pulse" />
-                    <span>
-                      {credentials.isDemo
-                        ? "Песочница"
-                        : `Личный кабинет`}
-                    </span>
-                  </div>
+                  {/* Status Badge / Cabinet Trigger Button */}
+                  <button
+                    onClick={() => setIsCabinetOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-[#E30613]/30 dark:border-[#E30613]/20 font-mono text-xs rounded-xl text-zinc-800 dark:text-zinc-200 shadow-2xs hover:bg-[#E30613]/5 dark:hover:bg-[#E30613]/10 transition-colors cursor-pointer"
+                  >
+                    <Database className="w-3.5 h-3.5 text-[#E30613]" />
+                    <span>Личный кабинет</span>
+                  </button>
 
                   {/* Dev Panel Trigger Button */}
                   <button
@@ -200,7 +200,12 @@ export default function App() {
 
           {/* Main User Content Area */}
           <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in" id="main_content">
-            <Dashboard credentials={credentials} onLogout={handleLogout} />
+            <Dashboard 
+            credentials={credentials} 
+            onLogout={handleLogout} 
+            isCabinetOpen={isCabinetOpen}
+            setIsCabinetOpen={setIsCabinetOpen}
+          />
           </main>
 
           {/* Micro Footer */}

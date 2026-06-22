@@ -8,25 +8,7 @@ interface EventsViewProps {
 export default function EventsView({ groupedEvents }: EventsViewProps) {
   return (
     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-[2rem] shadow-md space-y-6 animate-fade-in">
-      {/* Promo banner */}
-      <div className="bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 p-4 rounded-2xl flex justify-between items-center group">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-            <CheckCircle className="w-4.5 h-4.5" />
-          </div>
-          <div>
-            <h4 className="font-extrabold text-xs text-zinc-900 dark:text-white">
-              Увеличьте архив событий домофона
-            </h4>
-            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-normal">
-              История звонков и открытий дверей будет храниться до 14 дней.
-            </p>
-          </div>
-        </div>
-        <button className="text-xs text-indigo-650 dark:text-indigo-400 font-extrabold hover:underline mr-2 shrink-0 cursor-pointer">
-          Подробнее
-        </button>
-      </div>
+
 
       {/* Event Log Filter pills */}
       <div className="flex gap-2">

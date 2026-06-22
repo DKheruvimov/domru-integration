@@ -6,10 +6,12 @@ import DesktopDashboard from "./dashboard/DesktopDashboard";
 interface DashboardProps {
   credentials: AppCredentials;
   onLogout: () => void;
+  isCabinetOpen: boolean;
+  setIsCabinetOpen: (open: boolean) => void;
 }
 
-export default function Dashboard({ credentials, onLogout }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<"myhome" | "events" | "people" | "cabinet">("myhome");
+export default function Dashboard({ credentials, onLogout, isCabinetOpen, setIsCabinetOpen }: DashboardProps) {
+  const [activeTab, setActiveTab] = useState<"myhome" | "events" | "people">("myhome");
   const [places, setPlaces] = useState<SmartPlace[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<SmartPlace | null>(null);
   const [devices, setDevices] = useState<SmartDevice[]>([]);
@@ -57,6 +59,14 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
     }, 1500);
     return () => clearInterval(interval);
   }, [activeCamera, playerMode]);
+
+  // Close camera stream when switching tabs
+  useEffect(() => {
+    if (activeTab !== "myhome" && activeCamera) {
+      setActiveCamera(null);
+      setStreamUrl(null);
+    }
+  }, [activeTab, activeCamera]);
 
   // Door opening status
   const [openingDoorId, setOpeningDoorId] = useState<number | null>(null);
@@ -420,6 +430,8 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
     groupedEvents,
     onLogout,
     loadData,
+    isCabinetOpen,
+    setIsCabinetOpen,
   };
 
   return (
