@@ -1,4 +1,5 @@
-import { SmartDevice } from "../../types";
+import { useState, useEffect } from "react";
+import { SmartDevice, AppCredentials } from "../../types";
 import { Video, Lock, Unlock, CheckCircle, ShieldCheck } from "lucide-react";
 
 interface MyHomeViewProps {
@@ -7,6 +8,8 @@ interface MyHomeViewProps {
   triggerOpenDoor: (deviceId: number) => void;
   setActiveCamera: (cameraId: string) => void;
   doorMessage: string | null;
+  selectedPlaceId?: number;
+  credentials?: AppCredentials;
 }
 
 export default function MyHomeView({
@@ -15,7 +18,23 @@ export default function MyHomeView({
   triggerOpenDoor,
   setActiveCamera,
   doorMessage,
+  selectedPlaceId,
+  credentials,
 }: MyHomeViewProps) {
+  const [localSnapshotTime, setLocalSnapshotTime] = useState(Date.now());
+
+  useEffect(() => {
+    setLocalSnapshotTime(Date.now());
+  }, [devices]);
+
+  const buildSnapshotUrl = (deviceId: number | undefined) => {
+    if (!selectedPlaceId || !deviceId || !credentials) return undefined;
+    const params = new URLSearchParams();
+    if (credentials.operatorId) params.set("operator", String(credentials.operatorId));
+    params.set("token", credentials.token || "");
+    params.set("t", String(localSnapshotTime));
+    return `/api/domru/snapshot/${selectedPlaceId}/${deviceId}?${params.toString()}`;
+  };
   return (
     <div className="space-y-6">
 
@@ -41,9 +60,23 @@ export default function MyHomeView({
                   }`}
                   id={`device_card_${device.id}`}
                 >
-                  {/* Film/Video strip placeholder background */}
-                  <div className="absolute inset-0 bg-zinc-100/60 dark:bg-zinc-900/70 flex items-center justify-center pointer-events-none group-hover:bg-zinc-100/80 group-hover:dark:bg-zinc-900/60 transition">
-                    <Video className="w-10 h-10 text-zinc-400 dark:text-zinc-700 opacity-40 group-hover:opacity-70 group-hover:scale-105 transition duration-300" />
+                  {/* Background Snapshot or Icon */}
+                  <div className="absolute inset-0 bg-zinc-200/50 dark:bg-zinc-900 flex items-center justify-center pointer-events-none overflow-hidden rounded-3xl">
+                    {device.allowVideo ? (
+                      <>
+                        <img 
+                          src={buildSnapshotUrl(device.id)}
+                          className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
+                          alt="Снимок с камеры"
+                          onError={(e) => {
+                             e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none transition-opacity opacity-70 group-hover:opacity-40" />
+                      </>
+                    ) : (
+                      <Video className="w-10 h-10 text-zinc-400 dark:text-zinc-700 opacity-40 group-hover:opacity-70 group-hover:scale-105 transition duration-300" />
+                    )}
                   </div>
 
                   {/* Top bar (Address details) */}

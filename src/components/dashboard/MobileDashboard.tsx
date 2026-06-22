@@ -168,6 +168,8 @@ export default function MobileDashboard({
             triggerOpenDoor={triggerOpenDoor}
             setActiveCamera={setActiveCamera}
             doorMessage={doorMessage}
+            selectedPlaceId={selectedPlace?.id}
+            credentials={credentials}
           />
         )}
         {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}

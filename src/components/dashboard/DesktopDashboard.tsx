@@ -207,6 +207,8 @@ export default function DesktopDashboard({
                 triggerOpenDoor={triggerOpenDoor}
                 setActiveCamera={setActiveCamera}
                 doorMessage={doorMessage}
+                selectedPlaceId={selectedPlace?.id}
+                credentials={credentials}
               />
             )}
             {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
@@ -223,6 +225,8 @@ export default function DesktopDashboard({
               triggerOpenDoor={triggerOpenDoor}
               setActiveCamera={setActiveCamera}
               doorMessage={doorMessage}
+              selectedPlaceId={selectedPlace?.id}
+              credentials={credentials}
             />
           )}
           {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
