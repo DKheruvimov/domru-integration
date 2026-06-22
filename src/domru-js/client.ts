@@ -8,7 +8,7 @@ import {
 	type EventHandler,
 } from "./events/event-emitter.js";
 import { getOperators } from "./api/operators.js";
-import { getSubscriberPlaces, getDevices } from "./api/places.js";
+import { getSubscriberPlaces, getDevices, getSipCredentials } from "./api/places.js";
 import { getCameras } from "./api/cameras.js";
 import { getStreamUrl, getSnapshot } from "./api/stream.js";
 import { openDoor } from "./api/intercom.js";
@@ -153,6 +153,12 @@ export class DomruClient {
 	async getTemporalCodes(deviceIds: number[]): Promise<TemporalCode[]> {
 		await this.ensureAuth();
 		return getTemporalCodes(this.ctx, deviceIds);
+	}
+
+	/** Получить SIP-учетные данные */
+	async getSipCredentials(placeId: number, deviceId: number, installationId: string) {
+		await this.ensureAuth();
+		return getSipCredentials(this.ctx, placeId, deviceId, installationId);
 	}
 
 	/** Получить финансовые данные */

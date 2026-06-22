@@ -16,6 +16,8 @@ import {
   MOCK_EVENTS,
 } from "../domruClientHelper.js";
 import { getProxiedStreamUrl } from "../yandexHelper.js";
+import { enableAutoOpen, disableAutoOpen } from "../sip-manager.js";
+import { randomUUID } from "crypto";
 
 const router = express.Router();
 
@@ -796,6 +798,40 @@ router.post("/open", async (req, res) => {
     const client = getDomruInstance(req);
     const result = await client.openDoor(Number(placeId), Number(deviceId));
     res.json(result);
+  } catch (err: any) {
+    handleClientError(err, res);
+  }
+});
+
+// API Route: Toggle SIP Courier Auto Open
+router.post("/sip/auto-open", async (req, res) => {
+  const { placeId, deviceId, enabled } = req.body;
+  if (isDemo(req)) {
+    return res.json({ status: "SUCCESS", message: enabled ? "Включено авто-открытие (Demo)" : "Отключено" });
+  }
+
+  try {
+    const client = getDomruInstance(req);
+
+    if (enabled) {
+      const installationId = randomUUID();
+      const credentials = await client.getSipCredentials(Number(placeId), Number(deviceId), installationId);
+      
+      enableAutoOpen({
+        placeId: Number(placeId),
+        deviceId: Number(deviceId),
+        credentials,
+        expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour max
+        onOpenDoor: async () => {
+          await client.openDoor(Number(placeId), Number(deviceId));
+        }
+      });
+      res.json({ status: "SUCCESS", message: "SIP Auto-open enabled", login: credentials.login });
+    } else {
+      const { login } = req.body;
+      if (login) disableAutoOpen(login);
+      res.json({ status: "SUCCESS", message: "SIP Auto-open disable signal sent" });
+    }
   } catch (err: any) {
     handleClientError(err, res);
   }

@@ -26,7 +26,7 @@ interface IntegrationsProps {
 
 export default function Integrations({ credentials }: IntegrationsProps) {
   const [domain, setDomain] = useState(() => {
-    return localStorage.getItem("integration_domain") || "kheruvimov.ru";
+    return localStorage.getItem("integration_domain") || window.location.hostname;
   });
   
   const [apiKey, setApiKey] = useState(() => {
@@ -159,7 +159,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                     type="text"
                     value={domain}
                     onChange={(e) => setDomain(e.target.value.replace(/https?:\/\//i, ""))}
-                    placeholder="kheruvimov.ru"
+                    placeholder={window.location.hostname}
                     className="w-full pl-18 pr-4 py-3 bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-mono text-zinc-800 dark:text-zinc-150 focus:outline-none focus:border-[#E30613]"
                   />
                 </div>
@@ -461,7 +461,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-emerald-500 mr-0.5">✔</span>
-                <span><b>Статичная адресация:</b> Ваш домен <code>kheruvimov.ru</code> должен корректно перенаправлять трафик на шлюз.</span>
+                <span><b>Статичная адресация:</b> Ваш домен <code>{domain}</code> должен корректно перенаправлять трафик на шлюз.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-emerald-500 mr-0.5">✔</span>

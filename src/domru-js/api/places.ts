@@ -21,3 +21,19 @@ export async function getDevices(ctx: ClientContext, placeId: number): Promise<D
 	);
 	return res.data;
 }
+
+/** Получить SIP-учетные данные для перехвата вызовов домофона */
+export async function getSipCredentials(
+	ctx: ClientContext,
+	placeId: number,
+	deviceId: number,
+	installationId: string
+): Promise<{ login: string; password: string; realm: string }> {
+	const res = await requestJson<{ data: { login: string; password: string; realm: string } }>(
+		ctx,
+		`${BASE_URL}rest/v1/places/${placeId}/accesscontrols/${deviceId}/sipdevices`,
+		"POST",
+		{ installationId }
+	);
+	return res.data;
+}

@@ -1,0 +1,14 @@
+# Project Context
+This is a Full-Stack React/Node.js application for Dom.ru Smart Intercom integration.
+
+# AI-Driven Development (AIDD)
+We use a structured AI-Driven Development process. Before making any changes or answering architecture questions, you MUST read the following files located in the root directory:
+1. `ARCHITECTURE.md` - High-level overview of the project structure (Frontend, Backend, SDK, SIP, Video Proxy).
+2. `KNOWN_ISSUES.md` - Known constraints and gotchas (especially regarding SIP UDP connections, FFmpeg stream proxy, and authentication hashes).
+3. `AI_WORKFLOW.md` - The workflow you must follow to implement features and write code.
+
+# Critical Rules
+- **Anonymization Requirement**: This project is anonymized. NEVER use or write personal domains anywhere in the codebase, comments, or documentation. Always use `yourdomain.com` or similar generic domains.
+- **Vanilla CSS**: We prefer Vanilla CSS. Do not introduce Tailwind unless explicitly requested.
+- **No Placeholders**: Always implement the full logic. Never write `// TODO: implement logic`.
+- **TypeScript**: Strictly enforce types. Avoid `any`.
