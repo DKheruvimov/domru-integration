@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AppCredentials, SmartPlace, SmartDevice, SmartCamera, HistoryEvent, GuestPin } from "../types";
 import MobileDashboard from "./dashboard/MobileDashboard";
 import DesktopDashboard from "./dashboard/DesktopDashboard";
@@ -44,10 +44,10 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
   const [hasStreamError, setHasStreamError] = useState(false);
   const [forceHlsJS, setForceHlsJS] = useState(false);
 
-  const addStreamLog = (msg: string) => {
+  const addStreamLog = useCallback((msg: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setStreamLogs((prev) => [`[${timestamp}] ${msg}`, ...prev].slice(0, 50));
-  };
+  }, []);
 
   // Snapshot auto-updated timer (every 1.5 seconds)
   useEffect(() => {
