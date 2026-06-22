@@ -275,7 +275,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all duration-200 ${
               authMethod === "sms"
                 ? "bg-[#E30613] text-white shadow-md shadow-[#E30613]/15"
-                : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-250"
+                : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
             }`}
             onClick={() => {
               setAuthMethod("sms");
@@ -290,7 +290,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all duration-200 ${
               authMethod === "password"
                 ? "bg-[#E30613] text-white shadow-md shadow-[#E30613]/15"
-                : "text-zinc-550 hover:text-zinc-800 dark:hover:text-zinc-250"
+                : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
             }`}
             onClick={() => {
               setAuthMethod("password");
@@ -303,7 +303,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         </div>
 
         {error && (
-          <div className="mb-6 p-3.5 bg-red-50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/40 text-xs text-red-655 dark:text-red-400 rounded-2xl" id="auth_error_box">
+          <div className="mb-6 p-3.5 bg-red-50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/40 text-xs text-red-600 dark:text-red-400 rounded-2xl" id="auth_error_box">
             {error}
           </div>
         )}
@@ -429,7 +429,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                       <div className="flex items-start gap-2.5">
                         <MapPin className="w-4 h-4 text-[#E30613] mt-0.5 shrink-0" />
                         <div className="flex-1">
-                          <p className="text-xs sm:text-sm font-bold text-zinc-905 dark:text-white leading-snug">
+                          <p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-snug">
                             {acc.address}
                           </p>
                           <div className="flex justify-between items-center mt-2.5 text-[10px] text-zinc-400 dark:text-zinc-500">
@@ -498,7 +498,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
                       placeholder="Код из СМС"
-                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-zinc-55 bg-zinc-50 dark:bg-zinc-800/45 border border-zinc-200 dark:border-zinc-800/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E30613]/15 focus:border-[#E30613] text-zinc-900 dark:text-white font-mono tracking-widest text-center transition"
+                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800/45 border border-zinc-200 dark:border-zinc-800/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E30613]/15 focus:border-[#E30613] text-zinc-900 dark:text-white font-mono tracking-widest text-center transition"
                     />
                   </div>
                   {isDemo ? (
@@ -539,10 +539,10 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           
           <div className="mt-4 space-y-4 pt-1 animate-fade-in">
             <div>
-              <span className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-wider mb-2 ml-1">
+              <span className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2 ml-1">
                 Подключение к API:
               </span>
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-100 dark:bg-zinc-850 rounded-xl">
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
                 <button
                   type="button"
                   onClick={() => {

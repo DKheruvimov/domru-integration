@@ -106,14 +106,14 @@ export default function App() {
               <Monitor className="w-4 h-4" />
             </button>
           </div>
-          <div className="dark w-full max-w-md flex flex-col items-center">
+          <div className="w-full max-w-md flex flex-col items-center">
             <LoginForm onLoginSuccess={handleLoginSuccess} />
           </div>
         </div>
       ) : (
-        <div className="dark flex flex-col min-h-screen flex-1 text-zinc-900 dark:text-zinc-100 font-sans">
+        <div className="flex flex-col min-h-screen">
           {/* Header Bar */}
-          <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-805 sticky top-0 z-30 shadow-xs" id="main_header">
+          <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-30 shadow-xs" id="main_header">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16 items-center">
                 {/* Brand / Logo (Dom.ru style) */}
@@ -137,7 +137,7 @@ export default function App() {
                 {/* Header Controls */}
                 <div className="flex items-center gap-3">
                   {/* Status Badge */}
-                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-zinc-55 bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-805 font-mono text-xs rounded-xl text-zinc-500 shadow-2xs">
+                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-800 font-mono text-xs rounded-xl text-zinc-500 shadow-2xs">
                     <Database className="w-3.5 h-3.5 text-[#E30613] animate-pulse" />
                     <span>
                       {credentials.isDemo
@@ -218,9 +218,9 @@ export default function App() {
               />
 
               {/* Modal Body / Drawer */}
-              <div className="relative w-full max-w-4xl h-full bg-zinc-50 dark:bg-zinc-950 shadow-2xl flex flex-col z-10 border-l border-zinc-200 dark:border-zinc-850 animate-slide-in">
+              <div className="relative w-full max-w-4xl h-full bg-zinc-50 dark:bg-zinc-950 shadow-2xl flex flex-col z-10 border-l border-zinc-200 dark:border-zinc-800 animate-slide-in">
                 {/* Header */}
-                <div className="flex justify-between items-center px-6 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-805">
+                <div className="flex justify-between items-center px-6 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
                     <Terminal className="w-5 h-5 text-[#E30613] animate-pulse" />
                     <h2 className="text-base font-bold text-zinc-900 dark:text-white">Панель отладки и интеграции (Dev)</h2>

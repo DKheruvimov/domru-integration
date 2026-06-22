@@ -124,7 +124,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
             <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">Интеграции умного дома</h1>
           </div>
           <p className="text-xs text-zinc-500 max-w-2xl">
-            Настройте связывание вашего сервиса Dom.ru Proptech с системами голосовых ассистентов (Яндекс Алиса), Home Assistant, и получите готовые SDK/вебхук-ключи для размещения на домене <span className="font-semibold text-zinc-850 dark:text-zinc-200 font-mono text-[11px] px-1 bg-zinc-100 dark:bg-zinc-800 rounded">{domain}</span>.
+            Настройте связывание вашего сервиса Dom.ru Proptech с системами голосовых ассистентов (Яндекс Алиса), Home Assistant, и получите готовые SDK/вебхук-ключи для размещения на домене <span className="font-semibold text-zinc-800 dark:text-zinc-200 font-mono text-[11px] px-1 bg-zinc-100 dark:bg-zinc-800 rounded">{domain}</span>.
           </p>
         </div>
         <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 px-3.5 py-2 rounded-2xl shrink-0">
@@ -160,7 +160,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                     value={domain}
                     onChange={(e) => setDomain(e.target.value.replace(/https?:\/\//i, ""))}
                     placeholder="kheruvimov.ru"
-                    className="w-full pl-18 pr-4 py-3 bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-805 rounded-xl text-xs font-mono text-zinc-850 dark:text-zinc-150 focus:outline-none focus:border-[#E30613]"
+                    className="w-full pl-18 pr-4 py-3 bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-mono text-zinc-800 dark:text-zinc-150 focus:outline-none focus:border-[#E30613]"
                   />
                 </div>
                 <p className="text-[10px] text-zinc-400">
@@ -181,7 +181,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="sk_domru_..."
-                    className="w-full pl-9 pr-10 py-3 bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-805 rounded-xl text-xs font-mono text-zinc-850 dark:text-zinc-150 focus:outline-none focus:border-[#E30613]"
+                    className="w-full pl-9 pr-10 py-3 bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-mono text-zinc-800 dark:text-zinc-150 focus:outline-none focus:border-[#E30613]"
                   />
                   <button 
                     onClick={() => handleCopy(apiKey, "api_key")}
@@ -272,7 +272,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
 
             </div>
 
-            <div className="bg-zinc-50 dark:bg-zinc-800/40 p-5 border border-zinc-250/20 dark:border-zinc-805 rounded-2xl space-y-3">
+             <div className="bg-zinc-50 dark:bg-zinc-800/40 p-5 border border-zinc-200/20 dark:border-zinc-800 rounded-2xl space-y-3">
               <span className="text-[11px] font-extrabold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5 text-[#E30613]" />
                 Последовательность заполнения полей в Яндекс Диалогах:
@@ -308,7 +308,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
               <span>Песочница и симуляция запроса от Умного Дома Яндекса</span>
             </h2>
 
-            <p className="text-xs text-zinc-405 leading-relaxed">
+            <p className="text-xs text-zinc-400 leading-relaxed">
               Вы можете протестировать работоспособность функции обнаружения устройств (Discovery) вашего домофона прямо сейчас. Мы сгенерировали OAuth Bearer Token, содержащий данные вашего активного договора. Нажмите кнопку для имитации запроса Яндекса.
             </p>
 
@@ -318,11 +318,11 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                   Симулируемый Bearer Token (автогенерация из сессии)
                 </label>
                 <div className="flex gap-2">
-                  <input
+                   <input
                     type="text"
                     value={testToken}
                     onChange={(e) => setTestToken(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-805 rounded-xl text-[10px] font-mono text-zinc-600 dark:text-zinc-400 select-all focus:outline-none"
+                    className="flex-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-[10px] font-mono text-zinc-600 dark:text-zinc-400 select-all focus:outline-none"
                   />
                   <button 
                     onClick={() => handleCopy(testToken, "test_token")}
@@ -338,7 +338,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                 <button
                   onClick={simulateDiscovery}
                   disabled={simLoading}
-                  className="px-5 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 font-semibold text-xs rounded-xl flex items-center gap-2 hover:bg-zinc-800 dark:hover:bg-zinc-250 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+                  className="px-5 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 font-semibold text-xs rounded-xl flex items-center gap-2 hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer shadow-sm"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${simLoading ? "animate-spin" : ""}`} />
                   <span>{simLoading ? "Симуляция..." : "Запустить Discovery (GET /v1.0/user/devices)"}</span>
@@ -347,7 +347,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                 {simResults && (
                   <button
                     onClick={() => setSimResults(null)}
-                    className="px-4 py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-650 dark:text-zinc-350 text-xs rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
+                    className="px-4 py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-xs rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
                   >
                     Очистить вывод
                   </button>
@@ -372,11 +372,11 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                       <Database className="w-3 h-3" />
                       Yandex JSON Response Payload
                     </span>
-                    <span className="text-[9px] font-mono text-zinc-450 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                    <span className="text-[9px] font-mono text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
                       ContentType: application/json
                     </span>
                   </div>
-                  <pre className="p-4 bg-zinc-950 text-emerald-400 text-[11px] font-mono rounded-2.5xl overflow-x-auto max-h-72 border border-zinc-850 shadow-inner">
+                   <pre className="p-4 bg-zinc-950 text-emerald-400 text-[11px] font-mono rounded-2xl overflow-x-auto max-h-72 border border-zinc-800 shadow-inner">
                     {JSON.stringify(simResults, null, 2)}
                   </pre>
                 </div>
@@ -404,7 +404,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                 </div>
                 <div className="text-xs">
                   <p className="font-bold text-zinc-800 dark:text-zinc-200 mb-0.5">Публикация Навыка</p>
-                  <p className="text-zinc-450 dark:text-zinc-450 leading-relaxed">
+                  <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed">
                     Заполните метаданные в Яндекс Диалогах, сохраните изменения и отправьте навык на модерацию (или просто тестируйте в режиме разработчика под своим Яндекс-аккаунтом).
                   </p>
                 </div>
@@ -415,8 +415,8 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                   2
                 </div>
                 <div className="text-xs">
-                  <p className="font-bold text-[#333] dark:text-zinc-200 mb-0.5">Привязка в Доме с Алисой</p>
-                  <p className="text-zinc-450 dark:text-zinc-450 leading-relaxed">
+                   <p className="font-bold text-zinc-800 dark:text-zinc-200 mb-0.5">Привязка в Доме с Алисой</p>
+                  <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed">
                     Откройте приложение <b>«Дом с Алисой»</b> на телефоне. Нажмите <b>«+» → «Устройство умного дома»</b>, найдите ваш кастомный провайдер в списке и нажмите <b>«Привязать к Яндексу»</b>.
                   </p>
                 </div>
@@ -428,7 +428,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                 </div>
                 <div className="text-xs">
                   <p className="font-bold text-zinc-800 dark:text-zinc-200 mb-0.5">Подтверждение по СМС</p>
-                  <p className="text-zinc-450 dark:text-zinc-450 leading-relaxed">
+                  <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed">
                     Откроется страница авторизации вашего сервиса (с поддержкой темы дизайна). Введите номер телефона, выберите нужный договор из привязанных к вашему договору Forpost, подтвердите СМС-кодом или войдите через Демо-режим.
                   </p>
                 </div>
@@ -440,7 +440,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                 </div>
                 <div className="text-xs">
                   <p className="font-bold text-zinc-800 dark:text-zinc-200 mb-0.5">Голосовое управление!</p>
-                  <p className="text-zinc-450 dark:text-zinc-450 leading-relaxed">
+                  <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed">
                     Всё готово! Теперь вы можете сказать: <code className="text-[#E30613] dark:text-red-400 font-semibold font-mono bg-[#E30613]/5 px-1 rounded">«Алиса, открой Домофон»</code> или автоматически просматривать трансляции с ваших камер на Яндекс Станции Макс или Смарт ТВ Yandex.
                   </p>
                 </div>
@@ -448,13 +448,13 @@ export default function Integrations({ credentials }: IntegrationsProps) {
             </div>
           </div>
 
-          {/* Безопасность и HTTPS */}
-          <div className="bg-zinc-550/5 dark:bg-zinc-900/40 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-805 space-y-4">
+           {/* Безопасность и HTTPS */}
+          <div className="bg-zinc-500/5 dark:bg-zinc-900/40 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 space-y-4">
             <h3 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
               <Shield className="w-4 h-4 text-emerald-500" />
               Требования к безопасности
             </h3>
-            <ul className="space-y-2 text-xs text-zinc-550">
+            <ul className="space-y-2 text-xs text-zinc-500">
               <li className="flex items-start gap-2">
                 <span className="text-emerald-500 mr-0.5">✔</span>
                 <span><b>HTTPS шифрование:</b> Яндекс работает только по безопасному SSL протоколу. Наличие действительного сертификата в Cloud Run обеспечивается автоматически.</span>

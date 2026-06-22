@@ -1,0 +1,364 @@
+import React, { useEffect, useRef } from "react";
+import { AppCredentials, SmartDevice, SmartCamera } from "../../types";
+import { Video, VideoOff, RefreshCw, Terminal } from "lucide-react";
+
+interface CctvPlayerProps {
+  activeCamera: string;
+  devices: SmartDevice[];
+  cameras: SmartCamera[];
+  credentials: AppCredentials;
+  snapshotTime: number;
+  playerMode: "stream" | "snapshot";
+  setPlayerMode: (mode: "stream" | "snapshot") => void;
+  hasStreamError: boolean;
+  setHasStreamError: (val: boolean) => void;
+  forceHlsJS: boolean;
+  setForceHlsJS: (val: boolean) => void;
+  streamUrl: string | null;
+  streamType: string | null;
+  loadingStream: boolean;
+  streamLogs: string[];
+  setStreamLogs: React.Dispatch<React.SetStateAction<string[]>>;
+  addStreamLog: (msg: string) => void;
+  onClose: () => void;
+  selectedPlaceId?: number;
+}
+
+export default function CctvPlayer({
+  activeCamera,
+  devices,
+  cameras,
+  credentials,
+  snapshotTime,
+  playerMode,
+  setPlayerMode,
+  hasStreamError,
+  setHasStreamError,
+  forceHlsJS,
+  setForceHlsJS,
+  streamUrl,
+  streamType,
+  loadingStream,
+  streamLogs,
+  setStreamLogs,
+  addStreamLog,
+  onClose,
+  selectedPlaceId,
+}: CctvPlayerProps) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const matchingDevice = devices.find(
+    (d) => d.externalCameraId === activeCamera || String(d.id) === activeCamera
+  );
+
+  const buildSnapshotUrl = (
+    placeId: number | string | undefined,
+    deviceId: number | string
+  ) => {
+    if (!placeId) return "";
+    const params = new URLSearchParams();
+    params.set("t", String(snapshotTime));
+    if (credentials.isDemo) {
+      params.set("demo", "true");
+    } else {
+      if (credentials.login) params.set("login", credentials.login);
+      if (credentials.password) params.set("password", credentials.password);
+      if (credentials.token) params.set("token", credentials.token);
+      if (credentials.operatorId) params.set("operatorId", String(credentials.operatorId));
+      if (credentials.refreshToken) params.set("refreshToken", credentials.refreshToken);
+    }
+    return `/api/domru/snapshot/${placeId}/${deviceId}?${params.toString()}`;
+  };
+
+  // HLS/FLV stream player handler using Ref
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !streamUrl || !streamType) return;
+
+    addStreamLog("--- ИНИЦИАЛИЗАЦИИ ВИДЕОПОТОКА ---");
+
+    if (streamType === "mjpeg") {
+      addStreamLog("MJPEG-поток инициализирован.");
+      return;
+    }
+
+    const nativeHlsSupported = video.canPlayType("application/vnd.apple.mpegurl") !== "";
+    const handlePlaying = () => addStreamLog("▶ HTML5 Video: Воспроизведение успешно началось!");
+    const handleVideoError = () => {
+      const err = video.error;
+      addStreamLog(`⛔ Ошибка HTML5 Video: Код ${err ? err.code : "неизвестно"}`);
+      setHasStreamError(true);
+    };
+
+    video.addEventListener("playing", handlePlaying);
+    video.addEventListener("error", handleVideoError);
+
+    let hlsInstance: any = null;
+    let mpegtsPlayer: any = null;
+
+    const isHls = streamType === "hls" || streamUrl.includes(".m3u8");
+    const isFlv = streamType === "flv" || streamUrl.includes(".flv");
+
+    if (isFlv) {
+      const loadMpegts = async () => {
+        if (!(window as any).mpegts) {
+          await new Promise<void>((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = "https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js";
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error("Не удалось загрузить mpegts.js"));
+            document.head.appendChild(script);
+          });
+        }
+        const mpegts = (window as any).mpegts;
+        if (mpegts && mpegts.isSupported()) {
+          mpegtsPlayer = mpegts.createPlayer({ type: "flv", isLive: true, url: streamUrl, cors: true });
+          mpegtsPlayer.attachMediaElement(video);
+          mpegtsPlayer.load();
+          mpegtsPlayer.play().catch((e: any) => console.log("Auto-start blocked", e));
+        } else {
+          video.src = streamUrl;
+        }
+      };
+      loadMpegts().catch((e) => console.error(e));
+    } else if (isHls) {
+      if (nativeHlsSupported && !forceHlsJS) {
+        video.src = streamUrl;
+      } else {
+        const loadHls = async () => {
+          if (!(window as any).Hls) {
+            await new Promise<void>((resolve, reject) => {
+              const script = document.createElement("script");
+              script.src = "https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js";
+              script.onload = () => resolve();
+              script.onerror = () => reject(new Error("Не удалось загрузить Hls.js"));
+              document.head.appendChild(script);
+            });
+          }
+          const Hls = (window as any).Hls;
+          if (Hls && Hls.isSupported()) {
+            hlsInstance = new Hls({ lowLatencyMode: true, maxBufferLength: 10 });
+            hlsInstance.loadSource(streamUrl);
+            hlsInstance.attachMedia(video);
+          } else {
+            video.src = streamUrl;
+          }
+        };
+        loadHls().catch((e) => console.error(e));
+      }
+    } else {
+      video.src = streamUrl;
+    }
+
+    return () => {
+      video.removeEventListener("playing", handlePlaying);
+      video.removeEventListener("error", handleVideoError);
+      if (hlsInstance) hlsInstance.destroy();
+      if (mpegtsPlayer) mpegtsPlayer.destroy();
+    };
+  }, [streamUrl, streamType, forceHlsJS, addStreamLog, setHasStreamError]);
+
+  return (
+    <div
+      className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4 sm:p-6 rounded-[2rem] shadow-xl flex flex-col space-y-4 animate-fade-in max-w-3xl mx-auto"
+      id="cctv_visualizer"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Video className="w-4 h-4 text-[#E30613] animate-pulse" />
+          <span className="font-extrabold text-sm text-zinc-900 dark:text-white">
+            {cameras.find((c) => c.id === activeCamera)?.name ||
+              matchingDevice?.name ||
+              "Просмотр видеопотока"}
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          className="px-3.5 py-1.5 bg-[#E30613]/10 text-[#E30613] font-bold rounded-xl hover:bg-[#E30613]/20 transition text-xs cursor-pointer"
+          id="close_cctv_btn"
+        >
+          <VideoOff className="w-3.5 h-3.5 inline mr-1" />
+          Закрыть
+        </button>
+      </div>
+
+      {matchingDevice && (
+        <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 p-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-700 text-xs">
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => setPlayerMode("stream")}
+              className={`px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+                playerMode === "stream"
+                  ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-xs border border-zinc-200 dark:border-zinc-800"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-white"
+              }`}
+            >
+              📡 Поток (HLS)
+            </button>
+            <button
+              onClick={() => setPlayerMode("snapshot")}
+              className={`px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+                playerMode === "snapshot"
+                  ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-xs border border-zinc-200 dark:border-zinc-800"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-white"
+              }`}
+            >
+              📸 Снимки
+            </button>
+          </div>
+          <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mr-2 hidden sm:block font-bold">
+            {playerMode === "stream"
+              ? "Рекомендуется H.264"
+              : `Обновление ~1.5с • ${new Date(snapshotTime).toLocaleTimeString()}`}
+          </div>
+        </div>
+      )}
+
+      <div className="aspect-video w-full bg-zinc-100 dark:bg-zinc-950 rounded-2xl overflow-hidden relative flex items-center justify-center border border-zinc-200 dark:border-zinc-800">
+        {playerMode === "snapshot" && matchingDevice ? (
+          <div className="w-full h-full relative">
+            <img
+              key={snapshotTime}
+              src={buildSnapshotUrl(selectedPlaceId, matchingDevice.id)}
+              alt="Кадр с домофона"
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover"
+              onError={() => {
+                addStreamLog("⛔ Сбой загрузки снимка с домофона.");
+              }}
+            />
+            <div className="absolute top-3 left-3 bg-black/75 px-2.5 py-1 rounded-lg text-[9px] font-bold tracking-wider flex items-center gap-1.5 text-white">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              РЕЖИМ СНАПШОТОВ (1.5С)
+            </div>
+          </div>
+        ) : loadingStream ? (
+          <div className="text-xs text-zinc-500 dark:text-zinc-400 flex flex-col items-center gap-2">
+            <RefreshCw className="w-6 h-6 animate-spin text-teal-500" />
+            <span>Подключение к IP-потоку Dom.ru…</span>
+          </div>
+        ) : streamUrl ? (
+          streamUrl.toLowerCase().startsWith("rtsp://") ? (
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 p-8 text-center max-w-md flex flex-col items-center gap-3">
+              <div className="p-2.5 bg-amber-500/10 text-amber-600 dark:text-amber-500 rounded-xl">
+                <VideoOff className="w-6 h-6" />
+              </div>
+              <p className="font-extrabold text-zinc-900 dark:text-white text-sm">
+                Протокол RTSP не поддерживается браузерами напрямую
+              </p>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-sans">
+                Экраны домофонов Dom.ru выдают сырой RTSP-адрес. Скопируйте ссылку ниже и
+                запустите в плеере (например, VLC).
+              </p>
+            </div>
+          ) : streamType === "mjpeg" ? (
+            <img
+              src={streamUrl}
+              alt="MJPEG Stream"
+              className="w-full h-full object-cover"
+              onError={() => {
+                addStreamLog("⛔ Сбой загрузки MJPEG-потока.");
+              }}
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              controls
+              autoPlay
+              playsInline
+              loop
+              muted
+              className="w-full h-full object-cover"
+            />
+          )
+        ) : (
+          <div className="text-xs text-zinc-500 dark:text-zinc-400 p-8 text-center">
+            <p className="font-semibold text-zinc-400">Поток временно недоступен</p>
+          </div>
+        )}
+      </div>
+
+      {hasStreamError && playerMode === "stream" && matchingDevice && (
+        <div className="bg-amber-500/10 border border-amber-500/20 text-[#D97706] dark:text-amber-400 p-3.5 rounded-2xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
+          <div>
+            <p className="font-bold">⚠️ Проблемы с воспроизведением видео-потока</p>
+            <p className="text-[11px] text-zinc-650 dark:text-zinc-400 mt-1 leading-normal">
+              Ваш браузер или соединение не могут принять HLS-видео. Рекомендуем переключиться
+              на режим снимков.
+            </p>
+          </div>
+          <button
+            onClick={() => setPlayerMode("snapshot")}
+            className="shrink-0 bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+          >
+            На снапшоты
+          </button>
+        </div>
+      )}
+
+      {streamUrl && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 text-[10px] text-zinc-500 dark:text-zinc-400 font-mono border-b border-zinc-200 dark:border-zinc-800 pb-2">
+            <span>Состояние: Подключено</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setForceHlsJS(!forceHlsJS)}
+                className="hover:text-[#E30613] bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 rounded-lg font-sans font-bold transition border border-zinc-200 dark:border-zinc-700 cursor-pointer text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-750"
+              >
+                🔧 {forceHlsJS ? "Авто-плеер" : "Hls.js"}
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(streamUrl);
+                  addStreamLog("📋 Ссылка скопирована!");
+                }}
+                className="hover:text-[#E30613] bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 rounded-lg transition border border-zinc-200 dark:border-zinc-700 cursor-pointer text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-750"
+              >
+                Скопировать URL
+              </button>
+            </div>
+          </div>
+
+          <details className="group mt-3 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50 dark:bg-zinc-900/10 overflow-hidden animate-fade-in">
+            <summary className="px-4 py-2.5 text-[10px] font-bold tracking-wider text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer flex items-center justify-between font-sans select-none list-none">
+              <span className="flex items-center gap-1.5">
+                <Terminal className="w-3.5 h-3.5 text-[#E30613]" />
+                Техническая диагностика потока (Dev-логи)
+              </span>
+              <span className="text-[9px] bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded-full text-zinc-500 dark:text-zinc-400 font-mono">
+                {streamLogs.length} событий
+              </span>
+            </summary>
+            <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 font-mono text-[11px] leading-relaxed select-text shadow-inner">
+              <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-2 mb-2 text-zinc-550 dark:text-zinc-400">
+                <span>Журнал событий плеера</span>
+                <button
+                  onClick={() => setStreamLogs([])}
+                  className="text-[9px] text-[#E30613] font-bold cursor-pointer"
+                >
+                  Очистить
+                </button>
+              </div>
+              <div
+                className="bg-white dark:bg-black/30 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 h-48 overflow-y-auto space-y-1 text-zinc-600 dark:text-zinc-400 font-mono text-[10px]"
+                id="video_logs_scroller"
+              >
+                {streamLogs.length > 0 ? (
+                  streamLogs.map((log, index) => (
+                    <div key={index} className="whitespace-pre-wrap">
+                      {log}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-zinc-400 dark:text-zinc-600 mt-16">
+                    Логи пусты
+                  </div>
+                )}
+              </div>
+            </div>
+          </details>
+        </div>
+      )}
+    </div>
+  );
+}

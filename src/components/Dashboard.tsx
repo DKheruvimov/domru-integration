@@ -1,30 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { AppCredentials, SmartPlace, SmartDevice, SmartCamera, HistoryEvent, GuestPin } from "../types";
-import {
-  Home,
-  CreditCard,
-  Lock,
-  Unlock,
-  Video,
-  VideoOff,
-  User,
-  History,
-  KeyRound,
-  RefreshCw,
-  LogOut,
-  Sliders,
-  Bell,
-  CheckCircle,
-  Clock,
-  ExternalLink,
-  Terminal,
-  ChevronRight,
-  ShieldCheck,
-  Users,
-  Plus,
-  Car,
-  MessageSquare,
-} from "lucide-react";
+import MobileDashboard from "./dashboard/MobileDashboard";
+import DesktopDashboard from "./dashboard/DesktopDashboard";
 
 interface DashboardProps {
   credentials: AppCredentials;
@@ -37,7 +14,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
   const [selectedPlace, setSelectedPlace] = useState<SmartPlace | null>(null);
   const [devices, setDevices] = useState<SmartDevice[]>([]);
   const [rawCameras, setRawCameras] = useState<any[]>([]);
-  const [showAllCameras, setShowAllCameras] = useState(false);
+  const [showAllCameras] = useState(false);
 
   // Compute cameras list dynamically
   const cameras: SmartCamera[] = (rawCameras || [])
@@ -66,7 +43,6 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
   const [snapshotTime, setSnapshotTime] = useState(Date.now());
   const [hasStreamError, setHasStreamError] = useState(false);
   const [forceHlsJS, setForceHlsJS] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const addStreamLog = (msg: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -87,7 +63,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
   const [doorMessage, setDoorMessage] = useState<string | null>(null);
 
   // Global triggers
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const proxyHeaders = {
@@ -222,7 +198,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
             if (e.title !== undefined) {
               return {
                 ...e,
-                id: e.id || (Date.now() + index)
+                id: e.id || (Date.now() + index),
               };
             }
 
@@ -235,7 +211,11 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
             };
 
             const title = titleMap[e.eventTypeName] || e.eventTypeName || "Событие домофона";
-            const imageUrl = e.value?.images?.p_640x480 || e.value?.images?.raw || e.value?.images?.p_144x96 || undefined;
+            const imageUrl =
+              e.value?.images?.p_640x480 ||
+              e.value?.images?.raw ||
+              e.value?.images?.p_144x96 ||
+              undefined;
 
             return {
               id: Number(e.id) || (Date.now() + index),
@@ -283,12 +263,12 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
         const data = await res.json();
 
         if (!data || !data.url) {
-          throw new Error("Сервер вернул пустой URL потока (возможно, камера офлайн).");
+          throw new Error("Сервер вернул пустой URL потока (возможно, камера оффлайн).");
         }
 
-        addStreamLog(`Получен ответ: тип=${data.type || 'unknown'}, URL=${data.url}`);
+        addStreamLog(`Получен ответ: тип=${data.type || "unknown"}, URL=${data.url}`);
         setStreamUrl(data.url);
-        setStreamType(data.type || 'unknown');
+        setStreamType(data.type || "unknown");
       } catch (err: any) {
         console.error(err);
         addStreamLog(`⛔ Сбой получения потока: ${err.message}`);
@@ -302,94 +282,6 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
 
     fetchStream();
   }, [activeCamera]);
-
-  // HLS/FLV stream player handler using Ref
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !streamUrl || !streamType) return;
-
-    addStreamLog("--- ИНИЦИАЛИЗАЦИИ ВИДЕОПОТОКА ---");
-    
-    if (streamType === "mjpeg") {
-      addStreamLog("MJPEG-поток инициализирован.");
-      return;
-    }
-    
-    const nativeHlsSupported = video.canPlayType("application/vnd.apple.mpegurl") !== "";
-    const handlePlaying = () => addStreamLog("▶ HTML5 Video: Воспроизведение успешно началось!");
-    const handleVideoError = () => {
-      const err = video.error;
-      addStreamLog(`⛔ Ошибка HTML5 Video: Код ${err ? err.code : "неизвестно"}`);
-      setHasStreamError(true);
-    };
-
-    video.addEventListener("playing", handlePlaying);
-    video.addEventListener("error", handleVideoError);
-
-    let hlsInstance: any = null;
-    let mpegtsPlayer: any = null;
-
-    const isHls = streamType === "hls" || streamUrl.includes(".m3u8");
-    const isFlv = streamType === "flv" || streamUrl.includes(".flv");
-
-    if (isFlv) {
-      const loadMpegts = async () => {
-        if (!(window as any).mpegts) {
-          await new Promise<void>((resolve, reject) => {
-            const script = document.createElement("script");
-            script.src = "https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js";
-            script.onload = () => resolve();
-            script.onerror = () => reject(new Error("Не удалось загрузить mpegts.js"));
-            document.head.appendChild(script);
-          });
-        }
-        const mpegts = (window as any).mpegts;
-        if (mpegts && mpegts.isSupported()) {
-          mpegtsPlayer = mpegts.createPlayer({ type: 'flv', isLive: true, url: streamUrl, cors: true });
-          mpegtsPlayer.attachMediaElement(video);
-          mpegtsPlayer.load();
-          mpegtsPlayer.play().catch((e: any) => console.log("Auto-start blocked", e));
-        } else {
-          video.src = streamUrl;
-        }
-      };
-      loadMpegts().catch((e) => console.error(e));
-    } else if (isHls) {
-      if (nativeHlsSupported && !forceHlsJS) {
-        video.src = streamUrl;
-      } else {
-        const loadHls = async () => {
-          if (!(window as any).Hls) {
-            await new Promise<void>((resolve, reject) => {
-              const script = document.createElement("script");
-              script.src = "https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js";
-              script.onload = () => resolve();
-              script.onerror = () => reject(new Error("Не удалось загрузить Hls.js"));
-              document.head.appendChild(script);
-            });
-          }
-          const Hls = (window as any).Hls;
-          if (Hls && Hls.isSupported()) {
-            hlsInstance = new Hls({ lowLatencyMode: true, maxBufferLength: 10 });
-            hlsInstance.loadSource(streamUrl);
-            hlsInstance.attachMedia(video);
-          } else {
-            video.src = streamUrl;
-          }
-        };
-        loadHls().catch((e) => console.error(e));
-      }
-    } else {
-      video.src = streamUrl;
-    }
-
-    return () => {
-      video.removeEventListener("playing", handlePlaying);
-      video.removeEventListener("error", handleVideoError);
-      if (hlsInstance) hlsInstance.destroy();
-      if (mpegtsPlayer) mpegtsPlayer.destroy();
-    };
-  }, [streamUrl, streamType, forceHlsJS]);
 
   // Handle open door command
   const triggerOpenDoor = async (deviceId: number) => {
@@ -484,651 +376,65 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
     groupedEvents[groupKey].push(evt);
   });
 
+  // Responsive Layout detection
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize(); // initial check
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const sharedProps = {
+    activeTab,
+    setActiveTab,
+    places,
+    selectedPlace,
+    setSelectedPlace,
+    devices,
+    cameras,
+    credentials,
+    snapshotTime,
+    playerMode,
+    setPlayerMode,
+    hasStreamError,
+    setHasStreamError,
+    forceHlsJS,
+    setForceHlsJS,
+    streamUrl,
+    streamType,
+    loadingStream,
+    streamLogs,
+    setStreamLogs,
+    addStreamLog,
+    activeCamera,
+    setActiveCamera,
+    setStreamUrl,
+    openingDoorId,
+    triggerOpenDoor,
+    doorMessage,
+    pins,
+    makeGuestPin,
+    groupedEvents,
+    onLogout,
+    loadData,
+  };
+
   return (
-    <div className="space-y-6" id="dashboard_panel">
-      {/* Top Address & Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-900 border border-zinc-800 p-4 rounded-3xl shadow-md">
-        <div className="flex items-center gap-3">
-          <div className="bg-zinc-850 p-2.5 rounded-full text-zinc-400">
-            <Car className="w-5 h-5" />
-          </div>
-          
-          <div className="relative flex items-center bg-zinc-850 border border-zinc-800/80 rounded-full px-4 py-2 hover:bg-zinc-800 transition">
-            <select
-              value={selectedPlace?.id || ""}
-              onChange={(e) => {
-                const f = places.find((p) => p.id === Number(e.target.value));
-                if (f) setSelectedPlace(f);
-              }}
-              className="bg-transparent text-white text-xs font-bold focus:outline-none cursor-pointer pr-6 appearance-none border-none py-0.5 leading-tight font-sans"
-              style={{ colorScheme: "dark" }}
-              id="place_select_dropdown"
-            >
-              {places.map((p, idx) => (
-                <option key={`${p.id}-${p.accountId || idx}-${idx}`} value={p.id} className="bg-zinc-900 text-white font-semibold">
-                  {p.visibleAddress}
-                </option>
-              ))}
-            </select>
-            <div className="absolute right-4 pointer-events-none text-[8px] text-zinc-455 font-black">
-              ▼
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {credentials.isDemo && (
-            <span className="px-3 py-1.5 text-[10px] bg-[#E30613]/10 text-[#E30613] font-bold rounded-full border border-[#E30613]/25 mr-2">
-              Режим симуляции (Demo)
-            </span>
-          )}
-          <button
-            onClick={loadData}
-            className="p-2.5 bg-zinc-850 border border-zinc-800 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition shadow-2xs"
-            title="Обновить данные"
-            id="global_refresh_btn"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
+    <div className="space-y-6">
       {error && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 text-xs font-bold text-red-400 rounded-2xl animate-fade-in">
           {error}
         </div>
       )}
 
-      {/* Navigation tabs matching the mobile screens */}
-      <div className="grid grid-cols-4 gap-1 bg-zinc-900 border border-zinc-800/80 p-1 rounded-2xl shadow-lg max-w-xl mx-auto">
-        <button
-          onClick={() => setActiveTab("myhome")}
-          className={`py-3 text-[11px] font-extrabold rounded-xl flex flex-col sm:flex-row items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
-            activeTab === "myhome"
-              ? "bg-[#E30613] text-white shadow-md shadow-[#E30613]/20"
-              : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          <Home className="w-4 h-4" />
-          <span>Мой дом</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("events")}
-          className={`py-3 text-[11px] font-extrabold rounded-xl flex flex-col sm:flex-row items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
-            activeTab === "events"
-              ? "bg-[#E30613] text-white shadow-md shadow-[#E30613]/20"
-              : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          <Bell className="w-4 h-4" />
-          <span>События</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("people")}
-          className={`py-3 text-[11px] font-extrabold rounded-xl flex flex-col sm:flex-row items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
-            activeTab === "people"
-              ? "bg-[#E30613] text-white shadow-md shadow-[#E30613]/20"
-              : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>Люди</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("cabinet")}
-          className={`py-3 text-[11px] font-extrabold rounded-xl flex flex-col sm:flex-row items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
-            activeTab === "cabinet"
-              ? "bg-[#E30613] text-white shadow-md shadow-[#E30613]/20"
-              : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          <Sliders className="w-4 h-4" />
-          <span>Кабинет</span>
-        </button>
-      </div>
-
-      {/* CCTV player widget displayed if camera is actively viewing */}
-      {activeCamera && (() => {
-        const matchingDevice = devices.find((d) => d.externalCameraId === activeCamera || String(d.id) === activeCamera);
-        
-        const buildSnapshotUrl = (placeId: number | string | undefined, deviceId: number | string) => {
-          if (!placeId) return "";
-          const params = new URLSearchParams();
-          params.set("t", String(snapshotTime));
-          if (credentials.isDemo) {
-            params.set("demo", "true");
-          } else {
-            if (credentials.login) params.set("login", credentials.login);
-            if (credentials.password) params.set("password", credentials.password);
-            if (credentials.token) params.set("token", credentials.token);
-            if (credentials.operatorId) params.set("operatorId", String(credentials.operatorId));
-            if (credentials.refreshToken) params.set("refreshToken", credentials.refreshToken);
-          }
-          return `/api/domru/snapshot/${placeId}/${deviceId}?${params.toString()}`;
-        };
-
-        return (
-          <div className="bg-zinc-900 border border-zinc-800 p-4 sm:p-6 rounded-[2rem] shadow-xl flex flex-col space-y-4 animate-fade-in max-w-3xl mx-auto" id="cctv_visualizer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Video className="w-4 h-4 text-[#E30613] animate-pulse" />
-                <span className="font-extrabold text-sm text-white">
-                  {cameras.find((c) => c.id === activeCamera)?.name || matchingDevice?.name || "Просмотр видеопотока"}
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  setActiveCamera(null);
-                  setStreamUrl(null);
-                }}
-                className="px-3.5 py-1.5 bg-[#E30613]/10 text-[#E30613] font-bold rounded-xl hover:bg-[#E30613]/20 transition text-xs"
-                id="close_cctv_btn"
-              >
-                <VideoOff className="w-3.5 h-3.5 inline mr-1" />
-                Закрыть
-              </button>
-            </div>
-
-            {matchingDevice && (
-              <div className="flex items-center justify-between bg-zinc-850 p-1.5 rounded-2xl border border-zinc-800 text-xs">
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => setPlayerMode("stream")}
-                    className={`px-3.5 py-1.5 rounded-xl font-bold transition ${
-                      playerMode === "stream"
-                        ? "bg-zinc-900 text-white shadow-xs border border-zinc-800"
-                        : "text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    📡 Поток (HLS)
-                  </button>
-                  <button
-                    onClick={() => setPlayerMode("snapshot")}
-                    className={`px-3.5 py-1.5 rounded-xl font-bold transition ${
-                      playerMode === "snapshot"
-                        ? "bg-zinc-900 text-white shadow-xs border border-zinc-800"
-                        : "text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    📸 Снимки
-                  </button>
-                </div>
-                <div className="text-[10px] text-zinc-450 mr-2 hidden sm:block font-bold">
-                  {playerMode === "stream" ? "Рекомендуется H.264" : `Обновление ~1.5с • ${new Date(snapshotTime).toLocaleTimeString()}`}
-                </div>
-              </div>
-            )}
-
-            <div className="aspect-video w-full bg-zinc-955 rounded-2xl overflow-hidden relative flex items-center justify-center border border-zinc-850">
-              {playerMode === "snapshot" && matchingDevice ? (
-                <div className="w-full h-full relative">
-                  <img
-                    key={snapshotTime}
-                    src={buildSnapshotUrl(selectedPlace?.id, matchingDevice.id)}
-                    alt="Кадр с домофона"
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                    onError={() => {
-                      addStreamLog("⛔ Сбой загрузки снимка с домофона.");
-                    }}
-                  />
-                  <div className="absolute top-3 left-3 bg-black/75 px-2.5 py-1 rounded-lg text-[9px] font-bold tracking-wider flex items-center gap-1.5 text-white">
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                    РЕЖИМ СНАПШОТОВ (1.5С)
-                  </div>
-                </div>
-              ) : loadingStream ? (
-                <div className="text-xs text-zinc-400 flex flex-col items-center gap-2">
-                  <RefreshCw className="w-6 h-6 animate-spin text-teal-500" />
-                  <span>Подключение к IP-потоку Dom.ru…</span>
-                </div>
-              ) : streamUrl ? (
-                streamUrl.toLowerCase().startsWith("rtsp://") ? (
-                  <div className="text-xs text-zinc-400 p-8 text-center max-w-md flex flex-col items-center gap-3">
-                    <div className="p-2.5 bg-amber-500/10 text-amber-550 rounded-xl">
-                      <VideoOff className="w-6 h-6" />
-                    </div>
-                    <p className="font-extrabold text-white text-sm">Протокол RTSP не поддерживается браузерами напрямую</p>
-                    <p className="text-[11px] text-zinc-405 leading-relaxed font-sans">
-                      Экраны домофонов Dom.ru выдают сырой RTSP-адрес. Скопируйте ссылку ниже и запустите в плеере (например, VLC).
-                    </p>
-                  </div>
-                ) : streamType === "mjpeg" ? (
-                  <img
-                    src={streamUrl}
-                    alt="MJPEG Stream"
-                    className="w-full h-full object-cover"
-                    onError={() => {
-                      addStreamLog("⛔ Сбой загрузки MJPEG-потока.");
-                    }}
-                  />
-                ) : (
-                  <video
-                    ref={videoRef}
-                    controls
-                    autoPlay
-                    playsInline
-                    loop
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                )
-              ) : (
-                <div className="text-xs text-zinc-550 p-8 text-center">
-                  <p className="font-semibold text-zinc-400">Поток временно недоступен</p>
-                </div>
-              )}
-            </div>
-
-            {hasStreamError && playerMode === "stream" && matchingDevice && (
-              <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-3.5 rounded-2xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
-                <div>
-                  <p className="font-bold">⚠️ Проблемы с воспроизведением видео-потока</p>
-                  <p className="text-[11px] text-zinc-400 mt-1 leading-normal">
-                    Ваш браузер или соединение не могут принять HLS-видео. Рекомендуем переключиться на режим снимков.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setPlayerMode("snapshot")}
-                  className="shrink-0 bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold px-3 py-1.5 rounded-lg transition"
-                >
-                  На снапшоты
-                </button>
-              </div>
-            )}
-
-            {streamUrl && (
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2.5 text-[10px] text-zinc-400 font-mono border-b border-zinc-800 pb-2">
-                  <span>Состояние: Подключено</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setForceHlsJS(!forceHlsJS)}
-                      className="hover:text-[#E30613] bg-zinc-850 px-2.5 py-1.5 rounded-lg font-sans font-bold transition border border-zinc-800"
-                    >
-                      🔧 {forceHlsJS ? "Авто-плеер" : "Hls.js"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(streamUrl);
-                        addStreamLog("📋 Ссылка скопирована!");
-                      }}
-                      className="hover:text-[#E30613] bg-zinc-850 px-2.5 py-1.5 rounded-lg transition border border-zinc-800"
-                    >
-                      Скопировать URL
-                    </button>
-                  </div>
-                </div>
-
-                <details className="group mt-3 border border-zinc-800 rounded-2xl bg-zinc-900/10 overflow-hidden animate-fade-in">
-                  <summary className="px-4 py-2.5 text-[10px] font-bold tracking-wider text-zinc-500 hover:text-zinc-200 cursor-pointer flex items-center justify-between font-sans select-none list-none">
-                    <span className="flex items-center gap-1.5">
-                      <Terminal className="w-3.5 h-3.5 text-[#E30613]" />
-                      Техническая диагностика потока (Dev-логи)
-                    </span>
-                    <span className="text-[9px] bg-zinc-800 px-2 py-0.5 rounded-full text-zinc-450 font-mono">
-                      {streamLogs.length} событий
-                    </span>
-                  </summary>
-                  <div className="p-4 border-t border-zinc-800 bg-zinc-950 font-mono text-[11px] leading-relaxed select-text shadow-inner">
-                    <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-2 text-zinc-550">
-                      <span>Журнал событий плеера</span>
-                      <button onClick={() => setStreamLogs([])} className="text-[9px] text-[#E30613] font-bold">Очистить</button>
-                    </div>
-                    <div className="bg-black/30 border border-zinc-850 rounded-xl p-3 h-48 overflow-y-auto space-y-1 text-zinc-400 font-mono text-[10px]" id="video_logs_scroller">
-                      {streamLogs.length > 0 ? (
-                        streamLogs.map((log, index) => (
-                          <div key={index} className="whitespace-pre-wrap">{log}</div>
-                        ))
-                      ) : (
-                        <div className="text-center text-zinc-600 mt-16">Логи пусты</div>
-                      )}
-                    </div>
-                  </div>
-                </details>
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Main Tab Views */}
-      <div className="max-w-4xl mx-auto">
-        {/* VIEW 1: MY HOME (Dashboard Grid) */}
-        {activeTab === "myhome" && (
-          <div className="space-y-6">
-            
-            {/* Announcements Banners matching the mobile style */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gradient-to-r from-purple-950/40 via-indigo-950/20 to-[#E30613]/10 border border-indigo-900/30 p-5 rounded-3xl relative overflow-hidden flex justify-between items-center group shadow-md">
-                <div className="space-y-2 z-10 max-w-[68%]">
-                  <h3 className="font-extrabold text-white text-base tracking-tight leading-tight">
-                    Подключайте тариф ПРО
-                  </h3>
-                  <p className="text-xs text-zinc-400 leading-normal">
-                    Предложение специально для вас: неограниченный видеоархив и расширенный доступ.
-                  </p>
-                  <button className="mt-2.5 px-4 py-2 bg-zinc-850 hover:bg-zinc-800 text-white rounded-full text-xs font-bold transition shadow-xs">
-                    Подключить
-                  </button>
-                </div>
-                <div className="text-5xl select-none transform group-hover:rotate-6 transition duration-300 z-10 pr-2">
-                  📦
-                </div>
-              </div>
-
-              <div className="bg-zinc-900 border border-zinc-800/80 p-5 rounded-3xl flex justify-between items-center group shadow-md">
-                <div className="space-y-2 z-10 max-w-[70%]">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-500 animate-pulse" />
-                    <h3 className="font-extrabold text-white text-sm tracking-tight leading-tight">
-                      Подтвердите ваши ключи
-                    </h3>
-                  </div>
-                  <p className="text-xs text-zinc-400 leading-normal">
-                    Подтвердите достоверность ключей для корректной работы сервисов безопасности.
-                  </p>
-                  <button className="mt-2 px-4 py-2 bg-white text-zinc-950 hover:bg-zinc-200 rounded-full text-xs font-bold transition shadow-xs">
-                    Подтвердить
-                  </button>
-                </div>
-                <div className="text-4xl opacity-30 group-hover:opacity-50 transition duration-300 pr-2 select-none">
-                  🛡️
-                </div>
-              </div>
-            </div>
-
-            {/* Smart Access Devices sections */}
-            <div className="bg-zinc-900 border border-zinc-805 p-6 rounded-[2rem] shadow-md">
-              <h2 className="text-base font-extrabold text-white mb-6 font-display uppercase tracking-wider flex items-center gap-2">
-                <span className="w-1.5 h-3.5 bg-[#E30613] rounded-full inline-block" />
-                Доступы и домофоны
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {devices.length > 0 ? (
-                  devices.map((device, idx) => {
-                    const isOpening = openingDoorId === device.id;
-                    return (
-                      <div
-                        key={device.id || idx}
-                        className={`relative aspect-[4/3] rounded-3xl overflow-hidden flex flex-col justify-between p-4 group transition-all duration-300 border ${
-                          isOpening
-                            ? "border-emerald-500 ring-2 ring-emerald-500/25 scale-98 bg-zinc-950"
-                            : "border-zinc-800 bg-zinc-850 hover:bg-zinc-800 hover:scale-[1.01] hover:shadow-lg"
-                        }`}
-                        id={`device_card_${device.id}`}
-                      >
-                        {/* Film/Video strip placeholder background */}
-                        <div className="absolute inset-0 bg-zinc-900/70 flex items-center justify-center pointer-events-none group-hover:bg-zinc-900/60 transition">
-                          <Video className="w-10 h-10 text-zinc-700 opacity-40 group-hover:opacity-70 group-hover:scale-105 transition duration-300" />
-                        </div>
-
-                        {/* Top bar (Address details) */}
-                        <div className="relative z-10 bg-zinc-900/50 backdrop-blur-xs p-2 rounded-xl border border-white/5 inline-self-start max-w-[85%]">
-                          <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block leading-none">
-                            {device.type === "intercom" ? "Домофон" : "Калитка"}
-                          </span>
-                          <h3 className="font-extrabold text-xs text-white mt-1 truncate leading-none">
-                            {device.name}
-                          </h3>
-                        </div>
-
-                        {/* Bottom action controls */}
-                        <div className="relative z-10 flex items-center justify-between w-full mt-auto pt-2">
-                          {device.allowVideo && device.externalCameraId && (
-                            <button
-                              onClick={() => setActiveCamera(device.externalCameraId)}
-                              className="px-3 py-1.5 bg-black/50 hover:bg-black/75 text-white text-[10px] font-bold rounded-full border border-white/5 transition flex items-center gap-1 leading-none shadow-sm"
-                            >
-                              <Video className="w-3.5 h-3.5 text-[#E30613]" />
-                              Смотреть
-                            </button>
-                          )}
-
-                          {device.allowOpen ? (
-                            <button
-                              onClick={() => triggerOpenDoor(device.id)}
-                              disabled={openingDoorId !== null}
-                              className={`p-3.5 rounded-full transition-all duration-300 ml-auto shadow-md ${
-                                isOpening
-                                  ? "bg-emerald-500 text-white cursor-default"
-                                  : "bg-[#E30613] hover:bg-[#c20510] active:scale-90 text-white"
-                              }`}
-                              id={`open_btn_${device.id}`}
-                            >
-                              {isOpening ? (
-                                <Unlock className="w-5 h-5 animate-pulse" />
-                              ) : (
-                                <Lock className="w-5 h-5" />
-                              )}
-                            </button>
-                          ) : (
-                            <div className="text-[10px] text-zinc-500 italic ml-auto bg-zinc-900/80 px-2.5 py-1 rounded-lg">
-                              Заблокировано
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="col-span-full text-center py-12 text-xs text-zinc-400">
-                    Активные домофонные устройства не обнаружены
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {doorMessage && (
-              <div className="p-4 bg-emerald-500/10 text-xs font-bold text-emerald-400 border border-emerald-500/20 rounded-2xl flex items-center gap-2 animate-fade-in max-w-md mx-auto">
-                <CheckCircle className="w-4 h-4 shrink-0" />
-                <span>{doorMessage}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* VIEW 2: EVENTS (Grouped Log events) */}
-        {activeTab === "events" && (
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] shadow-md space-y-6 animate-fade-in">
-            {/* Promo banner */}
-            <div className="bg-indigo-950/20 border border-indigo-900/30 p-4 rounded-2xl flex justify-between items-center group">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                  <CheckCircle className="w-4.5 h-4.5" />
-                </div>
-                <div>
-                  <h4 className="font-extrabold text-xs text-white">Увеличьте архив событий домофона</h4>
-                  <p className="text-[10px] text-zinc-450 mt-0.5 leading-normal">История звонков и открытий дверей будет храниться до 14 дней.</p>
-                </div>
-              </div>
-              <button className="text-xs text-indigo-400 font-extrabold hover:underline mr-2 shrink-0">Подробнее</button>
-            </div>
-
-            {/* Event Log Filter pills */}
-            <div className="flex gap-2">
-              <button className="px-4 py-2 bg-zinc-850 hover:bg-zinc-800 text-[11px] font-extrabold text-zinc-350 hover:text-white rounded-full transition shadow-xs">Дата</button>
-              <button className="px-4 py-2 bg-zinc-850 hover:bg-zinc-800 text-[11px] font-extrabold text-zinc-350 hover:text-white rounded-full transition shadow-xs">Устройства</button>
-              <button className="px-4 py-2 bg-zinc-850 hover:bg-zinc-800 text-[11px] font-extrabold text-zinc-350 hover:text-white rounded-full transition shadow-xs">Люди</button>
-            </div>
-
-            {/* Date-grouped list */}
-            <div className="space-y-6">
-              {Object.keys(groupedEvents).length > 0 ? (
-                Object.entries(groupedEvents).map(([dateLabel, dateEvts]) => (
-                  <div key={dateLabel} className="space-y-3">
-                    <h4 className="text-[11px] font-extrabold text-zinc-500 uppercase tracking-widest ml-1">
-                      {dateLabel}
-                    </h4>
-                    <div className="space-y-2">
-                      {dateEvts.map((event, idx) => (
-                        <div
-                          key={event.id || idx}
-                          className="bg-zinc-850/50 border border-zinc-800/80 p-4 rounded-2xl flex items-center justify-between hover:bg-zinc-800 transition"
-                        >
-                          <div className="flex items-center gap-3.5">
-                            {event.imageUrl ? (
-                              <div className="w-16 h-11 bg-zinc-900 rounded-lg overflow-hidden shrink-0 border border-zinc-800">
-                                <img
-                                  src={event.imageUrl}
-                                  alt="Снимок вызова"
-                                  referrerPolicy="no-referrer"
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            ) : (
-                              <div className="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center text-[#E30613] shrink-0 border border-zinc-800">
-                                <Bell className="w-4 h-4" />
-                              </div>
-                            )}
-                            <div>
-                              <p className="text-xs font-bold text-white leading-snug">{event.title}</p>
-                              <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">{event.description}</p>
-                              <span className="text-[9px] text-zinc-505 font-mono font-bold block mt-1">
-                                Устройство: {event.deviceName}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <span className="text-xs font-mono font-bold text-zinc-400 mr-1">
-                            {new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-12 text-xs text-zinc-450 font-semibold">История вызовов пуста</div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* VIEW 3: PEOPLE (Guest PIN Codes) */}
-        {activeTab === "people" && (
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] shadow-md space-y-6 animate-fade-in">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-              <div>
-                <h2 className="text-base font-extrabold text-white font-display">Гостевые коды доступа</h2>
-                <p className="text-xs text-zinc-455 mt-1">Временные PIN-коды для гостей, курьеров и сотрудников служб</p>
-              </div>
-              <button
-                onClick={makeGuestPin}
-                className="px-4 py-2 bg-[#E30613] hover:bg-[#c20510] text-white text-xs font-extrabold rounded-full transition shadow-md shadow-[#E30613]/10"
-                id="generate_pin_btn"
-              >
-                + Создать код
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {pins.length > 0 ? (
-                pins.map((pin, idx) => (
-                  <div key={pin.id || idx} className="p-4 bg-zinc-850 border border-zinc-800 rounded-2xl flex items-center justify-between shadow-2xs">
-                    <div>
-                      <div className="text-xs font-extrabold text-white">{pin.name}</div>
-                      <div className="text-[10px] text-zinc-450 mt-1 flex items-center gap-1 font-semibold">
-                        <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                        <span>Истекает: {pin.expiresAt}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="px-3.5 py-1.5 bg-[#E30613]/10 border border-[#E30613]/25 text-[#E30613] font-mono font-black text-sm rounded-xl tracking-wider shadow-inner">
-                      {pin.code}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="col-span-full text-center py-12 text-xs text-zinc-455 font-semibold">
-                  Нет активных временных кодов доступа
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* VIEW 4: CABINET (Finances & Service settings) */}
-        {activeTab === "cabinet" && (
-          <div className="space-y-6 animate-fade-in">
-            {/* Account Info Badge */}
-            <div className="bg-zinc-900 border border-zinc-850 p-6 rounded-[2rem] shadow-md space-y-5">
-              <div>
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block leading-none">
-                  Договор {selectedPlace?.accountId || "—"}
-                </span>
-                <div className="flex items-center gap-2 mt-1.5 leading-none">
-                  <h3 className="font-extrabold text-base text-white">Услуги активны</h3>
-                  <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-sm shadow-emerald-500/50" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 border-t border-zinc-800 pt-4">
-                <div>
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Текущий баланс</span>
-                  <span className="font-display font-black text-3xl text-white block mt-1.5 leading-none">
-                    {selectedPlace ? selectedPlace.balance.toFixed(2) : "0.00"} <span className="text-xl font-semibold text-zinc-450">₽</span>
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Порог списания</span>
-                  <span className="text-xs font-bold text-zinc-300 block mt-3 leading-none">
-                    {selectedPlace ? selectedPlace.paymentPeriod : "Нет счетов"}
-                  </span>
-                </div>
-              </div>
-
-              <button className="w-full mt-2 py-3 bg-[#E30613] hover:bg-[#c20510] active:scale-98 transition text-white rounded-xl text-xs font-bold shadow-md shadow-[#E30613]/15 flex items-center justify-center gap-2 uppercase tracking-wider">
-                <CreditCard className="w-4 h-4" />
-                Пополнить баланс
-              </button>
-            </div>
-
-            {/* List options matching the screenshots */}
-            <div className="bg-zinc-900 border border-zinc-805/85 rounded-[2rem] shadow-md overflow-hidden divide-y divide-zinc-800/80">
-              <div className="p-4.5 flex items-center justify-between text-xs font-bold text-zinc-355 hover:text-white cursor-pointer hover:bg-zinc-800/25 transition">
-                <div className="flex items-center gap-3">
-                  <KeyRound className="w-4.5 h-4.5 text-[#E30613]" />
-                  <span>Мои ключи</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-zinc-550" />
-              </div>
-              <div className="p-4.5 flex items-center justify-between text-xs font-bold text-zinc-355 hover:text-white cursor-pointer hover:bg-zinc-800/25 transition">
-                <div className="flex items-center gap-3">
-                  <MessageSquare className="w-4.5 h-4.5 text-[#E30613]" />
-                  <span>Помощь и поддержка</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-zinc-550" />
-              </div>
-              <div className="p-4.5 flex items-center justify-between text-xs font-bold text-zinc-355 hover:text-white cursor-pointer hover:bg-zinc-800/25 transition">
-                <div className="flex items-center gap-3">
-                  <Bell className="w-4.5 h-4.5 text-[#E30613]" />
-                  <span>Уведомления</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-zinc-550" />
-              </div>
-              <div className="p-4.5 flex items-center justify-between text-xs font-bold text-zinc-355 hover:text-white cursor-pointer hover:bg-zinc-800/25 transition">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-4.5 h-4.5 text-[#E30613]" />
-                  <span>О приложении</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-zinc-550" />
-              </div>
-            </div>
-
-            {/* Logout button */}
-            <button
-              onClick={onLogout}
-              className="w-full py-3.5 border border-red-500/20 hover:border-red-500/40 text-xs font-bold text-red-400 rounded-2xl hover:bg-red-500/5 transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs font-sans uppercase tracking-wider"
-              id="logout_btn"
-            >
-              <LogOut className="w-4 h-4" />
-              Выйти из аккаунта
-            </button>
-          </div>
-        )}
-      </div>
+      {isMobile ? (
+        <MobileDashboard {...sharedProps} />
+      ) : (
+        <DesktopDashboard {...sharedProps} />
+      )}
     </div>
   );
 }
