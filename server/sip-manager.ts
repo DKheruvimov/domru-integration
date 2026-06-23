@@ -1,5 +1,5 @@
 import { createRequire } from "module";
-const require = createRequire(import.meta.url);
+const require = createRequire("file://" + process.cwd() + "/");
 const sip = require("sip");
 
 import * as crypto from "crypto";
