@@ -1,8 +1,2 @@
-export interface SavedCredentials {
-  login: string;
-  password?: string;
-  token?: string;
-  refreshToken?: string;
-  operatorId?: number;
-  isDemo: boolean;
-}
+import type { SharedCredentials } from "../shared/types.js";
+export type SavedCredentials = SharedCredentials;

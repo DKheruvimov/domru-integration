@@ -1,11 +1,5 @@
-export interface AppCredentials {
-  login?: string;
-  password?: string;
-  token?: string;
-  operatorId?: number;
-  refreshToken?: string;
-  isDemo: boolean;
-}
+import type { SharedCredentials } from "../shared/types.js";
+export type AppCredentials = SharedCredentials;
 
 export interface SmartPlace {
   id: number;
