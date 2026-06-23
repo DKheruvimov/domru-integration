@@ -31,7 +31,7 @@ export function getSipLogs() {
   return sipLogs;
 }
 
-function addSipLog(message: string, type: "info" | "error" = "info") {
+export function addSipLog(message: string, type: "info" | "error" = "info") {
   const log: SipLog = { timestamp: Date.now(), message, type };
   sipLogs.unshift(log);
   if (sipLogs.length > 200) {

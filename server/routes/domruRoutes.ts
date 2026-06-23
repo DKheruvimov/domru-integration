@@ -841,6 +841,7 @@ router.post("/sip/auto-open", async (req, res) => {
       res.json({ status: "SUCCESS", message: "SIP Auto-open disable signal sent" });
     }
   } catch (err: any) {
+    import("../sip-manager.js").then(m => m.addSipLog(`[SIP] API Error: ${err.message || err}`, "error")).catch(() => {});
     handleClientError(err, res);
   }
 });

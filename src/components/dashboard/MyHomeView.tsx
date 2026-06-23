@@ -59,9 +59,13 @@ export default function MyHomeView({
       if (res.ok) {
         const data = await res.json();
         setAutoOpenState(prev => ({ ...prev, [deviceId]: newState ? (data.expiresAt || true) : false }));
+      } else {
+        const errData = await res.json();
+        alert(`Ошибка авто-открытия: ${errData.error || res.statusText}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(`Сетевая ошибка: ${err.message || err}`);
     } finally {
       setIsTogglingAutoOpen(prev => ({ ...prev, [deviceId]: false }));
     }
