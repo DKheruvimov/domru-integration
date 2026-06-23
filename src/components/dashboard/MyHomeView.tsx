@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { SmartDevice, AppCredentials } from "../../types";
-import { Video, CheckCircle } from "lucide-react";
+import { Video, CheckCircle, Lock, Unlock, PhoneForwarded, PhoneOff } from "lucide-react";
 
 interface MyHomeViewProps {
   devices: SmartDevice[];
@@ -8,6 +8,9 @@ interface MyHomeViewProps {
   doorMessage: string | null;
   selectedPlaceId?: number;
   credentials?: AppCredentials;
+  isCompactMode?: boolean;
+  openingDoorId?: number | null;
+  triggerOpenDoor?: (deviceId: number) => void;
 }
 
 export default function MyHomeView({
@@ -16,6 +19,9 @@ export default function MyHomeView({
   doorMessage,
   selectedPlaceId,
   credentials,
+  isCompactMode = false,
+  openingDoorId = null,
+  triggerOpenDoor,
 }: MyHomeViewProps) {
   const [localSnapshotTime, setLocalSnapshotTime] = useState(Date.now());
 
@@ -23,7 +29,39 @@ export default function MyHomeView({
     setLocalSnapshotTime(Date.now());
   }, [devices]);
 
+  const [autoOpenState, setAutoOpenState] = useState<Record<number, boolean>>({});
+  const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<Record<number, boolean>>({});
 
+  const toggleAutoOpen = async (deviceId: number) => {
+    if (!selectedPlaceId) return;
+    setIsTogglingAutoOpen(prev => ({ ...prev, [deviceId]: true }));
+    const newState = !autoOpenState[deviceId];
+    try {
+      const res = await fetch("/api/domru/sip/auto-open", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-domru-login": credentials?.login || "",
+          "x-domru-password": credentials?.password || "",
+          "x-domru-token": credentials?.token || "",
+          "x-domru-operator-id": credentials?.operatorId ? String(credentials?.operatorId) : "",
+          "x-domru-refresh-token": credentials?.refreshToken || "",
+        },
+        body: JSON.stringify({
+          placeId: selectedPlaceId,
+          deviceId: deviceId,
+          enabled: newState,
+        })
+      });
+      if (res.ok) {
+        setAutoOpenState(prev => ({ ...prev, [deviceId]: newState }));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsTogglingAutoOpen(prev => ({ ...prev, [deviceId]: false }));
+    }
+  };
 
   const buildSnapshotUrl = (deviceId: number | undefined) => {
     if (!selectedPlaceId || !deviceId || !credentials) return undefined;
@@ -47,47 +85,107 @@ export default function MyHomeView({
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {devices.length > 0 ? (
             devices.map((device, idx) => {
+              const isOpening = openingDoorId === device.id;
               return (
-                <div
-                  key={device.id || idx}
-                  className={`relative aspect-[4/3] rounded-3xl overflow-hidden flex flex-col justify-between p-4 group transition-all duration-300 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100/50 dark:hover:bg-zinc-800 hover:scale-[1.01] hover:shadow-lg ${device.allowVideo && device.externalCameraId ? "cursor-pointer" : ""}`}
-                  id={`device_card_${device.id}`}
-                  onClick={() => {
-                    if (device.allowVideo && device.externalCameraId) {
-                      setActiveCamera(device.externalCameraId);
-                    }
-                  }}
-                >
-                  {/* Background Snapshot or Icon */}
-                  <div className="absolute inset-0 bg-zinc-200/50 dark:bg-zinc-900 flex items-center justify-center pointer-events-none overflow-hidden rounded-3xl">
-                    {device.allowVideo ? (
-                      <>
-                        <img 
-                          src={buildSnapshotUrl(device.id)}
-                          className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
-                          alt="Снимок с камеры"
-                          onError={(e) => {
-                             e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none transition-opacity opacity-70 group-hover:opacity-40" />
-                      </>
-                    ) : (
-                      <Video className="w-10 h-10 text-zinc-400 dark:text-zinc-700 opacity-40 group-hover:opacity-70 group-hover:scale-105 transition duration-300" />
+                <div key={device.id || idx} className="flex flex-col gap-2">
+                  <div
+                    className={`relative aspect-[4/3] rounded-3xl overflow-hidden flex flex-col justify-between group transition-all duration-300 border ${
+                      isOpening
+                        ? "border-emerald-500 ring-2 ring-emerald-500/25 scale-98 bg-zinc-50 dark:bg-zinc-950"
+                        : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100/50 dark:hover:bg-zinc-800 hover:scale-[1.01] hover:shadow-lg"
+                    } ${device.allowVideo && device.externalCameraId ? "cursor-pointer" : ""}`}
+                    id={`device_card_${device.id}`}
+                    onClick={() => {
+                      if (device.allowVideo && device.externalCameraId) {
+                        setActiveCamera(device.externalCameraId);
+                      }
+                    }}
+                  >
+                    {/* Background Snapshot or Icon */}
+                    <div className="absolute inset-0 bg-zinc-200/50 dark:bg-zinc-900 flex items-center justify-center pointer-events-none overflow-hidden rounded-3xl">
+                      {device.allowVideo ? (
+                        <>
+                          <img 
+                            src={buildSnapshotUrl(device.id)}
+                            className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
+                            alt="Снимок с камеры"
+                            onError={(e) => {
+                               e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none transition-opacity opacity-70 group-hover:opacity-40" />
+                        </>
+                      ) : (
+                        <Video className="w-10 h-10 text-zinc-400 dark:text-zinc-700 opacity-40 group-hover:opacity-70 group-hover:scale-105 transition duration-300" />
+                      )}
+                    </div>
+
+                    {!isCompactMode && (
+                      <div className="relative z-10 bg-zinc-200/80 dark:bg-zinc-900/50 backdrop-blur-xs p-2 m-4 rounded-xl border border-zinc-300/40 dark:border-white/5 self-start max-w-[85%]">
+                        <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-500 uppercase tracking-widest block leading-none">
+                          {device.type === "intercom" ? "Домофон" : "Калитка"}
+                        </span>
+                        <h3 className="font-extrabold text-xs text-zinc-800 dark:text-white mt-1 truncate leading-none">
+                          {device.name}
+                        </h3>
+                      </div>
+                    )}
+
+                    {/* Bottom action controls - hidden in compact mode */}
+                    {!isCompactMode && (
+                      <div className="relative z-10 flex items-center justify-between w-full mt-auto p-4 pt-2">
+                        {device.allowOpen && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleAutoOpen(device.id); }}
+                            disabled={isTogglingAutoOpen[device.id]}
+                            title="Авто-открытие при звонке курьера"
+                            className={`px-3 py-1.5 ml-2 mr-auto text-[10px] font-bold rounded-full border transition flex items-center gap-1 shadow-sm cursor-pointer ${
+                              autoOpenState[device.id]
+                                ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700/50"
+                                : "bg-white/90 dark:bg-black/50 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                            }`}
+                          >
+                            {autoOpenState[device.id] ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
+                            {autoOpenState[device.id] ? "Жду курьера" : "Авто-открытие"}
+                          </button>
+                        )}
+
+                        {device.allowOpen ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); if(triggerOpenDoor) triggerOpenDoor(device.id); }}
+                            disabled={openingDoorId !== null}
+                            className={`p-3.5 rounded-full transition-all duration-300 ml-auto shadow-md cursor-pointer ${
+                              isOpening
+                                ? "bg-emerald-500 text-white cursor-default"
+                                : "bg-[#E30613] hover:bg-[#c20510] active:scale-90 text-white"
+                            }`}
+                            id={`open_btn_${device.id}`}
+                          >
+                            {isOpening ? (
+                              <Unlock className="w-5 h-5 animate-pulse" />
+                            ) : (
+                              <Lock className="w-5 h-5" />
+                            )}
+                          </button>
+                        ) : (
+                          <div className="text-[10px] text-zinc-500 italic ml-auto bg-zinc-200 dark:bg-zinc-900/80 px-2.5 py-1 rounded-lg">
+                            Заблокировано
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  {/* Top bar (Address details) */}
-                  <div className="relative z-10 bg-zinc-200/80 dark:bg-zinc-900/50 backdrop-blur-xs p-2 rounded-xl border border-zinc-300/40 dark:border-white/5 inline-self-start max-w-[85%]">
-                    <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-500 uppercase tracking-widest block leading-none">
-                      {device.type === "intercom" ? "Домофон" : "Калитка"}
-                    </span>
-                    <h3 className="font-extrabold text-xs text-zinc-800 dark:text-white mt-1 truncate leading-none">
-                      {device.name}
-                    </h3>
-                  </div>
-
-
+                  {isCompactMode && (
+                    <div className="px-1 text-center">
+                      <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-500 uppercase tracking-widest block leading-none">
+                        {device.type === "intercom" ? "Домофон" : "Калитка"}
+                      </span>
+                      <h3 className="font-extrabold text-xs text-zinc-800 dark:text-white mt-1 line-clamp-2 leading-tight">
+                        {device.name}
+                      </h3>
+                    </div>
+                  )}
                 </div>
               );
             })

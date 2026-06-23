@@ -170,6 +170,9 @@ export default function MobileDashboard({
             doorMessage={doorMessage}
             selectedPlaceId={selectedPlace?.id}
             credentials={credentials}
+            isCompactMode={!!activeCamera}
+            openingDoorId={openingDoorId}
+            triggerOpenDoor={triggerOpenDoor}
           />
         )}
         {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}

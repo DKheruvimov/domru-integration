@@ -209,6 +209,9 @@ export default function DesktopDashboard({
                 doorMessage={doorMessage}
                 selectedPlaceId={selectedPlace?.id}
                 credentials={credentials}
+                isCompactMode={true}
+                openingDoorId={openingDoorId}
+                triggerOpenDoor={triggerOpenDoor}
               />
             )}
             {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
@@ -225,6 +228,9 @@ export default function DesktopDashboard({
               doorMessage={doorMessage}
               selectedPlaceId={selectedPlace?.id}
               credentials={credentials}
+              isCompactMode={false}
+              openingDoorId={openingDoorId}
+              triggerOpenDoor={triggerOpenDoor}
             />
           )}
           {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
