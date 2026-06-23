@@ -33,6 +33,7 @@ export async function getSipCredentials(
 		ctx,
 		`${BASE_URL}rest/v1/places/${placeId}/accesscontrols/${deviceId}/sipdevices`,
 		"POST",
+		undefined,
 		{ installationId }
 	);
 	return res.data;
