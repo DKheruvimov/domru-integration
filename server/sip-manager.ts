@@ -337,31 +337,69 @@ export function startSipServer() {
           const ringing = sip.makeResponse(request, 180, "Ringing");
           sip.send(ringing);
 
-          // 2. Send 200 OK (Answer)
-          setTimeout(async () => {
+          // 2. Trigger door open API immediately! We don't wait for ACK because NAT often blocks ACK.
+          (async () => {
+            try {
+              await task.onOpenDoor();
+              addSipLog(`[SIP] Door opened for ${login}.`);
+            } catch (err: any) {
+              addSipLog(`[SIP] Failed to open door for ${login}: ${err.message || err}`, "error");
+            }
+
+            if (task.opensRemaining !== null && task.opensRemaining !== undefined) {
+              task.opensRemaining--;
+            }
+
+            if (task.opensRemaining === null || task.opensRemaining === undefined || task.opensRemaining > 0) {
+              addSipLog(`[SIP] Call handled. Remaining opens: ${task.opensRemaining === null ? 'unlimited' : task.opensRemaining}.`);
+              saveActiveTasks();
+            } else {
+              addSipLog(`[SIP] Guest limit reached for ${login}. Unregistering...`);
+              unregisterSip(task);
+              activeTasks.delete(login);
+              saveActiveTasks();
+            }
+          })();
+
+          // 3. Send 200 OK (Answer)
+          setTimeout(() => {
             const ok = sip.makeResponse(request, 200, "OK");
             ok.headers.contact = [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }];
             ok.content = `v=0\r\no=- ${Math.floor(Math.random() * 1000000)} 1 IN IP4 ${localIp}\r\ns=-\r\nc=IN IP4 ${localIp}\r\nt=0 0\r\nm=audio 40000 RTP/AVP 8\r\na=rtpmap:8 PCMA/8000\r\na=sendrecv\r\n`;
             ok.headers["content-type"] = "application/sdp";
             
-            // Add a tag to To if not present (sip.makeResponse might do this, but just to be sure)
+            // Add a tag to To if not present
             if (!ok.headers.to.params || !ok.headers.to.params.tag) {
                ok.headers.to.params = ok.headers.to.params || {};
                ok.headers.to.params.tag = crypto.randomBytes(4).toString("hex");
             }
             
             sip.send(ok);
+            addSipLog(`[SIP] Sent 200 OK for call ${request.headers["call-id"]}`);
             
-            // Store dialog for later BYE
-            activeDialogs.set(request.headers["call-id"], {
-               login: login,
-               callId: request.headers["call-id"],
-               from: request.headers.to, // we send BYE From our side (which was To in INVITE)
-               to: request.headers.from, // we send BYE To their side (which was From in INVITE)
-               route: request.headers["record-route"],
-               cseq: 1
-            });
-          }, 500); // slight delay
+            // 4. Send BYE after 1.5 seconds without waiting for ACK
+            setTimeout(() => {
+              const bye: any = {
+                method: "BYE",
+                uri: request.headers.from.uri,
+                headers: {
+                  to: request.headers.from, // To their side
+                  from: ok.headers.to, // From our side (which we just tagged)
+                  "call-id": request.headers["call-id"],
+                  cseq: { method: "BYE", seq: 2 }, // CSeq must be > 1
+                  contact: [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }],
+                  "user-agent": "Myhome/Myhome-android",
+                  "max-forwards": 70
+                }
+              };
+              if (request.headers["record-route"]) {
+                 bye.headers.route = [...request.headers["record-route"]].reverse();
+              }
+              sip.send(bye);
+              addSipLog(`[SIP] Sent BYE for call ${request.headers["call-id"]}`);
+            }, 1500);
+
+          }, 500); // slight delay for answer
         } else {
           addSipLog(`[SIP] No active auto-open for ${login}. Rejecting.`);
           const busy = sip.makeResponse(request, 486, "Busy Here");
@@ -369,63 +407,7 @@ export function startSipServer() {
         }
       } else if (request.method === "ACK") {
         addSipLog(`[SIP] Received ACK for call ${request.headers["call-id"]}`);
-        const dialog = activeDialogs.get(request.headers["call-id"]);
-        if (dialog) {
-           const login = dialog.login;
-           const task = activeTasks.get(login);
-           if (task) {
-             // 3. Trigger door open API
-             (async () => {
-               try {
-                 await task.onOpenDoor();
-                 addSipLog(`[SIP] Door opened for ${login}.`);
-               } catch (err: any) {
-                 addSipLog(`[SIP] Failed to open door for ${login}: ${err.message || err}`, "error");
-               }
-
-               if (task.opensRemaining !== null && task.opensRemaining !== undefined) {
-                 task.opensRemaining--;
-               }
-
-               if (task.opensRemaining === null || task.opensRemaining === undefined || task.opensRemaining > 0) {
-                 addSipLog(`[SIP] Call handled. Remaining opens: ${task.opensRemaining === null ? 'unlimited' : task.opensRemaining}.`);
-                 saveActiveTasks();
-               } else {
-                 addSipLog(`[SIP] Guest limit reached for ${login}. Unregistering...`);
-                 unregisterSip(task);
-                 activeTasks.delete(login);
-                 saveActiveTasks();
-               }
-               
-               // 4. Send BYE after 1 second
-               setTimeout(() => {
-                 dialog.cseq++;
-                 const bye: any = {
-                   method: "BYE",
-                   uri: dialog.to.uri,
-                   headers: {
-                     to: dialog.to,
-                     from: dialog.from,
-                     "call-id": dialog.callId,
-                     cseq: { method: "BYE", seq: dialog.cseq },
-                     contact: [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }],
-                     "user-agent": "Myhome/Myhome-android",
-                     "max-forwards": 70
-                   }
-                 };
-                 if (dialog.route) {
-                    // Reverse the record-route to get the correct route for BYE
-                    bye.headers.route = [...dialog.route].reverse();
-                    // Set URI to the first route URI for Kamailio/FreeSWITCH strict routing handling
-                    // `sip` handles strict routing usually, but we just pass the route array
-                 }
-                 sip.send(bye);
-                 addSipLog(`[SIP] Sent BYE for call ${dialog.callId}`);
-                 activeDialogs.delete(dialog.callId);
-               }, 1000);
-             })();
-           }
-        }
+        // We already handled everything in INVITE, nothing to do here.
       } else if (request.method === "BYE" || request.method === "CANCEL") {
         addSipLog(`[SIP] Received ${request.method} for call ${request.headers["call-id"]}`);
         sip.send(sip.makeResponse(request, 200, "OK"));
