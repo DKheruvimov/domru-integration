@@ -227,3 +227,13 @@ export function disableAutoOpen(login: string) {
     activeTasks.delete(login);
   }
 }
+
+export function disableAutoOpenByDevice(deviceId: number) {
+  for (const [login, task] of activeTasks.entries()) {
+    if (task.deviceId === deviceId) {
+      console.log(`[SIP] Disabling auto-open for device ${deviceId} (login ${login}). Unregistering...`);
+      unregisterSip(task);
+      activeTasks.delete(login);
+    }
+  }
+}

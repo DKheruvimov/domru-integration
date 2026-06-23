@@ -16,7 +16,7 @@ import {
   MOCK_EVENTS,
 } from "../domruClientHelper.js";
 import { getProxiedStreamUrl } from "../yandexHelper.js";
-import { enableAutoOpen, disableAutoOpen } from "../sip-manager.js";
+import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice } from "../sip-manager.js";
 import { randomUUID } from "crypto";
 
 const router = express.Router();
@@ -830,6 +830,7 @@ router.post("/sip/auto-open", async (req, res) => {
     } else {
       const { login } = req.body;
       if (login) disableAutoOpen(login);
+      else disableAutoOpenByDevice(Number(deviceId));
       res.json({ status: "SUCCESS", message: "SIP Auto-open disable signal sent" });
     }
   } catch (err: any) {

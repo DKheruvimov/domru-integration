@@ -91,8 +91,13 @@ export default function MyHomeView({
                     isOpening
                       ? "border-emerald-500 ring-2 ring-emerald-500/25 scale-98 bg-zinc-50 dark:bg-zinc-950"
                       : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100/50 dark:hover:bg-zinc-800 hover:scale-[1.01] hover:shadow-lg"
-                  }`}
+                  } ${device.allowVideo && device.externalCameraId ? "cursor-pointer" : ""}`}
                   id={`device_card_${device.id}`}
+                  onClick={() => {
+                    if (device.allowVideo && device.externalCameraId) {
+                      setActiveCamera(device.externalCameraId);
+                    }
+                  }}
                 >
                   {/* Background Snapshot or Icon */}
                   <div className="absolute inset-0 bg-zinc-200/50 dark:bg-zinc-900 flex items-center justify-center pointer-events-none overflow-hidden rounded-3xl">
@@ -125,19 +130,9 @@ export default function MyHomeView({
 
                   {/* Bottom action controls */}
                   <div className="relative z-10 flex items-center justify-between w-full mt-auto pt-2">
-                    {device.allowVideo && device.externalCameraId && (
-                      <button
-                        onClick={() => setActiveCamera(device.externalCameraId)}
-                        className="px-3 py-1.5 bg-white/90 dark:bg-black/50 hover:bg-zinc-100 dark:hover:bg-black/75 text-zinc-800 dark:text-white text-[10px] font-bold rounded-full border border-zinc-200 dark:border-white/5 transition flex items-center gap-1 leading-none shadow-sm cursor-pointer"
-                      >
-                        <Video className="w-3.5 h-3.5 text-[#E30613]" />
-                        Смотреть
-                      </button>
-                    )}
-
                     {device.allowOpen && (
                       <button
-                        onClick={() => toggleAutoOpen(device.id)}
+                        onClick={(e) => { e.stopPropagation(); toggleAutoOpen(device.id); }}
                         disabled={isTogglingAutoOpen[device.id]}
                         title="Авто-открытие при звонке курьера"
                         className={`px-3 py-1.5 ml-2 mr-auto text-[10px] font-bold rounded-full border transition flex items-center gap-1 shadow-sm cursor-pointer ${
@@ -153,7 +148,7 @@ export default function MyHomeView({
 
                     {device.allowOpen ? (
                       <button
-                        onClick={() => triggerOpenDoor(device.id)}
+                        onClick={(e) => { e.stopPropagation(); triggerOpenDoor(device.id); }}
                         disabled={openingDoorId !== null}
                         className={`p-3.5 rounded-full transition-all duration-300 ml-auto shadow-md cursor-pointer ${
                           isOpening
