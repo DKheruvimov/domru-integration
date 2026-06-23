@@ -16,6 +16,8 @@ export interface AutoOpenTask {
   credentials: SipCredentials;
   onOpenDoor: () => Promise<void>;
   expiresAt: number;
+  callId?: string;
+  fromTag?: string;
 }
 
 export interface SipLog {
@@ -90,7 +92,11 @@ function buildAuthorization(
   const ha1 = md5(`${username}:${realm}:${password}`);
   const ha2 = md5(`${method}:${uri}`);
   const nonce = challenge.nonce;
-  const qop = challenge.qop;
+  const qopRaw = challenge.qop || "";
+  let qop = "";
+  if (qopRaw.includes("auth")) {
+    qop = "auth";
+  }
   let response = "";
 
   if (qop === "auth") {
@@ -196,17 +202,26 @@ function sendRegister(task: AutoOpenTask, challenge?: any) {
   const uri = `sip:${realm}`;
   const userUri = `sip:${login}@${realm}`;
   
+  if (!task.callId) {
+    task.callId = crypto.randomBytes(8).toString("hex");
+  }
+  if (!task.fromTag) {
+    task.fromTag = generateTag();
+  }
+  
   const rq: any = {
     method: "REGISTER",
     uri,
     headers: {
       to: { uri: userUri },
-      from: { uri: userUri, params: { tag: generateTag() } },
-      "call-id": crypto.randomBytes(8).toString("hex"),
+      from: { uri: userUri, params: { tag: task.fromTag } },
+      "call-id": task.callId,
       cseq: { method: "REGISTER", seq: challenge ? 2 : 1 },
       contact: [{ uri: `sip:${login}@0.0.0.0:5060;transport=udp` }],
       expires: 60,
       "user-agent": "Myhome/Myhome-android",
+      supported: "replaces, outbound, gruu, path",
+      "max-forwards": 70,
     },
   };
 
