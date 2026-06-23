@@ -17,7 +17,6 @@ import {
 } from "../domruClientHelper.js";
 import { getProxiedStreamUrl } from "../yandexHelper.js";
 import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice, getSipLogs } from "../sip-manager.js";
-import { randomUUID } from "crypto";
 
 const router = express.Router();
 
@@ -819,7 +818,8 @@ router.post("/sip/auto-open", async (req, res) => {
     const client = getDomruInstance(req);
 
     if (enabled) {
-      const installationId = randomUUID();
+      const { randomBytes } = await import("crypto");
+      const installationId = randomBytes(16).toString("hex");
       const credentials = await client.getSipCredentials(Number(placeId), Number(deviceId), installationId);
       
       const expiresAt = Date.now() + (durationMinutes ? durationMinutes * 60 * 1000 : 60 * 60 * 1000);
