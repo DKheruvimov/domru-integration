@@ -16,7 +16,7 @@ import {
   MOCK_EVENTS,
 } from "../domruClientHelper.js";
 import { getProxiedStreamUrl } from "../yandexHelper.js";
-import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice, getSipLogs, getActiveTasks } from "../sip-manager.js";
+import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice, getSipLogs, getActiveTasks, handleManualOpen } from "../sip-manager.js";
 
 const router = express.Router();
 
@@ -795,8 +795,8 @@ router.post("/open", async (req, res) => {
 
   try {
     const client = getDomruInstance(req);
-    const result = await client.openDoor(Number(placeId), Number(deviceId));
-    res.json(result);
+    await handleManualOpen(Number(placeId), Number(deviceId), client);
+    res.json({ status: "SUCCESS", message: "Дверь открыта (SIP interception applied if ringing)" });
   } catch (err: any) {
     handleClientError(err, res);
   }
