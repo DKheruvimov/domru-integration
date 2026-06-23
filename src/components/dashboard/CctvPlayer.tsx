@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AppCredentials, SmartDevice, SmartCamera } from "../../types";
-import { Video, VideoOff, RefreshCw, Terminal } from "lucide-react";
+import { Video, VideoOff, RefreshCw, Terminal, Lock, Unlock, PhoneForwarded, PhoneOff } from "lucide-react";
 
 interface CctvPlayerProps {
   activeCamera: string;
@@ -22,6 +22,8 @@ interface CctvPlayerProps {
   addStreamLog: (msg: string) => void;
   onClose: () => void;
   selectedPlaceId?: number;
+  openingDoorId: number | null;
+  triggerOpenDoor: (id: number) => void;
 }
 
 export default function CctvPlayer({
@@ -44,8 +46,13 @@ export default function CctvPlayer({
   addStreamLog,
   onClose,
   selectedPlaceId,
+  openingDoorId,
+  triggerOpenDoor,
 }: CctvPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const [autoOpenState, setAutoOpenState] = useState<boolean>(false);
+  const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<boolean>(false);
 
   const matchingDevice = devices.find(
     (d) => d.externalCameraId === activeCamera || String(d.id) === activeCamera
@@ -68,6 +75,37 @@ export default function CctvPlayer({
       if (credentials.refreshToken) params.set("refreshToken", credentials.refreshToken);
     }
     return `/api/domru/snapshot/${placeId}/${deviceId}?${params.toString()}`;
+  };
+
+  const toggleAutoOpen = async () => {
+    if (!selectedPlaceId || !matchingDevice) return;
+    setIsTogglingAutoOpen(true);
+    const newState = !autoOpenState;
+    try {
+      const res = await fetch("/api/domru/sip/auto-open", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-domru-login": credentials?.login || "",
+          "x-domru-password": credentials?.password || "",
+          "x-domru-token": credentials?.token || "",
+          "x-domru-operator-id": credentials?.operatorId ? String(credentials?.operatorId) : "",
+          "x-domru-refresh-token": credentials?.refreshToken || "",
+        },
+        body: JSON.stringify({
+          placeId: selectedPlaceId,
+          deviceId: matchingDevice.id,
+          enabled: newState,
+        })
+      });
+      if (res.ok) {
+        setAutoOpenState(newState);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsTogglingAutoOpen(false);
+    }
   };
 
   // HLS/FLV stream player handler using Ref
@@ -214,7 +252,41 @@ export default function CctvPlayer({
         </div>
       )}
 
-      <div className="aspect-video w-full bg-zinc-100 dark:bg-zinc-950 rounded-2xl overflow-hidden relative flex items-center justify-center border border-zinc-200 dark:border-zinc-800">
+      <div className="aspect-video w-full bg-zinc-100 dark:bg-zinc-950 rounded-2xl overflow-hidden relative flex items-center justify-center border border-zinc-200 dark:border-zinc-800 group">
+        {matchingDevice && matchingDevice.allowOpen && (
+          <div className="absolute top-3 right-3 z-20 flex items-center gap-2 opacity-100 transition-opacity">
+             <button
+               onClick={toggleAutoOpen}
+               disabled={isTogglingAutoOpen}
+               title="Авто-открытие при звонке курьера"
+               className={`px-3 py-1.5 text-[10px] font-bold rounded-full border transition flex items-center gap-1 shadow-sm cursor-pointer backdrop-blur-md ${
+                 autoOpenState
+                   ? "bg-emerald-500/90 text-white border-emerald-400"
+                   : "bg-black/60 text-zinc-200 border-white/20 hover:bg-black/80"
+               }`}
+             >
+               {autoOpenState ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
+               <span className="hidden sm:inline">{autoOpenState ? "Жду курьера" : "Авто-открытие"}</span>
+             </button>
+
+             <button
+               onClick={() => triggerOpenDoor(matchingDevice.id)}
+               disabled={openingDoorId !== null}
+               className={`p-2.5 rounded-full transition-all duration-300 shadow-md cursor-pointer backdrop-blur-md border ${
+                 openingDoorId === matchingDevice.id
+                   ? "bg-emerald-500/90 text-white border-emerald-400 cursor-default"
+                   : "bg-[#E30613]/90 hover:bg-[#c20510]/90 text-white border-white/20 active:scale-90"
+               }`}
+             >
+               {openingDoorId === matchingDevice.id ? (
+                 <Unlock className="w-4 h-4 animate-pulse" />
+               ) : (
+                 <Lock className="w-4 h-4" />
+               )}
+             </button>
+          </div>
+        )}
+
         {playerMode === "snapshot" && matchingDevice ? (
           <div className="w-full h-full relative">
             <img

@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
 import { SmartDevice, AppCredentials } from "../../types";
-import { Video, Lock, Unlock, CheckCircle, PhoneForwarded, PhoneOff } from "lucide-react";
+import { Video, CheckCircle } from "lucide-react";
 
 interface MyHomeViewProps {
   devices: SmartDevice[];
-  openingDoorId: number | null;
-  triggerOpenDoor: (deviceId: number) => void;
   setActiveCamera: (cameraId: string) => void;
   doorMessage: string | null;
   selectedPlaceId?: number;
@@ -14,8 +12,6 @@ interface MyHomeViewProps {
 
 export default function MyHomeView({
   devices,
-  openingDoorId,
-  triggerOpenDoor,
   setActiveCamera,
   doorMessage,
   selectedPlaceId,
@@ -27,39 +23,7 @@ export default function MyHomeView({
     setLocalSnapshotTime(Date.now());
   }, [devices]);
 
-  const [autoOpenState, setAutoOpenState] = useState<Record<number, boolean>>({});
-  const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<Record<number, boolean>>({});
 
-  const toggleAutoOpen = async (deviceId: number) => {
-    if (!selectedPlaceId) return;
-    setIsTogglingAutoOpen(prev => ({ ...prev, [deviceId]: true }));
-    const newState = !autoOpenState[deviceId];
-    try {
-      const res = await fetch("/api/domru/sip/auto-open", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-domru-login": credentials?.login || "",
-          "x-domru-password": credentials?.password || "",
-          "x-domru-token": credentials?.token || "",
-          "x-domru-operator-id": credentials?.operatorId ? String(credentials?.operatorId) : "",
-          "x-domru-refresh-token": credentials?.refreshToken || "",
-        },
-        body: JSON.stringify({
-          placeId: selectedPlaceId,
-          deviceId: deviceId,
-          enabled: newState,
-        })
-      });
-      if (res.ok) {
-        setAutoOpenState(prev => ({ ...prev, [deviceId]: newState }));
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsTogglingAutoOpen(prev => ({ ...prev, [deviceId]: false }));
-    }
-  };
 
   const buildSnapshotUrl = (deviceId: number | undefined) => {
     if (!selectedPlaceId || !deviceId || !credentials) return undefined;
@@ -128,47 +92,7 @@ export default function MyHomeView({
                     </h3>
                   </div>
 
-                  {/* Bottom action controls */}
-                  <div className="relative z-10 flex items-center justify-between w-full mt-auto pt-2">
-                    {device.allowOpen && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); toggleAutoOpen(device.id); }}
-                        disabled={isTogglingAutoOpen[device.id]}
-                        title="Авто-открытие при звонке курьера"
-                        className={`px-3 py-1.5 ml-2 mr-auto text-[10px] font-bold rounded-full border transition flex items-center gap-1 shadow-sm cursor-pointer ${
-                          autoOpenState[device.id]
-                            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700/50"
-                            : "bg-white/90 dark:bg-black/50 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                        }`}
-                      >
-                        {autoOpenState[device.id] ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
-                        {autoOpenState[device.id] ? "Жду курьера" : "Авто-открытие"}
-                      </button>
-                    )}
 
-                    {device.allowOpen ? (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); triggerOpenDoor(device.id); }}
-                        disabled={openingDoorId !== null}
-                        className={`p-3.5 rounded-full transition-all duration-300 ml-auto shadow-md cursor-pointer ${
-                          isOpening
-                            ? "bg-emerald-500 text-white cursor-default"
-                            : "bg-[#E30613] hover:bg-[#c20510] active:scale-90 text-white"
-                        }`}
-                        id={`open_btn_${device.id}`}
-                      >
-                        {isOpening ? (
-                          <Unlock className="w-5 h-5 animate-pulse" />
-                        ) : (
-                          <Lock className="w-5 h-5" />
-                        )}
-                      </button>
-                    ) : (
-                      <div className="text-[10px] text-zinc-500 italic ml-auto bg-zinc-200 dark:bg-zinc-900/80 px-2.5 py-1 rounded-lg">
-                        Заблокировано
-                      </div>
-                    )}
-                  </div>
                 </div>
               );
             })

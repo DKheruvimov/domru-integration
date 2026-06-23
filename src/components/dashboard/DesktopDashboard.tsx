@@ -195,6 +195,8 @@ export default function DesktopDashboard({
                 setStreamUrl(null);
               }}
               selectedPlaceId={selectedPlace?.id}
+              openingDoorId={openingDoorId}
+              triggerOpenDoor={triggerOpenDoor}
             />
           </div>
 
@@ -203,8 +205,6 @@ export default function DesktopDashboard({
             {activeTab === "myhome" && (
               <MyHomeView
                 devices={devices}
-                openingDoorId={openingDoorId}
-                triggerOpenDoor={triggerOpenDoor}
                 setActiveCamera={setActiveCamera}
                 doorMessage={doorMessage}
                 selectedPlaceId={selectedPlace?.id}
@@ -221,8 +221,6 @@ export default function DesktopDashboard({
           {activeTab === "myhome" && (
             <MyHomeView
               devices={devices}
-              openingDoorId={openingDoorId}
-              triggerOpenDoor={triggerOpenDoor}
               setActiveCamera={setActiveCamera}
               doorMessage={doorMessage}
               selectedPlaceId={selectedPlace?.id}
