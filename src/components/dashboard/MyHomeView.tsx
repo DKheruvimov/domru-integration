@@ -47,15 +47,10 @@ export default function MyHomeView({
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {devices.length > 0 ? (
             devices.map((device, idx) => {
-              const isOpening = openingDoorId === device.id;
               return (
                 <div
                   key={device.id || idx}
-                  className={`relative aspect-[4/3] rounded-3xl overflow-hidden flex flex-col justify-between p-4 group transition-all duration-300 border ${
-                    isOpening
-                      ? "border-emerald-500 ring-2 ring-emerald-500/25 scale-98 bg-zinc-50 dark:bg-zinc-950"
-                      : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100/50 dark:hover:bg-zinc-800 hover:scale-[1.01] hover:shadow-lg"
-                  } ${device.allowVideo && device.externalCameraId ? "cursor-pointer" : ""}`}
+                  className={`relative aspect-[4/3] rounded-3xl overflow-hidden flex flex-col justify-between p-4 group transition-all duration-300 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100/50 dark:hover:bg-zinc-800 hover:scale-[1.01] hover:shadow-lg ${device.allowVideo && device.externalCameraId ? "cursor-pointer" : ""}`}
                   id={`device_card_${device.id}`}
                   onClick={() => {
                     if (device.allowVideo && device.externalCameraId) {
