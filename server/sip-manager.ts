@@ -82,10 +82,11 @@ function buildAuthorization(
   challenge: any,
   username: string,
   password: string,
-  realm: string,
+  providedRealm: string,
   method: string,
   uri: string
 ) {
+  const realm = challenge.realm || providedRealm;
   const ha1 = md5(`${username}:${realm}:${password}`);
   const ha2 = md5(`${method}:${uri}`);
   const nonce = challenge.nonce;
@@ -216,11 +217,15 @@ function sendRegister(task: AutoOpenTask, challenge?: any) {
   }
 
   sip.send(rq, (rs: any) => {
-    if (rs.status === 401 && !challenge) {
+    if (rs.status >= 100 && rs.status < 200) {
+      addSipLog(`[SIP] Received provisional response: ${rs.status} ${rs.reason}`);
+    } else if (rs.status === 401 && !challenge) {
       // Handle authentication challenge
       const authHeader = rs.headers["www-authenticate"];
       if (authHeader) {
         sendRegister(task, parseDigestChallenge(authHeader));
+      } else {
+        addSipLog(`[SIP] 401 response missing www-authenticate header`, "error");
       }
     } else if (rs.status === 200) {
       addSipLog(`[SIP] Successfully registered ${login} at ${realm}`);
