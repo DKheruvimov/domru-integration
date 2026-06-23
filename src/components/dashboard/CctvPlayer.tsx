@@ -85,7 +85,7 @@ export default function CctvPlayer({
     setIsTogglingAutoOpen(true);
     const newState = !autoOpenState;
     try {
-      const res = await fetch("/api/domru/auto-open", {
+      const res = await fetch("/api/domru/sip/auto-open", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

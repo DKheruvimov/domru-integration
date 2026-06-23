@@ -39,7 +39,7 @@ export default function MyHomeView({
     setIsTogglingAutoOpen(prev => ({ ...prev, [deviceId]: true }));
     const newState = !autoOpenState[deviceId];
     try {
-      const res = await fetch("/api/domru/auto-open", {
+      const res = await fetch("/api/domru/sip/auto-open", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
