@@ -39,7 +39,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         setLogin("demo_user");
         setPassword("demo-password");
       } else {
-        setPhone("79991234567");
+        setPhone("+7 (999) 123-45-67");
       }
     } else {
       setLogin("");
@@ -107,8 +107,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     setError("");
 
     const cleanPhone = phone.trim().replace(/\D/g, "");
-    if (cleanPhone.length !== 11) {
-      setError("Номер телефона должен содержать ровно 11 цифр (например, 79234567890)");
+    if (cleanPhone.length !== 11 || !cleanPhone.startsWith("79")) {
+      setError("Укажите корректный мобильный номер телефона в формате +7 (9XX) XXX-XX-XX");
       return;
     }
 
@@ -372,13 +372,38 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                       type="tel"
                       required
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="79001234567"
+                      onChange={(e) => {
+                        const formatPhone = (val: string) => {
+                          let clean = val.replace(/\D/g, "");
+                          if (clean.startsWith("7") || clean.startsWith("8")) {
+                            if (clean.length > 10 || clean[1] === "9") {
+                              clean = clean.substring(1);
+                            }
+                          }
+                          clean = clean.substring(0, 10);
+                          if (clean.length === 0) return "";
+                          let formatted = "+7 (";
+                          formatted += clean.substring(0, 3);
+                          if (clean.length >= 3) {
+                            formatted += ") ";
+                            formatted += clean.substring(3, 6);
+                            if (clean.length >= 6) {
+                              formatted += "-" + clean.substring(6, 8);
+                              if (clean.length >= 8) {
+                                formatted += "-" + clean.substring(8, 10);
+                              }
+                            }
+                          }
+                          return formatted;
+                        };
+                        setPhone(formatPhone(e.target.value));
+                      }}
+                      placeholder="+7 (999) 123-45-67"
                       className="w-full pl-10 pr-4 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800/45 border border-zinc-200 dark:border-zinc-800/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E30613]/15 focus:border-[#E30613] text-zinc-900 dark:text-white transition"
                     />
                   </div>
                   <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-2 font-medium">
-                    Введите 11 цифр номера телефона, начиная с 7. Например, 79234567890
+                    Поддерживаются любые номера РФ (+7, 8 или 9XX)
                   </p>
                 </div>
 
