@@ -1,7 +1,8 @@
-﻿import express from "express";
+import express from "express";
 import { registerCredentials } from "../tokenStore.js";
 import { getRequestId, getProxiedStreamUrl } from "../yandexHelper.js";
 import { getDomruInstanceFromToken, isDemo, MOCK_PLACES, MOCK_DEVICES, MOCK_CAMERAS } from "../domruClientHelper.js";
+import { handleManualOpen } from "../sip-manager.js";
 
 const router = express.Router();
 
@@ -352,8 +353,8 @@ router.post("/v1.0/user/devices/action", async (req, res) => {
 
               if (!isDemoMode) {
                 try {
-                  await client.openDoor(placeId, deviceId);
-                  console.log(`[Yandex Alice] Open door succeeded for place ${placeId}, device ${deviceId}`);
+                  await handleManualOpen(placeId, deviceId, client);
+                  console.log(`[Yandex Alice] Open door handled for place ${placeId}, device ${deviceId}`);
                 } catch (errByDomru) {
                   console.error(`[Yandex Alice] Open door failed for place ${placeId}, device ${deviceId}:`, errByDomru);
                   status = "ERROR";

@@ -7,6 +7,7 @@ import domruRoutes from "./server/routes/domruRoutes.js";
 import yandexRoutes from "./server/routes/yandexRoutes.js";
 import yandexDialogs from "./server/routes/yandexDialogs.js";
 import { loadAndResumeActiveTasks } from "./server/sip-manager.js";
+import { initPermanentSipBindings } from "./server/sip-init.js";
 
 async function startServer() {
   const app = express();
@@ -44,6 +45,7 @@ async function startServer() {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server starting on port ${PORT}`);
     loadAndResumeActiveTasks();
+    initPermanentSipBindings();
   });
 }
 
