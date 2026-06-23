@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AppCredentials, SmartDevice, SmartCamera } from "../../types";
 import { Video, VideoOff, RefreshCw, Terminal, Lock, Unlock, PhoneForwarded, PhoneOff } from "lucide-react";
+import AutoOpenConfigModal from "./AutoOpenConfigModal";
+import SipLogsViewer from "./SipLogsViewer";
 
 interface CctvPlayerProps {
   activeCamera: string;
@@ -51,8 +53,9 @@ export default function CctvPlayer({
 }: CctvPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const [autoOpenState, setAutoOpenState] = useState<boolean>(false);
+  const [autoOpenState, setAutoOpenState] = useState<number | boolean>(false);
   const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<boolean>(false);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState<boolean>(false);
 
   const matchingDevice = devices.find(
     (d) => d.externalCameraId === activeCamera || String(d.id) === activeCamera
@@ -77,7 +80,7 @@ export default function CctvPlayer({
     return `/api/domru/snapshot/${placeId}/${deviceId}?${params.toString()}`;
   };
 
-  const toggleAutoOpen = async () => {
+  const toggleAutoOpen = async (durationMinutes?: number) => {
     if (!selectedPlaceId || !matchingDevice) return;
     setIsTogglingAutoOpen(true);
     const newState = !autoOpenState;
@@ -96,10 +99,12 @@ export default function CctvPlayer({
           placeId: selectedPlaceId,
           deviceId: matchingDevice.id,
           enabled: newState,
+          durationMinutes,
         })
       });
       if (res.ok) {
-        setAutoOpenState(newState);
+        const data = await res.json();
+        setAutoOpenState(newState ? (data.expiresAt || true) : false);
       }
     } catch (err) {
       console.error(err);
@@ -256,7 +261,10 @@ export default function CctvPlayer({
         {matchingDevice && matchingDevice.allowOpen && (
           <div className="absolute top-3 right-3 z-20 flex items-center gap-2 opacity-100 transition-opacity">
              <button
-               onClick={toggleAutoOpen}
+               onClick={() => {
+                 if (autoOpenState) toggleAutoOpen(); // turn off
+                 else setIsConfigModalOpen(true); // show modal
+               }}
                disabled={isTogglingAutoOpen}
                title="Авто-открытие при звонке курьера"
                className={`px-3 py-1.5 text-[10px] font-bold rounded-full border transition flex items-center gap-1 shadow-sm cursor-pointer backdrop-blur-md ${
@@ -266,7 +274,13 @@ export default function CctvPlayer({
                }`}
              >
                {autoOpenState ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
-               <span className="hidden sm:inline">{autoOpenState ? "Жду курьера" : "Авто-открытие"}</span>
+               <span className="hidden sm:inline">
+                 {autoOpenState 
+                   ? (typeof autoOpenState === "number" 
+                       ? `Жду курьера (до ${new Date(autoOpenState as number).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})` 
+                       : "Жду курьера") 
+                   : "Авто-открытие"}
+               </span>
              </button>
 
              <button
@@ -429,8 +443,16 @@ export default function CctvPlayer({
               </div>
             </div>
           </details>
+
+          <SipLogsViewer />
         </div>
       )}
+
+      <AutoOpenConfigModal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
+        onEnable={(durationMinutes) => toggleAutoOpen(durationMinutes)}
+      />
     </div>
   );
 }

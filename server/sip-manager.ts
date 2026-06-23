@@ -15,8 +15,48 @@ export interface AutoOpenTask {
   expiresAt: number;
 }
 
+export interface SipLog {
+  timestamp: number;
+  message: string;
+  type: "info" | "error";
+}
+
 const activeTasks = new Map<string, AutoOpenTask>(); // login -> Task
 let isSipStarted = false;
+let cleanupInterval: NodeJS.Timeout | null = null;
+
+const sipLogs: SipLog[] = [];
+
+export function getSipLogs() {
+  return sipLogs;
+}
+
+function addSipLog(message: string, type: "info" | "error" = "info") {
+  const log: SipLog = { timestamp: Date.now(), message, type };
+  sipLogs.unshift(log);
+  if (sipLogs.length > 200) {
+    sipLogs.length = 200; // keep only latest 200 logs
+  }
+  if (type === "error") {
+    console.error(message);
+  } else {
+    console.log(message);
+  }
+}
+
+function startCleanupTask() {
+  if (cleanupInterval) return;
+  cleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [login, task] of activeTasks.entries()) {
+      if (task.expiresAt && now > task.expiresAt) {
+        addSipLog(`[SIP] Auto-open expired for ${login}. Unregistering...`, "info");
+        unregisterSip(task);
+        activeTasks.delete(login);
+      }
+    }
+  }, 60000); // Check every minute
+}
 
 function md5(s: string) {
   return crypto.createHash("md5").update(s).digest("hex");
@@ -97,11 +137,11 @@ export function startSipServer() {
           login = toUri.match(/sip:(.*)@/)?.[1] || "";
         }
 
-        console.log(`[SIP] Received INVITE for ${login}`);
+        addSipLog(`[SIP] Received INVITE for ${login}`);
 
         const task = activeTasks.get(login);
         if (task) {
-          console.log(`[SIP] Auto-open active for ${login}. Accepting call...`);
+          addSipLog(`[SIP] Auto-open active for ${login}. Accepting call...`);
           
           // 1. Send 180 Ringing
           const ringing = sip.makeResponse(request, 180, "Ringing");
@@ -119,9 +159,9 @@ export function startSipServer() {
             // 3. Trigger door open API
             try {
               await task.onOpenDoor();
-              console.log(`[SIP] Door opened for ${login}.`);
-            } catch (err) {
-              console.error(`[SIP] Failed to open door for ${login}:`, err);
+              addSipLog(`[SIP] Door opened for ${login}.`);
+            } catch (err: any) {
+              addSipLog(`[SIP] Failed to open door for ${login}: ${err.message || err}`, "error");
             }
 
             // Unregister to release call back to mobile app
@@ -130,7 +170,7 @@ export function startSipServer() {
 
           }, 500); // slight delay
         } else {
-          console.log(`[SIP] No active auto-open for ${login}. Rejecting.`);
+          addSipLog(`[SIP] No active auto-open for ${login}. Rejecting.`);
           const busy = sip.makeResponse(request, 486, "Busy Here");
           sip.send(busy);
         }
@@ -143,7 +183,8 @@ export function startSipServer() {
     }
   );
   isSipStarted = true;
-  console.log("[SIP] SIP Server started on port 5060.");
+  startCleanupTask();
+  addSipLog("[SIP] SIP Server started on port 5060.");
 }
 
 function sendRegister(task: AutoOpenTask, challenge?: any) {
@@ -179,9 +220,9 @@ function sendRegister(task: AutoOpenTask, challenge?: any) {
         sendRegister(task, parseDigestChallenge(authHeader));
       }
     } else if (rs.status === 200) {
-      console.log(`[SIP] Successfully registered ${login} at ${realm}`);
+      addSipLog(`[SIP] Successfully registered ${login} at ${realm}`);
     } else {
-      console.error(`[SIP] Registration failed for ${login}: ${rs.status} ${rs.reason}`);
+      addSipLog(`[SIP] Registration failed for ${login}: ${rs.status} ${rs.reason}`, "error");
     }
   });
 }
@@ -208,21 +249,21 @@ function unregisterSip(task: AutoOpenTask) {
   sip.send(rq, (rs: any) => {
     // If it challenges, we can technically respond, but for unregistering usually we might just let it fail or respond.
     // For simplicity, we just send it.
-    console.log(`[SIP] Unregistration sent for ${login}.`);
+    addSipLog(`[SIP] Unregistration sent for ${login}.`);
   });
 }
 
 export function enableAutoOpen(task: AutoOpenTask) {
   startSipServer();
   activeTasks.set(task.credentials.login, task);
-  console.log(`[SIP] Enabled auto-open for ${task.credentials.login}. Registering...`);
+  addSipLog(`[SIP] Enabled auto-open for ${task.credentials.login} (expires at ${new Date(task.expiresAt).toLocaleTimeString()}). Registering...`);
   sendRegister(task);
 }
 
 export function disableAutoOpen(login: string) {
   const task = activeTasks.get(login);
   if (task) {
-    console.log(`[SIP] Disabling auto-open for ${login}. Unregistering...`);
+    addSipLog(`[SIP] Disabling auto-open for ${login}. Unregistering...`);
     unregisterSip(task);
     activeTasks.delete(login);
   }
@@ -231,7 +272,7 @@ export function disableAutoOpen(login: string) {
 export function disableAutoOpenByDevice(deviceId: number) {
   for (const [login, task] of activeTasks.entries()) {
     if (task.deviceId === deviceId) {
-      console.log(`[SIP] Disabling auto-open for device ${deviceId} (login ${login}). Unregistering...`);
+      addSipLog(`[SIP] Disabling auto-open for device ${deviceId} (login ${login}). Unregistering...`);
       unregisterSip(task);
       activeTasks.delete(login);
     }

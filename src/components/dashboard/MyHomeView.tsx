@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { SmartDevice, AppCredentials } from "../../types";
 import { Video, CheckCircle, Lock, Unlock, PhoneForwarded, PhoneOff } from "lucide-react";
+import AutoOpenConfigModal from "./AutoOpenConfigModal";
 
 interface MyHomeViewProps {
   devices: SmartDevice[];
@@ -29,10 +30,11 @@ export default function MyHomeView({
     setLocalSnapshotTime(Date.now());
   }, [devices]);
 
-  const [autoOpenState, setAutoOpenState] = useState<Record<number, boolean>>({});
+  const [autoOpenState, setAutoOpenState] = useState<Record<number, number | boolean>>({});
   const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<Record<number, boolean>>({});
+  const [configModalDeviceId, setConfigModalDeviceId] = useState<number | null>(null);
 
-  const toggleAutoOpen = async (deviceId: number) => {
+  const toggleAutoOpen = async (deviceId: number, durationMinutes?: number) => {
     if (!selectedPlaceId) return;
     setIsTogglingAutoOpen(prev => ({ ...prev, [deviceId]: true }));
     const newState = !autoOpenState[deviceId];
@@ -51,10 +53,12 @@ export default function MyHomeView({
           placeId: selectedPlaceId,
           deviceId: deviceId,
           enabled: newState,
+          durationMinutes,
         })
       });
       if (res.ok) {
-        setAutoOpenState(prev => ({ ...prev, [deviceId]: newState }));
+        const data = await res.json();
+        setAutoOpenState(prev => ({ ...prev, [deviceId]: newState ? (data.expiresAt || true) : false }));
       }
     } catch (err) {
       console.error(err);
@@ -136,7 +140,14 @@ export default function MyHomeView({
                       <div className="relative z-10 flex items-center justify-between w-full mt-auto p-4 pt-2">
                         {device.allowOpen && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); toggleAutoOpen(device.id); }}
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              if (autoOpenState[device.id]) {
+                                toggleAutoOpen(device.id); // turn off
+                              } else {
+                                setConfigModalDeviceId(device.id); // open modal
+                              }
+                            }}
                             disabled={isTogglingAutoOpen[device.id]}
                             title="Авто-открытие при звонке курьера"
                             className={`px-3 py-1.5 ml-2 mr-auto text-[10px] font-bold rounded-full border transition flex items-center gap-1 shadow-sm cursor-pointer ${
@@ -146,7 +157,11 @@ export default function MyHomeView({
                             }`}
                           >
                             {autoOpenState[device.id] ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
-                            {autoOpenState[device.id] ? "Жду курьера" : "Авто-открытие"}
+                            {autoOpenState[device.id] 
+                              ? (typeof autoOpenState[device.id] === "number" 
+                                  ? `Жду курьера (до ${new Date(autoOpenState[device.id] as number).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})` 
+                                  : "Жду курьера") 
+                              : "Авто-открытие"}
                           </button>
                         )}
 
@@ -203,6 +218,16 @@ export default function MyHomeView({
           <span>{doorMessage}</span>
         </div>
       )}
+
+      <AutoOpenConfigModal
+        isOpen={configModalDeviceId !== null}
+        onClose={() => setConfigModalDeviceId(null)}
+        onEnable={(durationMinutes) => {
+          if (configModalDeviceId) {
+            toggleAutoOpen(configModalDeviceId, durationMinutes);
+          }
+        }}
+      />
     </div>
   );
 }
