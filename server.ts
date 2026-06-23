@@ -5,6 +5,7 @@ import "./server/config.js";
 import codeRoutes from "./server/routes/codeRoutes.js";
 import domruRoutes from "./server/routes/domruRoutes.js";
 import yandexRoutes from "./server/routes/yandexRoutes.js";
+import yandexDialogs from "./server/routes/yandexDialogs.js";
 
 async function startServer() {
   const app = express();
@@ -21,6 +22,7 @@ async function startServer() {
   // Mount modular route controllers
   app.use("/api/code", codeRoutes);
   app.use("/api/domru", domruRoutes);
+  app.use("/api/yandex/dialogs", yandexDialogs);
   app.use("/", yandexRoutes);
 
   // Serve static assets / Vite middleware
