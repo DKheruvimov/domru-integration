@@ -80,19 +80,16 @@ export default function CctvPlayer({
     return `/api/domru/snapshot/${placeId}/${deviceId}?${params.toString()}`;
   };
 
-  const toggleAutoOpen = async (durationMinutes?: number) => {
+  const toggleAutoOpen = async (durationMinutes?: number, maxOpens?: number | null) => {
     if (!selectedPlaceId || !matchingDevice) return;
     setIsTogglingAutoOpen(true);
     const newState = !autoOpenState;
     try {
-      const res = await fetch("/api/domru/sip/auto-open", {
+      const res = await fetch("/api/domru/auto-open", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-domru-login": credentials?.login || "",
-          "x-domru-password": credentials?.password || "",
           "x-domru-token": credentials?.token || "",
-          "x-domru-operator-id": credentials?.operatorId ? String(credentials?.operatorId) : "",
           "x-domru-refresh-token": credentials?.refreshToken || "",
         },
         body: JSON.stringify({
@@ -100,6 +97,7 @@ export default function CctvPlayer({
           deviceId: matchingDevice.id,
           enabled: newState,
           durationMinutes,
+          maxOpens
         })
       });
       if (res.ok) {
@@ -281,8 +279,8 @@ export default function CctvPlayer({
                <span className="hidden sm:inline">
                  {autoOpenState 
                    ? (typeof autoOpenState === "number" 
-                       ? `Жду курьера (до ${new Date(autoOpenState as number).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})` 
-                       : "Жду курьера") 
+                       ? `Жду гостей/курьера (до ${new Date(autoOpenState as number).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})` 
+                       : "Авто-открытие активно") 
                    : "Авто-открытие"}
                </span>
              </button>
@@ -455,7 +453,7 @@ export default function CctvPlayer({
       <AutoOpenConfigModal
         isOpen={isConfigModalOpen}
         onClose={() => setIsConfigModalOpen(false)}
-        onEnable={(durationMinutes) => toggleAutoOpen(durationMinutes)}
+        onEnable={(durationMinutes, maxOpens) => toggleAutoOpen(durationMinutes, maxOpens)}
       />
     </div>
   );

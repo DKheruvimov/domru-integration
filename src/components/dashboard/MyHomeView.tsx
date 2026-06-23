@@ -34,19 +34,16 @@ export default function MyHomeView({
   const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<Record<number, boolean>>({});
   const [configModalDeviceId, setConfigModalDeviceId] = useState<number | null>(null);
 
-  const toggleAutoOpen = async (deviceId: number, durationMinutes?: number) => {
-    if (!selectedPlaceId) return;
+  const toggleAutoOpen = async (deviceId: number, durationMinutes?: number, maxOpens?: number | null) => {
+    if (isTogglingAutoOpen[deviceId]) return;
     setIsTogglingAutoOpen(prev => ({ ...prev, [deviceId]: true }));
     const newState = !autoOpenState[deviceId];
     try {
-      const res = await fetch("/api/domru/sip/auto-open", {
+      const res = await fetch("/api/domru/auto-open", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-domru-login": credentials?.login || "",
-          "x-domru-password": credentials?.password || "",
           "x-domru-token": credentials?.token || "",
-          "x-domru-operator-id": credentials?.operatorId ? String(credentials?.operatorId) : "",
           "x-domru-refresh-token": credentials?.refreshToken || "",
         },
         body: JSON.stringify({
@@ -54,6 +51,7 @@ export default function MyHomeView({
           deviceId: deviceId,
           enabled: newState,
           durationMinutes,
+          maxOpens
         })
       });
       if (res.ok) {
@@ -82,20 +80,21 @@ export default function MyHomeView({
   return (
     <div className="space-y-6">
 
-
       {/* Smart Access Devices sections */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-[2rem] shadow-md">
-        <h2 className="text-base font-extrabold text-zinc-900 dark:text-white mb-6 font-display uppercase tracking-wider flex items-center gap-2">
-          <span className="w-1.5 h-3.5 bg-[#E30613] rounded-full inline-block" />
-          Доступы и домофоны
-        </h2>
+      <div className={`bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 ${isCompactMode ? "p-4 border-none shadow-none bg-transparent dark:bg-transparent" : "p-6 rounded-[2rem] shadow-md"}`}>
+        {!isCompactMode && (
+          <h2 className="text-base font-extrabold text-zinc-900 dark:text-white mb-6 font-display uppercase tracking-wider flex items-center gap-2">
+            <span className="w-1.5 h-3.5 bg-[#E30613] rounded-full inline-block" />
+            Доступы и домофоны
+          </h2>
+        )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className={`grid ${isCompactMode ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"} gap-6`}>
           {devices.length > 0 ? (
             devices.map((device, idx) => {
               const isOpening = openingDoorId === device.id;
               return (
-                <div key={device.id || idx} className="flex flex-col gap-2">
+                <div key={device.id || idx} className="flex flex-col gap-3">
                   <div
                     className={`relative aspect-[4/3] rounded-3xl overflow-hidden flex flex-col justify-between group transition-all duration-300 border ${
                       isOpening
@@ -139,7 +138,7 @@ export default function MyHomeView({
                       </div>
                     )}
 
-                    {/* Bottom action controls - hidden in compact mode */}
+                    {/* Bottom action controls */}
                     {!isCompactMode && (
                       <div className="relative z-10 flex items-center justify-between w-full mt-auto p-4 pt-2">
                         {device.allowOpen && (
@@ -154,36 +153,38 @@ export default function MyHomeView({
                             }}
                             disabled={isTogglingAutoOpen[device.id]}
                             title="Авто-открытие при звонке курьера"
-                            className={`px-3 py-1.5 ml-2 mr-auto text-[10px] font-bold rounded-full border transition flex items-center gap-1 shadow-sm cursor-pointer ${
+                            className={`px-3 py-1.5 text-[10px] font-bold rounded-full border transition flex items-center gap-1 shadow-sm cursor-pointer backdrop-blur-md ${
                               autoOpenState[device.id]
-                                ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700/50"
-                                : "bg-white/90 dark:bg-black/50 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                ? "bg-emerald-500/90 text-white border-emerald-400"
+                                : "bg-white/80 dark:bg-black/60 text-zinc-700 dark:text-zinc-200 border-white/20 hover:bg-white dark:hover:bg-black/80"
                             }`}
                           >
                             {autoOpenState[device.id] ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
-                            {autoOpenState[device.id] 
-                              ? (typeof autoOpenState[device.id] === "number" 
-                                  ? `Жду курьера (до ${new Date(autoOpenState[device.id] as number).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})` 
-                                  : "Жду курьера") 
-                              : "Авто-открытие"}
+                            <span className="hidden sm:inline">
+                              {autoOpenState[device.id] 
+                                ? (typeof autoOpenState[device.id] === "number" 
+                                    ? `Жду гостей/курьера (до ${new Date(autoOpenState[device.id] as number).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})` 
+                                    : "Авто-открытие активно") 
+                                : "Авто-открытие"}
+                            </span>
                           </button>
                         )}
 
                         {device.allowOpen ? (
                           <button
                             onClick={(e) => { e.stopPropagation(); if(triggerOpenDoor) triggerOpenDoor(device.id); }}
-                            disabled={openingDoorId !== null}
-                            className={`p-3.5 rounded-full transition-all duration-300 ml-auto shadow-md cursor-pointer ${
+                            disabled={isOpening}
+                            className={`p-2.5 rounded-full transition-all duration-300 shadow-md cursor-pointer backdrop-blur-md border ${
                               isOpening
-                                ? "bg-emerald-500 text-white cursor-default"
-                                : "bg-[#E30613] hover:bg-[#c20510] active:scale-90 text-white"
+                                ? "bg-emerald-500/90 text-white border-emerald-400 cursor-default"
+                                : "bg-[#E30613]/90 hover:bg-[#c20510]/90 text-white border-white/20 active:scale-90 ml-auto"
                             }`}
                             id={`open_btn_${device.id}`}
                           >
                             {isOpening ? (
-                              <Unlock className="w-5 h-5 animate-pulse" />
+                              <Unlock className="w-4 h-4 animate-pulse" />
                             ) : (
-                              <Lock className="w-5 h-5" />
+                              <Lock className="w-4 h-4" />
                             )}
                           </button>
                         ) : (
@@ -226,9 +227,9 @@ export default function MyHomeView({
       <AutoOpenConfigModal
         isOpen={configModalDeviceId !== null}
         onClose={() => setConfigModalDeviceId(null)}
-        onEnable={(durationMinutes) => {
+        onEnable={(durationMinutes, maxOpens) => {
           if (configModalDeviceId) {
-            toggleAutoOpen(configModalDeviceId, durationMinutes);
+            toggleAutoOpen(configModalDeviceId, durationMinutes, maxOpens);
           }
         }}
       />

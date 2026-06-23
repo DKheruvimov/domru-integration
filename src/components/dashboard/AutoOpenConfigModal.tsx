@@ -1,14 +1,17 @@
 import React, { useState } from "react";
-import { Clock, Check } from "lucide-react";
+import { Clock, Check, Users, User, Minus, Plus } from "lucide-react";
 
 interface AutoOpenConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEnable: (durationMinutes: number) => void;
+  onEnable: (durationMinutes: number, maxOpens: number | null) => void;
 }
 
 export default function AutoOpenConfigModal({ isOpen, onClose, onEnable }: AutoOpenConfigModalProps) {
+  const [mode, setMode] = useState<"single" | "multiple">("single");
   const [selectedDuration, setSelectedDuration] = useState<number>(60);
+  const [guestCount, setGuestCount] = useState<number>(3);
+  const [isUnlimited, setIsUnlimited] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
@@ -26,6 +29,16 @@ export default function AutoOpenConfigModal({ isOpen, onClose, onEnable }: AutoO
     return Math.floor((endOfDay.getTime() - now.getTime()) / 60000);
   }
 
+  const handleEnable = () => {
+    let maxOpens: number | null = null;
+    if (mode === "single") maxOpens = 1;
+    else if (!isUnlimited) maxOpens = guestCount;
+    // if mode === multiple and isUnlimited, maxOpens = null
+
+    onEnable(selectedDuration, maxOpens);
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in px-4">
       <div className="bg-white dark:bg-zinc-900 rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl relative animate-scale-up border border-zinc-200 dark:border-zinc-800">
@@ -38,6 +51,69 @@ export default function AutoOpenConfigModal({ isOpen, onClose, onEnable }: AutoO
               Настройка <br /> авто-открытия
             </h3>
           </div>
+
+          <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl mb-6">
+            <button
+              onClick={() => setMode("single")}
+              className={`flex-1 py-2 px-3 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all ${
+                mode === "single"
+                  ? "bg-white dark:bg-zinc-900 shadow-sm text-zinc-900 dark:text-white"
+                  : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer"
+              }`}
+            >
+              <User className="w-4 h-4" /> Один гость
+            </button>
+            <button
+              onClick={() => setMode("multiple")}
+              className={`flex-1 py-2 px-3 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all ${
+                mode === "multiple"
+                  ? "bg-white dark:bg-zinc-900 shadow-sm text-zinc-900 dark:text-white"
+                  : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer"
+              }`}
+            >
+              <Users className="w-4 h-4" /> Несколько
+            </button>
+          </div>
+
+          {mode === "multiple" && (
+            <div className="mb-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">
+                  Количество гостей
+                </span>
+                <button
+                  onClick={() => setIsUnlimited(!isUnlimited)}
+                  className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
+                    isUnlimited 
+                      ? "bg-emerald-500 text-white border-emerald-500" 
+                      : "bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+                  }`}
+                >
+                  Безлимит
+                </button>
+              </div>
+              
+              {!isUnlimited && (
+                <div className="flex items-center justify-between bg-white dark:bg-zinc-900 p-2 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                  <button 
+                    onClick={() => setGuestCount(Math.max(2, guestCount - 1))}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 cursor-pointer"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <span className="font-extrabold text-lg w-8 text-center text-zinc-900 dark:text-white">
+                    {guestCount}
+                  </span>
+                  <button 
+                    onClick={() => setGuestCount(Math.min(20, guestCount + 1))}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2 mb-8">
             {options.map((opt) => (
@@ -64,10 +140,7 @@ export default function AutoOpenConfigModal({ isOpen, onClose, onEnable }: AutoO
               Отмена
             </button>
             <button
-              onClick={() => {
-                onEnable(selectedDuration);
-                onClose();
-              }}
+              onClick={handleEnable}
               className="flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 transition cursor-pointer"
             >
               Включить

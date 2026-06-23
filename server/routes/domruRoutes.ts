@@ -809,7 +809,7 @@ router.get("/sip/logs", (req, res) => {
 
 // API Route: Toggle SIP Courier Auto Open
 router.post("/sip/auto-open", async (req, res) => {
-  const { placeId, deviceId, enabled, durationMinutes } = req.body;
+  const { placeId, deviceId, enabled, durationMinutes, maxOpens } = req.body;
   if (isDemo(req)) {
     return res.json({ status: "SUCCESS", message: enabled ? "Включено авто-открытие (Demo)" : "Отключено" });
   }
@@ -829,6 +829,7 @@ router.post("/sip/auto-open", async (req, res) => {
         deviceId: Number(deviceId),
         credentials,
         expiresAt,
+        maxOpens: typeof maxOpens === "number" ? maxOpens : null,
         onOpenDoor: async () => {
           await client.openDoor(Number(placeId), Number(deviceId));
         }

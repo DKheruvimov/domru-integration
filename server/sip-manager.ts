@@ -18,6 +18,8 @@ export interface AutoOpenTask {
   expiresAt: number;
   callId?: string;
   fromTag?: string;
+  maxOpens?: number | null;
+  opensRemaining?: number | null;
 }
 
 export interface SipLog {
@@ -34,6 +36,14 @@ const sipLogs: SipLog[] = [];
 
 export function getSipLogs() {
   return sipLogs;
+}
+
+export function enableAutoOpen(task: AutoOpenTask) {
+  task.opensRemaining = task.maxOpens;
+  activeTasks.set(task.credentials.login, task);
+  addSipLog(`[SIP] Enabled auto-open for ${task.credentials.login} (expires at ${new Date(task.expiresAt).toLocaleTimeString()}). Registering...`);
+  startSipServer();
+  sendRegister(task);
 }
 
 export function addSipLog(message: string, type: "info" | "error" = "info") {
@@ -162,9 +172,17 @@ export function startSipServer() {
               addSipLog(`[SIP] Failed to open door for ${login}: ${err.message || err}`, "error");
             }
 
-            // Unregister to release call back to mobile app
-            unregisterSip(task);
-            activeTasks.delete(login);
+            if (task.opensRemaining !== null && task.opensRemaining !== undefined) {
+              task.opensRemaining--;
+            }
+
+            if (task.opensRemaining === null || task.opensRemaining === undefined || task.opensRemaining > 0) {
+              addSipLog(`[SIP] Call handled. Remaining opens: ${task.opensRemaining === null ? 'unlimited' : task.opensRemaining}.`);
+            } else {
+              addSipLog(`[SIP] Guest limit reached for ${login}. Unregistering...`);
+              unregisterSip(task);
+              activeTasks.delete(login);
+            }
 
           }, 500); // slight delay
         } else {
