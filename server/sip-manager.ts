@@ -3,6 +3,12 @@ const require = createRequire("file://" + process.cwd() + "/");
 const sip = require("sip");
 
 import * as crypto from "crypto";
+import fs from "fs";
+import path from "path";
+import { DATA_DIR } from "./config.js";
+import { DomruClient } from "../src/domru-js/index.js";
+
+const SIP_TASKS_FILE = path.join(DATA_DIR, "sip_tasks.json");
 
 export interface SipCredentials {
   login: string;
@@ -20,6 +26,14 @@ export interface AutoOpenTask {
   fromTag?: string;
   maxOpens?: number | null;
   opensRemaining?: number | null;
+  domruCredentials?: {
+    login?: string;
+    password?: string;
+    refreshToken?: string | null;
+    operatorId?: number | null;
+    accessToken?: string | null;
+    isDemo?: boolean;
+  };
 }
 
 export interface SipLog {
@@ -38,9 +52,112 @@ export function getSipLogs() {
   return sipLogs;
 }
 
+export function saveActiveTasks() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    const tasksArray: any[] = [];
+    for (const task of activeTasks.values()) {
+      tasksArray.push({
+        placeId: task.placeId,
+        deviceId: task.deviceId,
+        credentials: task.credentials,
+        expiresAt: task.expiresAt,
+        maxOpens: task.maxOpens,
+        opensRemaining: task.opensRemaining,
+        callId: task.callId,
+        fromTag: task.fromTag,
+        domruCredentials: task.domruCredentials,
+      });
+    }
+    fs.writeFileSync(SIP_TASKS_FILE, JSON.stringify(tasksArray, null, 2), "utf-8");
+  } catch (err: any) {
+    addSipLog(`[SIP] Failed to save active tasks: ${err.message || err}`, "error");
+  }
+}
+
+export function loadAndResumeActiveTasks() {
+  try {
+    if (!fs.existsSync(SIP_TASKS_FILE)) return;
+    const content = fs.readFileSync(SIP_TASKS_FILE, "utf-8");
+    const tasksArray = JSON.parse(content);
+    const now = Date.now();
+    let resumedCount = 0;
+    let hasChanges = false;
+
+    for (const taskData of tasksArray) {
+      if (taskData.expiresAt && now > taskData.expiresAt) {
+        addSipLog(`[SIP] Saved task for ${taskData.credentials?.login} has expired, skipping.`);
+        hasChanges = true;
+        continue;
+      }
+
+      // Recreate onOpenDoor callback
+      const task: AutoOpenTask = {
+        placeId: taskData.placeId,
+        deviceId: taskData.deviceId,
+        credentials: taskData.credentials,
+        expiresAt: taskData.expiresAt,
+        maxOpens: taskData.maxOpens,
+        opensRemaining: taskData.opensRemaining,
+        callId: taskData.callId,
+        fromTag: taskData.fromTag,
+        domruCredentials: taskData.domruCredentials,
+        onOpenDoor: async () => {
+          if (taskData.domruCredentials?.isDemo) {
+            console.log(`[DEMO] Door opened via Yandex Dialogs (restored) for place ${taskData.placeId}, device ${taskData.deviceId}`);
+            return;
+          }
+
+          if (taskData.domruCredentials) {
+            const client = new DomruClient({
+              login: taskData.domruCredentials.login,
+              password: taskData.domruCredentials.password,
+              refreshToken: taskData.domruCredentials.refreshToken,
+              operatorId: taskData.domruCredentials.operatorId,
+              timeout: 10000,
+              logger: {
+                info: (msg: string, ...args: any[]) => console.log(`[DomruClient:INFO] ${msg}`, ...args),
+                warn: (msg: string, ...args: any[]) => console.warn(`[DomruClient:WARN] ${msg}`, ...args),
+                error: (msg: string, ...args: any[]) => console.error(`[DomruClient:ERROR] ${msg}`, ...args),
+                debug: (msg: string, ...args: any[]) => console.log(`[DomruClient:DEBUG] ${msg}`, ...args),
+              }
+            });
+            // Manually inject access token if it exists
+            if (taskData.domruCredentials.accessToken) {
+              const ctx = (client as any).ctx;
+              if (ctx) {
+                ctx.accessToken = taskData.domruCredentials.accessToken;
+                ctx.accessTokenExpiresAt = Date.now() + 60 * 60 * 1000;
+              }
+            }
+            await client.openDoor(Number(taskData.placeId), Number(taskData.deviceId));
+          } else {
+            addSipLog(`[SIP] No Domru credentials to open door for ${taskData.credentials?.login}`, "error");
+          }
+        }
+      };
+
+      activeTasks.set(task.credentials.login, task);
+      addSipLog(`[SIP] Resumed auto-open for ${task.credentials.login} (expires at ${new Date(task.expiresAt).toLocaleTimeString()}). Registering...`);
+      startSipServer();
+      sendRegister(task);
+      resumedCount++;
+    }
+
+    if (hasChanges) {
+      saveActiveTasks(); // clean up any expired tasks
+    }
+  } catch (err: any) {
+    addSipLog(`[SIP] Failed to load/resume active tasks: ${err.message || err}`, "error");
+  }
+}
+
 export function enableAutoOpen(task: AutoOpenTask) {
   task.opensRemaining = task.maxOpens;
   activeTasks.set(task.credentials.login, task);
+  saveActiveTasks();
   addSipLog(`[SIP] Enabled auto-open for ${task.credentials.login} (expires at ${new Date(task.expiresAt).toLocaleTimeString()}). Registering...`);
   startSipServer();
   sendRegister(task);
@@ -52,16 +169,22 @@ export function disableAutoOpen(login: string) {
     addSipLog(`[SIP] Disabling auto-open for ${login}. Unregistering...`);
     unregisterSip(task);
     activeTasks.delete(login);
+    saveActiveTasks();
   }
 }
 
 export function disableAutoOpenByDevice(deviceId: number) {
+  let hasChanges = false;
   for (const [login, task] of activeTasks.entries()) {
     if (task.deviceId === deviceId) {
       addSipLog(`[SIP] Disabling auto-open for device ${deviceId} (login ${login}). Unregistering...`);
       unregisterSip(task);
       activeTasks.delete(login);
+      hasChanges = true;
     }
+  }
+  if (hasChanges) {
+    saveActiveTasks();
   }
 }
 
@@ -82,15 +205,21 @@ function startCleanupTask() {
   if (cleanupInterval) return;
   cleanupInterval = setInterval(() => {
     const now = Date.now();
+    let hasChanges = false;
     for (const [login, task] of activeTasks.entries()) {
       if (task.expiresAt && now > task.expiresAt) {
         addSipLog(`[SIP] Auto-open expired for ${login}. Unregistering...`, "info");
         unregisterSip(task);
         activeTasks.delete(login);
+        hasChanges = true;
       }
+    }
+    if (hasChanges) {
+      saveActiveTasks();
     }
   }, 60000); // Check every minute
 }
+
 
 function md5(s: string) {
   return crypto.createHash("md5").update(s).digest("hex");
@@ -197,10 +326,12 @@ export function startSipServer() {
 
             if (task.opensRemaining === null || task.opensRemaining === undefined || task.opensRemaining > 0) {
               addSipLog(`[SIP] Call handled. Remaining opens: ${task.opensRemaining === null ? 'unlimited' : task.opensRemaining}.`);
+              saveActiveTasks();
             } else {
               addSipLog(`[SIP] Guest limit reached for ${login}. Unregistering...`);
               unregisterSip(task);
               activeTasks.delete(login);
+              saveActiveTasks();
             }
 
           }, 500); // slight delay

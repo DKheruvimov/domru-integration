@@ -824,12 +824,22 @@ router.post("/sip/auto-open", async (req, res) => {
       
       const expiresAt = Date.now() + (durationMinutes ? durationMinutes * 60 * 1000 : 60 * 60 * 1000);
       
+      const ctx = (client as any).ctx;
+      const domruCredentials = {
+        login: ctx?.login,
+        password: ctx?.password,
+        refreshToken: ctx?.refreshToken,
+        operatorId: ctx?.operatorId,
+        accessToken: ctx?.accessToken,
+      };
+
       enableAutoOpen({
         placeId: Number(placeId),
         deviceId: Number(deviceId),
         credentials,
         expiresAt,
         maxOpens: typeof maxOpens === "number" ? maxOpens : null,
+        domruCredentials,
         onOpenDoor: async () => {
           await client.openDoor(Number(placeId), Number(deviceId));
         }

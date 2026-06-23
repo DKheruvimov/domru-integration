@@ -138,7 +138,7 @@ async function activateAutoOpen(client: any, isDemoMode: boolean, mockReq: any, 
     places = MOCK_PLACES;
     devicesByPlace = MOCK_DEVICES;
   } else {
-    places = await client.getPlaces();
+    places = await client.getSubscriberPlaces();
     if (places.length > 0) {
       devicesByPlace[places[0].id] = await client.getDevices(places[0].id);
     }
@@ -166,12 +166,27 @@ async function activateAutoOpen(client: any, isDemoMode: boolean, mockReq: any, 
 
   const expiresAt = Date.now() + (durationMinutes * 60 * 1000);
 
+  let domruCredentials;
+  if (isDemoMode) {
+    domruCredentials = { isDemo: true };
+  } else {
+    const ctx = (client as any).ctx;
+    domruCredentials = {
+      login: ctx?.login,
+      password: ctx?.password,
+      refreshToken: ctx?.refreshToken,
+      operatorId: ctx?.operatorId,
+      accessToken: ctx?.accessToken,
+    };
+  }
+
   enableAutoOpen({
     placeId: Number(placeId),
     deviceId: Number(deviceId),
     credentials,
     expiresAt,
     maxOpens,
+    domruCredentials,
     onOpenDoor: async () => {
       if (!isDemoMode) {
         await client.openDoor(Number(placeId), Number(deviceId));
