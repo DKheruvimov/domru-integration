@@ -46,6 +46,25 @@ export function enableAutoOpen(task: AutoOpenTask) {
   sendRegister(task);
 }
 
+export function disableAutoOpen(login: string) {
+  const task = activeTasks.get(login);
+  if (task) {
+    addSipLog(`[SIP] Disabling auto-open for ${login}. Unregistering...`);
+    unregisterSip(task);
+    activeTasks.delete(login);
+  }
+}
+
+export function disableAutoOpenByDevice(deviceId: number) {
+  for (const [login, task] of activeTasks.entries()) {
+    if (task.deviceId === deviceId) {
+      addSipLog(`[SIP] Disabling auto-open for device ${deviceId} (login ${login}). Unregistering...`);
+      unregisterSip(task);
+      activeTasks.delete(login);
+    }
+  }
+}
+
 export function addSipLog(message: string, type: "info" | "error" = "info") {
   const log: SipLog = { timestamp: Date.now(), message, type };
   sipLogs.unshift(log);
@@ -280,30 +299,4 @@ function unregisterSip(task: AutoOpenTask) {
     // For simplicity, we just send it.
     addSipLog(`[SIP] Unregistration sent for ${login}.`);
   });
-}
-
-export function enableAutoOpen(task: AutoOpenTask) {
-  startSipServer();
-  activeTasks.set(task.credentials.login, task);
-  addSipLog(`[SIP] Enabled auto-open for ${task.credentials.login} (expires at ${new Date(task.expiresAt).toLocaleTimeString()}). Registering...`);
-  sendRegister(task);
-}
-
-export function disableAutoOpen(login: string) {
-  const task = activeTasks.get(login);
-  if (task) {
-    addSipLog(`[SIP] Disabling auto-open for ${login}. Unregistering...`);
-    unregisterSip(task);
-    activeTasks.delete(login);
-  }
-}
-
-export function disableAutoOpenByDevice(deviceId: number) {
-  for (const [login, task] of activeTasks.entries()) {
-    if (task.deviceId === deviceId) {
-      addSipLog(`[SIP] Disabling auto-open for device ${deviceId} (login ${login}). Unregistering...`);
-      unregisterSip(task);
-      activeTasks.delete(login);
-    }
-  }
 }
