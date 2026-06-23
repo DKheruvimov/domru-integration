@@ -15,6 +15,41 @@ export interface SmsAccount {
   profileId: string;
 }
 
+export function formatPhone(val: string, prevVal: string): string {
+  if (!val) return "";
+  
+  // If user is deleting and removed a formatting char, remove the digit before it
+  if (prevVal && prevVal.length > val.length) {
+    const deletedChar = prevVal.charAt(val.length);
+    if (deletedChar && /\D/.test(deletedChar) && deletedChar !== '+') {
+      val = val.slice(0, -1);
+    }
+  }
+
+  let clean = val.replace(/\D/g, "");
+  
+  // Process russian mobile prefixes
+  if (clean.length > 0) {
+    if (clean[0] === "7" || clean[0] === "8") {
+      clean = clean.substring(1);
+    } else if (clean[0] !== "9") {
+      // Not a valid mobile start, remove it
+      clean = clean.substring(1);
+    }
+  }
+
+  clean = clean.substring(0, 10);
+  if (clean.length === 0) return "";
+  
+  let formatted = "+7";
+  if (clean.length > 0) formatted += " (" + clean.substring(0, 3);
+  if (clean.length > 3) formatted += ") " + clean.substring(3, 6);
+  if (clean.length > 6) formatted += "-" + clean.substring(6, 8);
+  if (clean.length > 8) formatted += "-" + clean.substring(8, 10);
+  
+  return formatted;
+}
+
 export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -373,40 +408,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                       required
                       value={phone}
                       onChange={(e) => {
-                        const formatPhone = (val: string) => {
-                          if (val === "+7" || val === "+7 " || val === "+7 (") {
-                            return "";
-                          }
-                          if (val === "7" || val === "8" || val === "+") {
-                            return "+7 (";
-                          }
-                          let clean = val.replace(/\D/g, "");
-                          if (clean.startsWith("7") || clean.startsWith("8")) {
-                            if (clean.length > 10 || clean[1] === "9") {
-                              clean = clean.substring(1);
-                            } else if (clean.length === 1) {
-                              clean = "";
-                            }
-                          }
-                          if (clean.length > 0 && clean[0] !== "9") {
-                            clean = clean.substring(1);
-                          }
-                          clean = clean.substring(0, 10);
-                          if (clean.length === 0) return "";
-                          let formatted = "+7 (";
-                          formatted += clean.substring(0, 3);
-                          if (clean.length > 3) {
-                            formatted += ") " + clean.substring(3, 6);
-                            if (clean.length > 6) {
-                              formatted += "-" + clean.substring(6, 8);
-                              if (clean.length > 8) {
-                                formatted += "-" + clean.substring(8, 10);
-                              }
-                            }
-                          }
-                          return formatted;
-                        };
-                        setPhone(formatPhone(e.target.value));
+                        setPhone(formatPhone(e.target.value, phone));
                       }}
                       placeholder="+7 (999) 123-45-67"
                       className="w-full pl-10 pr-4 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800/45 border border-zinc-200 dark:border-zinc-800/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E30613]/15 focus:border-[#E30613] text-zinc-900 dark:text-white transition"

@@ -16,7 +16,7 @@ import {
   MOCK_EVENTS,
 } from "../domruClientHelper.js";
 import { getProxiedStreamUrl } from "../yandexHelper.js";
-import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice, getSipLogs } from "../sip-manager.js";
+import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice, getSipLogs, getActiveTasks } from "../sip-manager.js";
 
 const router = express.Router();
 
@@ -805,6 +805,16 @@ router.post("/open", async (req, res) => {
 // API Route: Get SIP Logs
 router.get("/sip/logs", (req, res) => {
   res.json(getSipLogs());
+});
+
+// API Route: Get SIP Auto Open Status
+router.get("/sip/auto-open/status", (req, res) => {
+  const activeTasks = getActiveTasks();
+  const status: Record<number, number> = {};
+  for (const task of activeTasks) {
+    status[task.deviceId] = task.expiresAt;
+  }
+  res.json(status);
 });
 
 // API Route: Toggle SIP Courier Auto Open

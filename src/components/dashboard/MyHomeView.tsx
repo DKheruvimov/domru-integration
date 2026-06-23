@@ -34,6 +34,17 @@ export default function MyHomeView({
   const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<Record<number, boolean>>({});
   const [configModalDeviceId, setConfigModalDeviceId] = useState<number | null>(null);
 
+  useEffect(() => {
+    fetch("/api/domru/sip/auto-open/status")
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data === 'object') {
+          setAutoOpenState(data);
+        }
+      })
+      .catch(err => console.error("Failed to fetch auto-open status", err));
+  }, []);
+
   const toggleAutoOpen = async (deviceId: number, durationMinutes?: number, maxOpens?: number | null) => {
     if (isTogglingAutoOpen[deviceId]) return;
     setIsTogglingAutoOpen(prev => ({ ...prev, [deviceId]: true }));

@@ -61,6 +61,17 @@ export default function CctvPlayer({
     (d) => d.externalCameraId === activeCamera || String(d.id) === activeCamera
   );
 
+  useEffect(() => {
+    fetch("/api/domru/sip/auto-open/status")
+      .then(res => res.json())
+      .then(data => {
+        if (data && matchingDevice && data[matchingDevice.id]) {
+          setAutoOpenState(data[matchingDevice.id]);
+        }
+      })
+      .catch(err => console.error("Failed to fetch auto-open status", err));
+  }, [matchingDevice?.id]);
+
   const buildSnapshotUrl = (
     placeId: number | string | undefined,
     deviceId: number | string

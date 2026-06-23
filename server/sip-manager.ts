@@ -5,8 +5,23 @@ const sip = require("sip");
 import * as crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { DATA_DIR } from "./config.js";
 import { DomruClient } from "../src/domru-js/index.js";
+
+function getLocalIp(): string {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      if (iface.family === "IPv4" && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return "0.0.0.0";
+}
+
+const localIp = getLocalIp();
 
 const SIP_TASKS_FILE = path.join(DATA_DIR, "sip_tasks.json");
 
@@ -46,10 +61,24 @@ const activeTasks = new Map<string, AutoOpenTask>(); // login -> Task
 let isSipStarted = false;
 let cleanupInterval: NodeJS.Timeout | null = null;
 
+interface ActiveDialog {
+  login: string;
+  callId: string;
+  from: any;
+  to: any;
+  route?: any[];
+  cseq: number;
+}
+const activeDialogs = new Map<string, ActiveDialog>(); // callId -> Dialog
+
 const sipLogs: SipLog[] = [];
 
 export function getSipLogs() {
   return sipLogs;
+}
+
+export function getActiveTasks() {
+  return Array.from(activeTasks.values());
 }
 
 export function saveActiveTasks() {
@@ -212,12 +241,16 @@ function startCleanupTask() {
         unregisterSip(task);
         activeTasks.delete(login);
         hasChanges = true;
+      } else {
+        // Re-register to keep NAT pinhole open and refresh SIP registration
+        // (Our previous REGISTER expires in 60s)
+        sendRegister(task);
       }
     }
     if (hasChanges) {
       saveActiveTasks();
     }
-  }, 60000); // Check every minute
+  }, 45000); // Check every 45 seconds (must be less than expires: 60)
 }
 
 
@@ -306,42 +339,96 @@ export function startSipServer() {
           // 2. Send 200 OK (Answer)
           setTimeout(async () => {
             const ok = sip.makeResponse(request, 200, "OK");
-            ok.headers.contact = [{ uri: request.headers.to.uri }];
-            // Dummy SDP just to establish the session
-            ok.content = "v=0\r\no=- 0 0 IN IP4 127.0.0.1\r\ns=-\r\nc=IN IP4 127.0.0.1\r\nt=0 0\r\nm=audio 10000 RTP/AVP 0\r\n";
+            ok.headers.contact = [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }];
+            ok.content = `v=0\r\no=- ${Math.floor(Math.random() * 1000000)} 1 IN IP4 ${localIp}\r\ns=-\r\nc=IN IP4 ${localIp}\r\nt=0 0\r\nm=audio 40000 RTP/AVP 8\r\na=rtpmap:8 PCMA/8000\r\na=sendrecv\r\n`;
             ok.headers["content-type"] = "application/sdp";
+            
+            // Add a tag to To if not present (sip.makeResponse might do this, but just to be sure)
+            if (!ok.headers.to.params || !ok.headers.to.params.tag) {
+               ok.headers.to.params = ok.headers.to.params || {};
+               ok.headers.to.params.tag = crypto.randomBytes(4).toString("hex");
+            }
+            
             sip.send(ok);
-
-            // 3. Trigger door open API
-            try {
-              await task.onOpenDoor();
-              addSipLog(`[SIP] Door opened for ${login}.`);
-            } catch (err: any) {
-              addSipLog(`[SIP] Failed to open door for ${login}: ${err.message || err}`, "error");
-            }
-
-            if (task.opensRemaining !== null && task.opensRemaining !== undefined) {
-              task.opensRemaining--;
-            }
-
-            if (task.opensRemaining === null || task.opensRemaining === undefined || task.opensRemaining > 0) {
-              addSipLog(`[SIP] Call handled. Remaining opens: ${task.opensRemaining === null ? 'unlimited' : task.opensRemaining}.`);
-              saveActiveTasks();
-            } else {
-              addSipLog(`[SIP] Guest limit reached for ${login}. Unregistering...`);
-              unregisterSip(task);
-              activeTasks.delete(login);
-              saveActiveTasks();
-            }
-
+            
+            // Store dialog for later BYE
+            activeDialogs.set(request.headers["call-id"], {
+               login: login,
+               callId: request.headers["call-id"],
+               from: request.headers.to, // we send BYE From our side (which was To in INVITE)
+               to: request.headers.from, // we send BYE To their side (which was From in INVITE)
+               route: request.headers["record-route"],
+               cseq: 1
+            });
           }, 500); // slight delay
         } else {
           addSipLog(`[SIP] No active auto-open for ${login}. Rejecting.`);
           const busy = sip.makeResponse(request, 486, "Busy Here");
           sip.send(busy);
         }
-      } else if (request.method === "BYE") {
+      } else if (request.method === "ACK") {
+        addSipLog(`[SIP] Received ACK for call ${request.headers["call-id"]}`);
+        const dialog = activeDialogs.get(request.headers["call-id"]);
+        if (dialog) {
+           const login = dialog.login;
+           const task = activeTasks.get(login);
+           if (task) {
+             // 3. Trigger door open API
+             (async () => {
+               try {
+                 await task.onOpenDoor();
+                 addSipLog(`[SIP] Door opened for ${login}.`);
+               } catch (err: any) {
+                 addSipLog(`[SIP] Failed to open door for ${login}: ${err.message || err}`, "error");
+               }
+
+               if (task.opensRemaining !== null && task.opensRemaining !== undefined) {
+                 task.opensRemaining--;
+               }
+
+               if (task.opensRemaining === null || task.opensRemaining === undefined || task.opensRemaining > 0) {
+                 addSipLog(`[SIP] Call handled. Remaining opens: ${task.opensRemaining === null ? 'unlimited' : task.opensRemaining}.`);
+                 saveActiveTasks();
+               } else {
+                 addSipLog(`[SIP] Guest limit reached for ${login}. Unregistering...`);
+                 unregisterSip(task);
+                 activeTasks.delete(login);
+                 saveActiveTasks();
+               }
+               
+               // 4. Send BYE after 1 second
+               setTimeout(() => {
+                 dialog.cseq++;
+                 const bye: any = {
+                   method: "BYE",
+                   uri: dialog.to.uri,
+                   headers: {
+                     to: dialog.to,
+                     from: dialog.from,
+                     "call-id": dialog.callId,
+                     cseq: { method: "BYE", seq: dialog.cseq },
+                     contact: [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }],
+                     "user-agent": "Myhome/Myhome-android",
+                     "max-forwards": 70
+                   }
+                 };
+                 if (dialog.route) {
+                    // Reverse the record-route to get the correct route for BYE
+                    bye.headers.route = [...dialog.route].reverse();
+                    // Set URI to the first route URI for Kamailio/FreeSWITCH strict routing handling
+                    // `sip` handles strict routing usually, but we just pass the route array
+                 }
+                 sip.send(bye);
+                 addSipLog(`[SIP] Sent BYE for call ${dialog.callId}`);
+                 activeDialogs.delete(dialog.callId);
+               }, 1000);
+             })();
+           }
+        }
+      } else if (request.method === "BYE" || request.method === "CANCEL") {
+        addSipLog(`[SIP] Received ${request.method} for call ${request.headers["call-id"]}`);
         sip.send(sip.makeResponse(request, 200, "OK"));
+        activeDialogs.delete(request.headers["call-id"]);
       } else {
         // Method Not Allowed
         sip.send(sip.makeResponse(request, 405, "Method Not Allowed"));
@@ -373,7 +460,7 @@ function sendRegister(task: AutoOpenTask, challenge?: any) {
       from: { uri: userUri, params: { tag: task.fromTag } },
       "call-id": task.callId,
       cseq: { method: "REGISTER", seq: challenge ? 2 : 1 },
-      contact: [{ uri: `sip:${login}@0.0.0.0:5060;transport=udp` }],
+      contact: [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }],
       expires: 60,
       "user-agent": "Myhome/Myhome-android",
       supported: "replaces, outbound, gruu, path",
@@ -419,7 +506,7 @@ function unregisterSip(task: AutoOpenTask) {
       from: { uri: userUri, params: { tag: generateTag() } },
       "call-id": crypto.randomBytes(8).toString("hex"),
       cseq: { method: "REGISTER", seq: 1 },
-      contact: [{ uri: `sip:${login}@0.0.0.0:5060;transport=udp` }],
+      contact: [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }],
       expires: 0, // 0 means unregister
       "user-agent": "Myhome/Myhome-android",
     },
