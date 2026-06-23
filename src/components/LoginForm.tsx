@@ -395,12 +395,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                           if (clean.length === 0) return "";
                           let formatted = "+7 (";
                           formatted += clean.substring(0, 3);
-                          if (clean.length >= 3) {
-                            formatted += ") ";
-                            formatted += clean.substring(3, 6);
-                            if (clean.length >= 6) {
+                          if (clean.length > 3) {
+                            formatted += ") " + clean.substring(3, 6);
+                            if (clean.length > 6) {
                               formatted += "-" + clean.substring(6, 8);
-                              if (clean.length >= 8) {
+                              if (clean.length > 8) {
                                 formatted += "-" + clean.substring(8, 10);
                               }
                             }
