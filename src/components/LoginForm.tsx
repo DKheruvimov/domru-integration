@@ -374,11 +374,22 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                       value={phone}
                       onChange={(e) => {
                         const formatPhone = (val: string) => {
+                          if (val === "+7" || val === "+7 " || val === "+7 (") {
+                            return "";
+                          }
+                          if (val === "7" || val === "8" || val === "+") {
+                            return "+7 (";
+                          }
                           let clean = val.replace(/\D/g, "");
                           if (clean.startsWith("7") || clean.startsWith("8")) {
                             if (clean.length > 10 || clean[1] === "9") {
                               clean = clean.substring(1);
+                            } else if (clean.length === 1) {
+                              clean = "";
                             }
+                          }
+                          if (clean.length > 0 && clean[0] !== "9") {
+                            clean = clean.substring(1);
                           }
                           clean = clean.substring(0, 10);
                           if (clean.length === 0) return "";
