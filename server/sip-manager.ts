@@ -80,6 +80,13 @@ function parseDigestChallenge(wwwAuthenticate: any) {
   return challenge;
 }
 
+function stripQuotes(s: string) {
+  if (typeof s === "string" && s.startsWith('"') && s.endsWith('"')) {
+    return s.slice(1, -1);
+  }
+  return s;
+}
+
 function buildAuthorizationString(
   challenge: any,
   username: string,
@@ -91,13 +98,13 @@ function buildAuthorizationString(
   const realm = providedRealm; // Use credentials realm like domru-ha
   const ha1 = md5(`${username}:${realm}:${password}`);
   const ha2 = md5(`${method}:${uri}`);
-  const nonce = challenge.nonce;
-  const qopRaw = challenge.qop || "";
+  const nonce = stripQuotes(challenge.nonce);
+  const qopRaw = stripQuotes(challenge.qop || "");
   let qop = "";
   if (qopRaw.includes("auth")) {
     qop = "auth";
   }
-  const algorithm = challenge.algorithm || "MD5";
+  const algorithm = stripQuotes(challenge.algorithm || "MD5");
   
   if (qop === "auth") {
     const cnonce = crypto.randomBytes(4).toString("hex");
