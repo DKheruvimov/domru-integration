@@ -62,14 +62,21 @@ export default function CctvPlayer({
   );
 
   useEffect(() => {
-    fetch("/api/domru/sip/auto-open/status")
-      .then(res => res.json())
-      .then(data => {
-        if (data && matchingDevice && data[matchingDevice.id]) {
-          setAutoOpenState(data[matchingDevice.id]);
-        }
-      })
-      .catch(err => console.error("Failed to fetch auto-open status", err));
+    const fetchStatus = () => {
+      fetch("/api/domru/sip/auto-open/status")
+        .then(res => res.json())
+        .then(data => {
+          if (data && matchingDevice) {
+            setAutoOpenState(data[matchingDevice.id] || false);
+          }
+        })
+        .catch(err => console.error("Failed to fetch auto-open status", err));
+    };
+
+    fetchStatus();
+    const intervalId = setInterval(fetchStatus, 5000);
+
+    return () => clearInterval(intervalId);
   }, [matchingDevice?.id]);
 
   const buildSnapshotUrl = (
