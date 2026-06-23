@@ -11,8 +11,10 @@ export default function SipLogsViewer() {
   const [logs, setLogs] = useState<SipLog[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchLogs = async () => {
-    setLoading(true);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const fetchLogs = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch("/api/domru/sip/logs");
       if (res.ok) {
@@ -22,12 +24,25 @@ export default function SipLogsViewer() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const interval = setInterval(() => fetchLogs(true), 3000);
+    return () => clearInterval(interval);
+  }, [isOpen]);
+
   return (
-    <details className="group mt-3 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50 dark:bg-zinc-900/10 overflow-hidden animate-fade-in" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) fetchLogs(); }}>
+    <details 
+      className="group mt-3 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50 dark:bg-zinc-900/10 overflow-hidden animate-fade-in" 
+      onToggle={(e) => { 
+        const open = (e.target as HTMLDetailsElement).open;
+        setIsOpen(open);
+        if (open) fetchLogs(); 
+      }}
+    >
       <summary className="px-4 py-2.5 text-[10px] font-bold tracking-wider text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer flex items-center justify-between font-sans select-none list-none">
         <span className="flex items-center gap-1.5">
           <Terminal className="w-3.5 h-3.5 text-emerald-500" />
