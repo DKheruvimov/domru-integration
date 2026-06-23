@@ -1,4 +1,7 @@
-import * as sip from "sip";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const sip = require("sip");
+
 import * as crypto from "crypto";
 
 export interface SipCredentials {
