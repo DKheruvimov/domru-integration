@@ -337,32 +337,9 @@ export function startSipServer() {
           const ringing = sip.makeResponse(request, 180, "Ringing");
           sip.send(ringing);
 
-          // 2. Trigger door open API immediately! We don't wait for ACK because NAT often blocks ACK.
-          (async () => {
-            try {
-              await task.onOpenDoor();
-              addSipLog(`[SIP] Door opened for ${login}.`);
-            } catch (err: any) {
-              addSipLog(`[SIP] Failed to open door for ${login}: ${err.message || err}`, "error");
-            }
-
-            if (task.opensRemaining !== null && task.opensRemaining !== undefined) {
-              task.opensRemaining--;
-            }
-
-            if (task.opensRemaining === null || task.opensRemaining === undefined || task.opensRemaining > 0) {
-              addSipLog(`[SIP] Call handled. Remaining opens: ${task.opensRemaining === null ? 'unlimited' : task.opensRemaining}.`);
-              saveActiveTasks();
-            } else {
-              addSipLog(`[SIP] Guest limit reached for ${login}. Unregistering...`);
-              unregisterSip(task);
-              activeTasks.delete(login);
-              saveActiveTasks();
-            }
-          })();
-
-          // 3. Send 200 OK (Answer)
+          // 2. Wait 3 seconds before answering (so guests hear the ring)
           setTimeout(() => {
+            // 3. Send 200 OK (Answer)
             const ok = sip.makeResponse(request, 200, "OK");
             ok.headers.contact = [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }];
             ok.content = `v=0\r\no=- ${Math.floor(Math.random() * 1000000)} 1 IN IP4 ${localIp}\r\ns=-\r\nc=IN IP4 ${localIp}\r\nt=0 0\r\nm=audio 40000 RTP/AVP 8\r\na=rtpmap:8 PCMA/8000\r\na=sendrecv\r\n`;
@@ -377,29 +354,57 @@ export function startSipServer() {
             sip.send(ok);
             addSipLog(`[SIP] Sent 200 OK for call ${request.headers["call-id"]}`);
             
-            // 4. Send BYE after 1.5 seconds without waiting for ACK
-            setTimeout(() => {
-              const bye: any = {
-                method: "BYE",
-                uri: request.headers.from.uri,
-                headers: {
-                  to: request.headers.from, // To their side
-                  from: ok.headers.to, // From our side (which we just tagged)
-                  "call-id": request.headers["call-id"],
-                  cseq: { method: "BYE", seq: 2 }, // CSeq must be > 1
-                  contact: [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }],
-                  "user-agent": "Myhome/Myhome-android",
-                  "max-forwards": 70
-                }
-              };
-              if (request.headers["record-route"]) {
-                 bye.headers.route = [...request.headers["record-route"]].reverse();
+            // 4. Wait 1 second, then trigger door open API
+            setTimeout(async () => {
+              try {
+                await task.onOpenDoor();
+                addSipLog(`[SIP] Door opened for ${login}.`);
+              } catch (err: any) {
+                addSipLog(`[SIP] Failed to open door for ${login}: ${err.message || err}`, "error");
               }
-              sip.send(bye);
-              addSipLog(`[SIP] Sent BYE for call ${request.headers["call-id"]}`);
-            }, 1500);
 
-          }, 500); // slight delay for answer
+              if (task.opensRemaining !== null && task.opensRemaining !== undefined) {
+                task.opensRemaining--;
+              }
+
+              if (task.opensRemaining === null || task.opensRemaining === undefined || task.opensRemaining > 0) {
+                addSipLog(`[SIP] Call handled. Remaining opens: ${task.opensRemaining === null ? 'unlimited' : task.opensRemaining}.`);
+                saveActiveTasks();
+              } else {
+                addSipLog(`[SIP] Guest limit reached for ${login}. Unregistering...`);
+                unregisterSip(task);
+                activeTasks.delete(login);
+                saveActiveTasks();
+              }
+
+              // 5. Wait 1 second after door open, then send BYE
+              setTimeout(() => {
+                // BYE MUST be sent to the Contact URI from the INVITE
+                const targetUri = request.headers.contact && request.headers.contact.length > 0 
+                  ? request.headers.contact[0].uri 
+                  : request.headers.from.uri;
+
+                const bye: any = {
+                  method: "BYE",
+                  uri: targetUri,
+                  headers: {
+                    to: request.headers.from, // To their side
+                    from: ok.headers.to, // From our side (which we just tagged)
+                    "call-id": request.headers["call-id"],
+                    cseq: { method: "BYE", seq: 2 }, // CSeq must be > 1
+                    contact: [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }],
+                    "user-agent": "Myhome/Myhome-android",
+                    "max-forwards": 70
+                  }
+                };
+                if (request.headers["record-route"]) {
+                   bye.headers.route = [...request.headers["record-route"]].reverse();
+                }
+                sip.send(bye);
+                addSipLog(`[SIP] Sent BYE for call ${request.headers["call-id"]}`);
+              }, 1000);
+            }, 1000);
+          }, 3000);
         } else {
           addSipLog(`[SIP] No active auto-open for ${login}. Rejecting.`);
           const busy = sip.makeResponse(request, 486, "Busy Here");
