@@ -80,7 +80,7 @@ function parseDigestChallenge(wwwAuthenticate: any) {
   return challenge;
 }
 
-function buildAuthorization(
+function buildAuthorizationString(
   challenge: any,
   username: string,
   password: string,
@@ -88,7 +88,7 @@ function buildAuthorization(
   method: string,
   uri: string
 ) {
-  const realm = challenge.realm || providedRealm;
+  const realm = providedRealm; // Use credentials realm like domru-ha
   const ha1 = md5(`${username}:${realm}:${password}`);
   const ha2 = md5(`${method}:${uri}`);
   const nonce = challenge.nonce;
@@ -97,35 +97,16 @@ function buildAuthorization(
   if (qopRaw.includes("auth")) {
     qop = "auth";
   }
-  let response = "";
-
+  const algorithm = challenge.algorithm || "MD5";
+  
   if (qop === "auth") {
     const cnonce = crypto.randomBytes(4).toString("hex");
     const nc = "00000001";
-    response = md5(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`);
-    return {
-      scheme: "Digest",
-      username,
-      realm,
-      nonce,
-      uri,
-      response,
-      algorithm: "MD5",
-      cnonce,
-      nc,
-      qop,
-    };
+    const response = md5(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`);
+    return `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}", response="${response}", algorithm=${algorithm}, cnonce="${cnonce}", nc=${nc}, qop=${qop}`;
   } else {
-    response = md5(`${ha1}:${nonce}:${ha2}`);
-    return {
-      scheme: "Digest",
-      username,
-      realm,
-      nonce,
-      uri,
-      response,
-      algorithm: "MD5",
-    };
+    const response = md5(`${ha1}:${nonce}:${ha2}`);
+    return `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}", response="${response}", algorithm=${algorithm}`;
   }
 }
 
@@ -226,9 +207,9 @@ function sendRegister(task: AutoOpenTask, challenge?: any) {
   };
 
   if (challenge) {
-    rq.headers.authorization = [
-      buildAuthorization(challenge, login, password, realm, "REGISTER", uri),
-    ];
+    const authString = buildAuthorizationString(challenge, login, password, realm, "REGISTER", uri);
+    rq.headers.authorization = authString;
+    addSipLog(`[SIP] Built auth string: ${authString}`);
   }
 
   sip.send(rq, (rs: any) => {
