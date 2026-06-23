@@ -41,6 +41,7 @@ export interface AutoOpenTask {
   fromTag?: string;
   maxOpens?: number | null;
   opensRemaining?: number | null;
+  currentCSeq?: number;
   domruCredentials?: {
     login?: string;
     password?: string;
@@ -452,6 +453,12 @@ function sendRegister(task: AutoOpenTask, challenge?: any) {
     task.fromTag = generateTag();
   }
   
+  if (!task.currentCSeq) {
+    task.currentCSeq = 1;
+  } else {
+    task.currentCSeq++;
+  }
+  
   const rq: any = {
     method: "REGISTER",
     uri,
@@ -459,7 +466,7 @@ function sendRegister(task: AutoOpenTask, challenge?: any) {
       to: { uri: userUri },
       from: { uri: userUri, params: { tag: task.fromTag } },
       "call-id": task.callId,
-      cseq: { method: "REGISTER", seq: challenge ? 2 : 1 },
+      cseq: { method: "REGISTER", seq: task.currentCSeq },
       contact: [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }],
       expires: 60,
       "user-agent": "Myhome/Myhome-android",
