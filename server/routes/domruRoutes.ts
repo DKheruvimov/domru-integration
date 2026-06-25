@@ -1,5 +1,6 @@
 import express from "express";
 import axios from "axios";
+import http from "http";
 import { spawn, execSync } from "child_process";
 import { getAccountsByPhone, requestSmsCode, confirmSmsCode } from "../../src/domru-js/index.js";
 import { tokenCache } from "../config.js";
@@ -373,10 +374,15 @@ router.get("/stream-go2rtc/:cameraId", async (req, res) => {
     const stream = await client.getStreamUrl(cameraId);
     if (stream && stream.url) {
       const originalUrl = stream.url;
-      // Register this stream in go2rtc so we can access WebRTC, MSE, HLS, etc.
-      const success = await registerStream(cameraId, originalUrl);
       
-      console.log(`[go2rtc-route] Dynamically registered stream for Camera ${cameraId} (Success: ${success})`);
+      // Use local transcoded loopback stream with ffmpeg wrapper for go2rtc
+      // This guarantees continuous timestamps, correct codecs, and stable audio-sync for WebRTC clients
+      const proxiedLoopbackUrl = `http://127.0.0.1:3000/api/domru/stream-proxy/index.m3u8?url=${encodeURIComponent(originalUrl)}&token=${encodeURIComponent(client.token || "")}&operatorId=${encodeURIComponent(String(client.refreshData.operatorId || ""))}`;
+      const go2rtcSource = `ffmpeg:${proxiedLoopbackUrl}#video=copy#audio=copy`;
+      
+      const success = await registerStream(cameraId, go2rtcSource);
+      
+      console.log(`[go2rtc-route] Dynamically registered stream for Camera ${cameraId} with ffmpeg wrapper (Success: ${success})`);
       
       res.json({
         success,
@@ -396,42 +402,34 @@ router.get("/stream-go2rtc/:cameraId", async (req, res) => {
 });
 
 // API Route: General HTTP proxy forwarding to local go2rtc (Port 1984) on Port 3000
-router.all("/go2rtc-proxy*", async (req, res) => {
+router.all("/go2rtc-proxy*", (req, res) => {
   const subPath = req.url.replace(/^\/go2rtc-proxy/, "");
-  const targetUrl = `http://127.0.0.1:1984${subPath}`;
+  
+  const options: http.RequestOptions = {
+    hostname: "127.0.0.1",
+    port: 1984,
+    path: subPath,
+    method: req.method,
+    headers: {}
+  };
 
-  try {
-    const headers: Record<string, string> = {};
-    Object.entries(req.headers).forEach(([key, val]) => {
-      const lowerKey = key.toLowerCase();
-      if (
-        lowerKey !== "host" &&
-        lowerKey !== "connection" &&
-        lowerKey !== "accept-encoding" &&
-        lowerKey !== "content-length"
-      ) {
-        if (typeof val === "string") {
-          headers[key] = val;
-        } else if (Array.isArray(val)) {
-          headers[key] = val.join(", ");
-        }
-      }
-    });
+  Object.entries(req.headers).forEach(([key, val]) => {
+    const lowerKey = key.toLowerCase();
+    if (
+      lowerKey !== "host" &&
+      lowerKey !== "connection" &&
+      lowerKey !== "accept-encoding" &&
+      lowerKey !== "content-length"
+    ) {
+      options.headers![key] = val;
+    }
+  });
 
-    const response = await axios({
-      method: req.method as any,
-      url: targetUrl,
-      data: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
-      headers: {
-        ...headers,
-        host: "127.0.0.1:1984", // override host header for go2rtc
-      },
-      responseType: "stream",
-      validateStatus: () => true,
-    });
+  options.headers!["host"] = "127.0.0.1:1984";
 
-    res.status(response.status);
-    Object.entries(response.headers).forEach(([key, val]) => {
+  const proxyReq = http.request(options, (proxyRes) => {
+    res.status(proxyRes.statusCode || 200);
+    Object.entries(proxyRes.headers).forEach(([key, val]) => {
       const lowerKey = key.toLowerCase();
       if (
         val !== undefined &&
@@ -445,10 +443,28 @@ router.all("/go2rtc-proxy*", async (req, res) => {
       }
     });
 
-    response.data.pipe(res);
-  } catch (err: any) {
-    console.error(`[go2rtc-proxy] Proxy error for URL ${targetUrl}:`, err.message);
-    res.status(500).send(`go2rtc Proxy error: ${err.message}`);
+    proxyRes.pipe(res);
+
+    proxyRes.on("error", (err) => {
+      console.error(`[go2rtc-proxy] Response stream error for ${subPath}:`, err.message);
+    });
+  });
+
+  proxyReq.on("error", (err) => {
+    console.error(`[go2rtc-proxy] Request connection error for ${subPath}:`, err.message);
+    if (!res.headersSent) {
+      res.status(500).send(`go2rtc Proxy error: ${err.message}`);
+    }
+  });
+
+  req.on("close", () => {
+    proxyReq.destroy();
+  });
+
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    req.pipe(proxyReq);
+  } else {
+    proxyReq.end();
   }
 });
 
