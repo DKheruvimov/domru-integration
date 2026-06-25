@@ -164,83 +164,107 @@ export default function CctvPlayer({
 
     if (streamType === "go2rtc" && streamEngine === "webrtc") {
       addStreamLog("⚡ Запуск WebRTC стриминга через go2rtc...");
-      pc = new RTCPeerConnection({
-        iceServers: [{ urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] }]
-      });
-
-      const localTracks: MediaStreamTrack[] = [];
-      const videoTransceiver = pc.addTransceiver("video", { direction: "recvonly" });
-      localTracks.push(videoTransceiver.receiver.track);
-
       try {
-        const audioTransceiver = pc.addTransceiver("audio", { direction: "recvonly" });
-        localTracks.push(audioTransceiver.receiver.track);
-      } catch (e) {
-        // Ignore audio transceiver errors
-      }
-
-      video.srcObject = new MediaStream(localTracks);
-
-      pc.ontrack = (event) => {
-        addStreamLog("▶ WebRTC: Получен медиа-трек потока!");
-        if (event.streams && event.streams[0]) {
-          video.srcObject = event.streams[0];
-        }
-      };
-
-      ws = new WebSocket(streamUrl);
-
-      ws.addEventListener("open", () => {
-        addStreamLog("🔌 Сигнальное WebSocket-соединение с go2rtc открыто.");
-
-        pc?.addEventListener("icecandidate", ev => {
-          if (!ev.candidate) return;
-          const msg = { type: "webrtc/candidate", value: ev.candidate.candidate };
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(msg));
-          }
+        pc = new RTCPeerConnection({
+          iceServers: [{ urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] }]
         });
 
-        pc?.createOffer()
-          .then(offer => pc?.setLocalDescription(offer))
-          .then(() => {
-            addStreamLog("📡 Отправка WebRTC SDP Offer в go2rtc...");
-            const msg = { type: "webrtc/offer", value: pc?.localDescription!.sdp };
+        pc.ontrack = (event) => {
+          addStreamLog("▶ WebRTC: Получен медиа-трек потока!");
+          try {
+            const remoteStream = event.streams && event.streams[0]
+              ? event.streams[0]
+              : new MediaStream([event.track]);
+            video.srcObject = remoteStream;
+          } catch (trackErr: any) {
+            addStreamLog(`⛔ Ошибка привязки трека: ${trackErr.message}`);
+          }
+        };
+
+        try {
+          const localTracks: MediaStreamTrack[] = [];
+          const videoTransceiver = pc.addTransceiver("video", { direction: "recvonly" });
+          if (videoTransceiver && videoTransceiver.receiver && videoTransceiver.receiver.track) {
+            localTracks.push(videoTransceiver.receiver.track);
+          }
+
+          try {
+            const audioTransceiver = pc.addTransceiver("audio", { direction: "recvonly" });
+            if (audioTransceiver && audioTransceiver.receiver && audioTransceiver.receiver.track) {
+              localTracks.push(audioTransceiver.receiver.track);
+            }
+          } catch (audioErr) {
+            addStreamLog("⚠️ Предупреждение WebRTC аудио: не удалось добавить ресивер.");
+          }
+
+          if (localTracks.length > 0) {
+            video.srcObject = new MediaStream(localTracks);
+          }
+        } catch (transceiverErr: any) {
+          addStreamLog(`⚠️ addTransceiver не поддерживается: ${transceiverErr.message}. Ожидание ontrack.`);
+        }
+
+        ws = new WebSocket(streamUrl);
+
+        ws.addEventListener("open", () => {
+          addStreamLog("🔌 Сигнальное WebSocket-соединение с go2rtc открыто.");
+
+          pc?.addEventListener("icecandidate", ev => {
+            if (!ev.candidate) return;
+            const msg = { type: "webrtc/candidate", value: ev.candidate.candidate };
             if (ws && ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify(msg));
             }
-          })
-          .catch(err => {
-            addStreamLog(`⛔ Ошибка создания SDP Offer: ${err.message}`);
           });
-      });
 
-      ws.addEventListener("message", ev => {
-        try {
-          const msg = JSON.parse(ev.data);
-          if (msg.type === "webrtc/candidate") {
-            pc?.addIceCandidate({ candidate: msg.value, sdpMid: "0" }).catch(e => {
-              console.warn("ICE candidate error:", e);
+          pc?.createOffer()
+            .then(offer => {
+              if (pc) return pc.setLocalDescription(offer);
+            })
+            .then(() => {
+              addStreamLog("📡 Отправка WebRTC SDP Offer в go2rtc...");
+              if (pc && pc.localDescription) {
+                const msg = { type: "webrtc/offer", value: pc.localDescription.sdp };
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify(msg));
+                }
+              }
+            })
+            .catch(err => {
+              addStreamLog(`⛔ Ошибка создания SDP Offer: ${err.message}`);
             });
-          } else if (msg.type === "webrtc/answer") {
-            addStreamLog("✅ Получен WebRTC SDP Answer от go2rtc.");
-            pc?.setRemoteDescription({ type: "answer", sdp: msg.value }).catch(e => {
-              addStreamLog(`⛔ Ошибка remote description: ${e.message}`);
-            });
+        });
+
+        ws.addEventListener("message", ev => {
+          try {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === "webrtc/candidate") {
+              pc?.addIceCandidate({ candidate: msg.value, sdpMid: "0" }).catch(e => {
+                console.warn("ICE candidate error:", e);
+              });
+            } else if (msg.type === "webrtc/answer") {
+              addStreamLog("✅ Получен WebRTC SDP Answer от go2rtc.");
+              pc?.setRemoteDescription({ type: "answer", sdp: msg.value }).catch(e => {
+                addStreamLog(`⛔ Ошибка remote description: ${e.message}`);
+              });
+            }
+          } catch (err: any) {
+            console.error(err);
           }
-        } catch (err: any) {
-          console.error(err);
-        }
-      });
+        });
 
-      ws.addEventListener("close", () => {
-        addStreamLog("🔌 Сигнальное WebSocket-соединение закрыто.");
-      });
+        ws.addEventListener("close", () => {
+          addStreamLog("🔌 Сигнальное WebSocket-соединение закрыто.");
+        });
 
-      ws.addEventListener("error", () => {
-        addStreamLog("⛔ Сигнальное WebSocket-соединение завершилось ошибкой.");
-      });
+        ws.addEventListener("error", () => {
+          addStreamLog("⛔ Сигнальное WebSocket-соединение завершилось ошибкой.");
+        });
 
+      } catch (webrtcErr: any) {
+        addStreamLog(`⛔ Ошибка инициализации WebRTC: ${webrtcErr.message}`);
+        setHasStreamError(true);
+      }
     } else if (streamType === "go2rtc" && streamEngine === "hls") {
       addStreamLog("📡 Запуск HLS-стриминга через go2rtc-прокси...");
       const hlsUrl = `${window.location.protocol}//${window.location.host}/api/domru/go2rtc-proxy/api/hls.m3u8?src=${activeCamera}`;
