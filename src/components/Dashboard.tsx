@@ -268,17 +268,17 @@ export default function Dashboard({ credentials, onLogout, isCabinetOpen, setIsC
         setStreamLogs([]);
         addStreamLog(`Запрос URL потока для камеры ${activeCamera} с сервера...`);
 
-        const res = await fetch(`/api/domru/stream/${activeCamera}`, { headers: proxyHeaders });
+        const res = await fetch(`/api/domru/stream-go2rtc/${activeCamera}`, { headers: proxyHeaders });
         if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status} ${res.statusText}`);
         const data = await res.json();
 
-        if (!data || !data.url) {
-          throw new Error("Сервер вернул пустой URL потока (возможно, камера оффлайн).");
+        if (!data || !data.webrtcUrl) {
+          throw new Error("Сервер вернул некорректный ответ (возможно, ошибка go2rtc).");
         }
 
-        addStreamLog(`Получен ответ: тип=${data.type || "unknown"}, URL=${data.url}`);
-        setStreamUrl(data.url);
-        setStreamType(data.type || "unknown");
+        addStreamLog(`[go2rtc] Камера зарегистрирована! WebRTC URL: ${data.webrtcUrl}`);
+        setStreamUrl(data.webrtcUrl);
+        setStreamType("go2rtc");
       } catch (err: any) {
         console.error(err);
         addStreamLog(`⛔ Сбой получения потока: ${err.message}`);

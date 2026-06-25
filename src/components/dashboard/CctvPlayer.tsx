@@ -56,6 +56,7 @@ export default function CctvPlayer({
   const [autoOpenState, setAutoOpenState] = useState<number | boolean>(false);
   const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<boolean>(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState<boolean>(false);
+  const [streamEngine, setStreamEngine] = useState<"webrtc" | "hls">("webrtc");
 
   const matchingDevice = devices.find(
     (d) => d.externalCameraId === activeCamera || String(d.id) === activeCamera
@@ -133,12 +134,12 @@ export default function CctvPlayer({
     }
   };
 
-  // HLS/FLV stream player handler using Ref
+  // HLS/FLV/WebRTC stream player handler using Ref
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !streamUrl || !streamType) return;
 
-    addStreamLog("--- ИНИЦИАЛИЗАЦИИ ВИДЕОПОТОКА ---");
+    addStreamLog("--- ИНИЦИАЛИЗАЦИЯ ВИДЕОПОТОКА ---");
 
     if (streamType === "mjpeg") {
       addStreamLog("MJPEG-поток инициализирован.");
@@ -158,36 +159,97 @@ export default function CctvPlayer({
 
     let hlsInstance: any = null;
     let mpegtsPlayer: any = null;
+    let pc: RTCPeerConnection | null = null;
+    let ws: WebSocket | null = null;
 
-    const isHls = streamType === "hls" || streamUrl.includes(".m3u8");
-    const isFlv = streamType === "flv" || streamUrl.includes(".flv");
+    if (streamType === "go2rtc" && streamEngine === "webrtc") {
+      addStreamLog("⚡ Запуск WebRTC стриминга через go2rtc...");
+      pc = new RTCPeerConnection({
+        iceServers: [{ urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] }]
+      });
 
-    if (isFlv) {
-      const loadMpegts = async () => {
-        if (!(window as any).mpegts) {
-          await new Promise<void>((resolve, reject) => {
-            const script = document.createElement("script");
-            script.src = "https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js";
-            script.onload = () => resolve();
-            script.onerror = () => reject(new Error("Не удалось загрузить mpegts.js"));
-            document.head.appendChild(script);
-          });
-        }
-        const mpegts = (window as any).mpegts;
-        if (mpegts && mpegts.isSupported()) {
-          mpegtsPlayer = mpegts.createPlayer({ type: "flv", isLive: true, url: streamUrl, cors: true });
-          mpegtsPlayer.attachMediaElement(video);
-          mpegtsPlayer.load();
-          mpegtsPlayer.play().catch((e: any) => console.log("Auto-start blocked", e));
-        } else {
-          video.src = streamUrl;
+      const localTracks: MediaStreamTrack[] = [];
+      const videoTransceiver = pc.addTransceiver("video", { direction: "recvonly" });
+      localTracks.push(videoTransceiver.receiver.track);
+
+      try {
+        const audioTransceiver = pc.addTransceiver("audio", { direction: "recvonly" });
+        localTracks.push(audioTransceiver.receiver.track);
+      } catch (e) {
+        // Ignore audio transceiver errors
+      }
+
+      video.srcObject = new MediaStream(localTracks);
+
+      pc.ontrack = (event) => {
+        addStreamLog("▶ WebRTC: Получен медиа-трек потока!");
+        if (event.streams && event.streams[0]) {
+          video.srcObject = event.streams[0];
         }
       };
-      loadMpegts().catch((e) => console.error(e));
-    } else if (isHls) {
+
+      ws = new WebSocket(streamUrl);
+
+      ws.addEventListener("open", () => {
+        addStreamLog("🔌 Сигнальное WebSocket-соединение с go2rtc открыто.");
+
+        pc?.addEventListener("icecandidate", ev => {
+          if (!ev.candidate) return;
+          const msg = { type: "webrtc/candidate", value: ev.candidate.candidate };
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(msg));
+          }
+        });
+
+        pc?.createOffer()
+          .then(offer => pc?.setLocalDescription(offer))
+          .then(() => {
+            addStreamLog("📡 Отправка WebRTC SDP Offer в go2rtc...");
+            const msg = { type: "webrtc/offer", value: pc?.localDescription!.sdp };
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify(msg));
+            }
+          })
+          .catch(err => {
+            addStreamLog(`⛔ Ошибка создания SDP Offer: ${err.message}`);
+          });
+      });
+
+      ws.addEventListener("message", ev => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === "webrtc/candidate") {
+            pc?.addIceCandidate({ candidate: msg.value, sdpMid: "0" }).catch(e => {
+              console.warn("ICE candidate error:", e);
+            });
+          } else if (msg.type === "webrtc/answer") {
+            addStreamLog("✅ Получен WebRTC SDP Answer от go2rtc.");
+            pc?.setRemoteDescription({ type: "answer", sdp: msg.value }).catch(e => {
+              addStreamLog(`⛔ Ошибка remote description: ${e.message}`);
+            });
+          }
+        } catch (err: any) {
+          console.error(err);
+        }
+      });
+
+      ws.addEventListener("close", () => {
+        addStreamLog("🔌 Сигнальное WebSocket-соединение закрыто.");
+      });
+
+      ws.addEventListener("error", () => {
+        addStreamLog("⛔ Сигнальное WebSocket-соединение завершилось ошибкой.");
+      });
+
+    } else if (streamType === "go2rtc" && streamEngine === "hls") {
+      addStreamLog("📡 Запуск HLS-стриминга через go2rtc-прокси...");
+      const hlsUrl = `${window.location.protocol}//${window.location.host}/api/domru/go2rtc-proxy/api/hls.m3u8?src=${activeCamera}`;
+      
       if (nativeHlsSupported && !forceHlsJS) {
-        video.src = streamUrl;
+        addStreamLog("▶ Запуск HLS через нативный плеер браузера.");
+        video.src = hlsUrl;
       } else {
+        addStreamLog("▶ Инициализация Hls.js для воспроизведения HLS...");
         const loadHls = async () => {
           if (!(window as any).Hls) {
             await new Promise<void>((resolve, reject) => {
@@ -201,16 +263,69 @@ export default function CctvPlayer({
           const Hls = (window as any).Hls;
           if (Hls && Hls.isSupported()) {
             hlsInstance = new Hls({ lowLatencyMode: true, maxBufferLength: 10 });
-            hlsInstance.loadSource(streamUrl);
+            hlsInstance.loadSource(hlsUrl);
             hlsInstance.attachMedia(video);
           } else {
-            video.src = streamUrl;
+            video.src = hlsUrl;
           }
         };
         loadHls().catch((e) => console.error(e));
       }
     } else {
-      video.src = streamUrl;
+      // Legacy streaming fallback
+      const isHls = streamType === "hls" || streamUrl.includes(".m3u8");
+      const isFlv = streamType === "flv" || streamUrl.includes(".flv");
+
+      if (isFlv) {
+        const loadMpegts = async () => {
+          if (!(window as any).mpegts) {
+            await new Promise<void>((resolve, reject) => {
+              const script = document.createElement("script");
+              script.src = "https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js";
+              script.onload = () => resolve();
+              script.onerror = () => reject(new Error("Не удалось загрузить mpegts.js"));
+              document.head.appendChild(script);
+            });
+          }
+          const mpegts = (window as any).mpegts;
+          if (mpegts && mpegts.isSupported()) {
+            mpegtsPlayer = mpegts.createPlayer({ type: "flv", isLive: true, url: streamUrl, cors: true });
+            mpegtsPlayer.attachMediaElement(video);
+            mpegtsPlayer.load();
+            mpegtsPlayer.play().catch((e: any) => console.log("Auto-start blocked", e));
+          } else {
+            video.src = streamUrl;
+          }
+        };
+        loadMpegts().catch((e) => console.error(e));
+      } else if (isHls) {
+        if (nativeHlsSupported && !forceHlsJS) {
+          video.src = streamUrl;
+        } else {
+          const loadHls = async () => {
+            if (!(window as any).Hls) {
+              await new Promise<void>((resolve, reject) => {
+                const script = document.createElement("script");
+                script.src = "https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js";
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error("Не удалось загрузить Hls.js"));
+                document.head.appendChild(script);
+              });
+            }
+            const Hls = (window as any).Hls;
+            if (Hls && Hls.isSupported()) {
+              hlsInstance = new Hls({ lowLatencyMode: true, maxBufferLength: 10 });
+              hlsInstance.loadSource(streamUrl);
+              hlsInstance.attachMedia(video);
+            } else {
+              video.src = streamUrl;
+            }
+          };
+          loadHls().catch((e) => console.error(e));
+        }
+      } else {
+        video.src = streamUrl;
+      }
     }
 
     return () => {
@@ -218,8 +333,12 @@ export default function CctvPlayer({
       video.removeEventListener("error", handleVideoError);
       if (hlsInstance) hlsInstance.destroy();
       if (mpegtsPlayer) mpegtsPlayer.destroy();
+      if (pc) pc.close();
+      if (ws) ws.close();
+      video.srcObject = null;
+      video.src = "";
     };
-  }, [streamUrl, streamType, forceHlsJS, addStreamLog, setHasStreamError]);
+  }, [streamUrl, streamType, forceHlsJS, streamEngine, addStreamLog, setHasStreamError, activeCamera]);
 
   return (
     <div
@@ -407,15 +526,43 @@ export default function CctvPlayer({
           <div className="flex flex-wrap items-center justify-between gap-2.5 text-[10px] text-zinc-500 dark:text-zinc-400 font-mono border-b border-zinc-200 dark:border-zinc-800 pb-2">
             <span>Состояние: Подключено</span>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setForceHlsJS(!forceHlsJS)}
-                className="hover:text-[#E30613] bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 rounded-lg font-sans font-bold transition border border-zinc-200 dark:border-zinc-700 cursor-pointer text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-750"
-              >
-                🔧 {forceHlsJS ? "Авто-плеер" : "Hls.js"}
-              </button>
+              {streamType === "go2rtc" ? (
+                <>
+                  <button
+                    onClick={() => setStreamEngine("webrtc")}
+                    className={`px-2.5 py-1.5 rounded-lg font-sans font-bold transition border cursor-pointer text-xs ${
+                      streamEngine === "webrtc"
+                        ? "bg-[#E30613]/10 text-[#E30613] border-[#E30613]/20"
+                        : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-750"
+                    }`}
+                  >
+                    ⚡ WebRTC
+                  </button>
+                  <button
+                    onClick={() => setStreamEngine("hls")}
+                    className={`px-2.5 py-1.5 rounded-lg font-sans font-bold transition border cursor-pointer text-xs ${
+                      streamEngine === "hls"
+                        ? "bg-[#E30613]/10 text-[#E30613] border-[#E30613]/20"
+                        : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-750"
+                    }`}
+                  >
+                    📡 HLS (go2rtc)
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setForceHlsJS(!forceHlsJS)}
+                  className="hover:text-[#E30613] bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 rounded-lg font-sans font-bold transition border border-zinc-200 dark:border-zinc-700 cursor-pointer text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-750"
+                >
+                  🔧 {forceHlsJS ? "Авто-плеер" : "Hls.js"}
+                </button>
+              )}
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(streamUrl);
+                  const urlToCopy = streamType === "go2rtc"
+                    ? (streamEngine === "webrtc" ? streamUrl : `${window.location.protocol}//${window.location.host}/api/domru/go2rtc-proxy/api/hls.m3u8?src=${activeCamera}`)
+                    : streamUrl;
+                  navigator.clipboard.writeText(urlToCopy || "");
                   addStreamLog("📋 Ссылка скопирована!");
                 }}
                 className="hover:text-[#E30613] bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 rounded-lg transition border border-zinc-200 dark:border-zinc-700 cursor-pointer text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-750"

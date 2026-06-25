@@ -16,6 +16,7 @@ import {
   MOCK_EVENTS,
 } from "../domruClientHelper.js";
 import { getProxiedStreamUrl } from "../yandexHelper.js";
+import { registerStream } from "../go2rtc-manager.js";
 import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice, getSipLogs, getActiveTasks, handleManualOpen, getPermanentBindings } from "../sip-manager.js";
 import { getPeople, savePeople, addTemporaryAutoOpenPerson, removeTemporaryAutoOpenPerson, isScheduleActive } from "../people-manager.js";
 
@@ -344,6 +345,85 @@ router.get("/stream/:cameraId", async (req, res) => {
     }
   } catch (err: any) {
     handleClientError(err, res);
+  }
+});
+
+// API Route: Video Stream URL with automatic go2rtc registration and proxying
+router.get("/stream-go2rtc/:cameraId", async (req, res) => {
+  const { cameraId } = req.params;
+  const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+  const wsProtocol = protocol === "https" ? "wss" : "ws";
+  const hostHeader = req.headers.host || "localhost:3000";
+
+  if (isDemo(req)) {
+    const demoUrl = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+    const success = await registerStream(cameraId, demoUrl);
+    return res.json({
+      success,
+      cameraId,
+      webrtcUrl: `${wsProtocol}://${hostHeader}/api/go2rtc/ws?src=${cameraId}`,
+      mseUrl: `${wsProtocol}://${hostHeader}/api/go2rtc/ws?src=${cameraId}&media=mse`,
+      hlsUrl: `${protocol}://${hostHeader}/api/domru/go2rtc-proxy/api/hls.m3u8?src=${cameraId}`,
+      mjpegUrl: `${protocol}://${hostHeader}/api/domru/go2rtc-proxy/api/frame.mp4?src=${cameraId}`
+    });
+  }
+
+  try {
+    const client = getDomruInstance(req);
+    const stream = await client.getStreamUrl(cameraId);
+    if (stream && stream.url) {
+      const originalUrl = stream.url;
+      // Register this stream in go2rtc so we can access WebRTC, MSE, HLS, etc.
+      const success = await registerStream(cameraId, originalUrl);
+      
+      console.log(`[go2rtc-route] Dynamically registered stream for Camera ${cameraId} (Success: ${success})`);
+      
+      res.json({
+        success,
+        cameraId,
+        webrtcUrl: `${wsProtocol}://${hostHeader}/api/go2rtc/ws?src=${cameraId}`,
+        mseUrl: `${wsProtocol}://${hostHeader}/api/go2rtc/ws?src=${cameraId}&media=mse`,
+        hlsUrl: `${protocol}://${hostHeader}/api/domru/go2rtc-proxy/api/hls.m3u8?src=${cameraId}`,
+        mjpegUrl: `${protocol}://${hostHeader}/api/domru/go2rtc-proxy/api/frame.mp4?src=${cameraId}`,
+        originalUrl: originalUrl
+      });
+    } else {
+      res.status(404).json({ error: "No stream found for camera" });
+    }
+  } catch (err: any) {
+    handleClientError(err, res);
+  }
+});
+
+// API Route: General HTTP proxy forwarding to local go2rtc (Port 1984) on Port 3000
+router.all("/go2rtc-proxy*", async (req, res) => {
+  const subPath = req.url.replace(/^\/go2rtc-proxy/, "");
+  const targetUrl = `http://127.0.0.1:1984${subPath}`;
+
+  try {
+    const response = await axios({
+      method: req.method as any,
+      url: targetUrl,
+      data: req.body,
+      headers: {
+        ...req.headers,
+        host: "127.0.0.1:1984", // override host header for go2rtc
+      },
+      responseType: "stream",
+      validateStatus: () => true,
+    });
+
+    res.status(response.status);
+    Object.entries(response.headers).forEach(([key, val]) => {
+      if (val !== undefined && key.toLowerCase() !== "host") {
+        res.setHeader(key, val);
+      }
+    });
+
+    response.data.pipe(res);
+  } catch (err: any) {
+    console.error(`[go2rtc-proxy] Proxy error for URL ${targetUrl}:`, err.message);
+    res.status(500).send(`go2rtc Proxy error: ${err.message}`);
   }
 });
 

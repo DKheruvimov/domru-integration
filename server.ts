@@ -8,6 +8,8 @@ import yandexRoutes from "./server/routes/yandexRoutes.js";
 import yandexDialogs from "./server/routes/yandexDialogs.js";
 import { loadAndResumeActiveTasks } from "./server/sip-manager.js";
 import { initPermanentSipBindings } from "./server/sip-init.js";
+import { startGo2Rtc, handleWsProxy } from "./server/go2rtc-manager.js";
+import { WebSocketServer } from "ws";
 
 async function startServer() {
   const app = express();
@@ -42,10 +44,26 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server starting on port ${PORT}`);
     loadAndResumeActiveTasks();
     initPermanentSipBindings();
+    startGo2Rtc().catch((err) => {
+      console.error("Failed to start go2rtc on boot:", err);
+    });
+  });
+
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on("upgrade", (request, socket, head) => {
+    const urlObj = new URL(request.url || "", `http://${request.headers.host || "localhost"}`);
+    if (urlObj.pathname === "/api/go2rtc/ws") {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        handleWsProxy(ws, request.url || "");
+      });
+    } else {
+      socket.destroy();
+    }
   });
 }
 
