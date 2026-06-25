@@ -86,11 +86,11 @@ function ensureConfigFile() {
 api:
   listen: "127.0.0.1:1984" # listen on localhost only for security
 rtsp:
-  listen: "127.0.0.1:8554"
+  listen: "0.0.0.0:8554"
 webrtc:
-  listen: "127.0.0.1:8555"
+  listen: "0.0.0.0:8555"
 srtp:
-  listen: "127.0.0.1:8443"
+  listen: "0.0.0.0:8443"
 `;
     fs.writeFileSync(CONFIG_FILE, configContent, "utf8");
     console.log(`[go2rtc-manager] Created default go2rtc config at ${CONFIG_FILE}`);

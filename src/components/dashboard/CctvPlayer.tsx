@@ -204,7 +204,13 @@ export default function CctvPlayer({
           addStreamLog(`⚠️ addTransceiver не поддерживается: ${transceiverErr.message}. Ожидание ontrack.`);
         }
 
-        ws = new WebSocket(streamUrl);
+        let wsUrl = streamUrl;
+        if (window.location.protocol === "https:" && wsUrl.startsWith("ws://")) {
+          wsUrl = wsUrl.replace("ws://", "wss://");
+          addStreamLog("🔒 Переключено на безопасное соединение wss:// для соответствия HTTPS протоколу");
+        }
+
+        ws = new WebSocket(wsUrl);
 
         ws.addEventListener("open", () => {
           addStreamLog("🔌 Сигнальное WebSocket-соединение с go2rtc открыто.");

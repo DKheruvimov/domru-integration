@@ -401,12 +401,29 @@ router.all("/go2rtc-proxy*", async (req, res) => {
   const targetUrl = `http://127.0.0.1:1984${subPath}`;
 
   try {
+    const headers: Record<string, string> = {};
+    Object.entries(req.headers).forEach(([key, val]) => {
+      const lowerKey = key.toLowerCase();
+      if (
+        lowerKey !== "host" &&
+        lowerKey !== "connection" &&
+        lowerKey !== "accept-encoding" &&
+        lowerKey !== "content-length"
+      ) {
+        if (typeof val === "string") {
+          headers[key] = val;
+        } else if (Array.isArray(val)) {
+          headers[key] = val.join(", ");
+        }
+      }
+    });
+
     const response = await axios({
       method: req.method as any,
       url: targetUrl,
-      data: req.body,
+      data: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
       headers: {
-        ...req.headers,
+        ...headers,
         host: "127.0.0.1:1984", // override host header for go2rtc
       },
       responseType: "stream",
@@ -415,7 +432,15 @@ router.all("/go2rtc-proxy*", async (req, res) => {
 
     res.status(response.status);
     Object.entries(response.headers).forEach(([key, val]) => {
-      if (val !== undefined && key.toLowerCase() !== "host") {
+      const lowerKey = key.toLowerCase();
+      if (
+        val !== undefined &&
+        lowerKey !== "host" &&
+        lowerKey !== "connection" &&
+        lowerKey !== "content-encoding" &&
+        lowerKey !== "transfer-encoding" &&
+        lowerKey !== "content-length"
+      ) {
         res.setHeader(key, val);
       }
     });
