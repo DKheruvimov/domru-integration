@@ -375,14 +375,15 @@ router.get("/stream-go2rtc/:cameraId", async (req, res) => {
     if (stream && stream.url) {
       const originalUrl = stream.url;
       
-      // Use local transcoded loopback stream with ffmpeg wrapper for go2rtc
-      // This guarantees continuous timestamps, correct codecs, and stable audio-sync for WebRTC clients
-      const proxiedLoopbackUrl = `http://127.0.0.1:3000/api/domru/stream-proxy/index.m3u8?url=${encodeURIComponent(originalUrl)}&token=${encodeURIComponent(client.token || "")}&operatorId=${encodeURIComponent(String(client.refreshData.operatorId || ""))}`;
-      const go2rtcSource = `ffmpeg:${proxiedLoopbackUrl}#video=copy#audio=copy`;
+      // Register our secure, authenticated proxy URL directly into go2rtc.
+      // This bypasses CPU-heavy double-ffmpeg loops and prevents server OOM crashes
+      // while ensuring the stream decryption keys and segments are fetched with proper authorization.
+      const proxiedLoopbackUrl = `http://127.0.0.1:3000/api/domru/stream-proxy/index.m3u8?url=${encodeURIComponent(originalUrl)}&token=${encodeURIComponent(client.token || "")}&operatorId=${encodeURIComponent(String(client.refreshData.operatorId || ""))}&transcode=false`;
+      const go2rtcSource = `ffmpeg:${proxiedLoopbackUrl}#video=copy#audio=opus`;
       
       const success = await registerStream(cameraId, go2rtcSource);
       
-      console.log(`[go2rtc-route] Dynamically registered stream for Camera ${cameraId} with ffmpeg wrapper (Success: ${success})`);
+      console.log(`[go2rtc-route] Dynamically registered stream for Camera ${cameraId} via go2rtc FFmpeg source (Success: ${success})`);
       
       res.json({
         success,
@@ -689,6 +690,11 @@ router.get("/stream-proxy*", async (req, res) => {
       if (currentToken) authParams += `&token=${encodeURIComponent(currentToken)}`; // Use refreshed/current token!
       if (operatorId) authParams += `&operatorId=${encodeURIComponent(operatorId)}`;
       if (refreshToken) authParams += `&refreshToken=${encodeURIComponent(refreshToken)}`;
+      
+      const transcodeVal = req.query.transcode as string;
+      if (transcodeVal !== undefined) {
+        authParams += `&transcode=${encodeURIComponent(transcodeVal)}`;
+      }
 
       const rewrittenLines = lines.map(line => {
         let trimmed = line.trim();
@@ -764,7 +770,11 @@ router.get("/stream-proxy*", async (req, res) => {
 
       res.send(rewrittenLines.join("\n"));
     } else {
-      if (isTs) {
+      const transcodeQuery = req.query.transcode;
+      const isRawQuery = req.query.raw === "true";
+      const shouldTranscode = isTs && transcodeQuery !== "false" && !isRawQuery;
+
+      if (shouldTranscode) {
         // Force correct content-type for TS segments
         res.setHeader("Content-Type", "video/mp2t");
 
@@ -863,8 +873,12 @@ router.get("/stream-proxy*", async (req, res) => {
           ffmpeg.on("error", (err) => {
             console.error("[STREAM_PROXY] Failed to spawn ffmpeg:", err);
             cleanup();
-            if (!res.headersSent) {
-              res.send(segmentBuffer);
+            if (!res.headersSent && !res.destroyed && res.writable) {
+              try {
+                res.send(segmentBuffer);
+              } catch (sendErr) {
+                console.error("[STREAM_PROXY] Error sending fallback segmentBuffer after error:", sendErr);
+              }
             }
           });
 
@@ -895,8 +909,12 @@ router.get("/stream-proxy*", async (req, res) => {
           }
         } catch (spawnErr) {
           console.error("[STREAM_PROXY] Error initiating transcoding:", spawnErr);
-          if (!res.headersSent) {
-            axiosResponse.data.pipe(res);
+          if (!res.headersSent && !res.destroyed && res.writable) {
+            try {
+              axiosResponse.data.pipe(res);
+            } catch (pipeErr) {
+              console.error("[STREAM_PROXY] Error piping fallback data on spawn exception:", pipeErr);
+            }
           }
         }
       } else {
