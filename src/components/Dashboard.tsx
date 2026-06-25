@@ -11,7 +11,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ credentials, onLogout, isCabinetOpen, setIsCabinetOpen }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<"myhome" | "events" | "people">("myhome");
+  const [activeTab, setActiveTab] = useState<"myhome" | "events" | "people" | "cabinet">("myhome");
   const [places, setPlaces] = useState<SmartPlace[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<SmartPlace | null>(null);
   const [devices, setDevices] = useState<SmartDevice[]>([]);

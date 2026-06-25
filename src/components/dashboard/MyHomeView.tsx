@@ -1,6 +1,18 @@
 import { useState, useEffect } from "react";
 import { SmartDevice, AppCredentials } from "../../types";
-import { Video, CheckCircle, Lock, Unlock, PhoneForwarded, PhoneOff } from "lucide-react";
+import {
+  Video,
+  CheckCircle,
+  Lock,
+  Unlock,
+  PhoneForwarded,
+  PhoneOff,
+  Settings,
+  ChevronUp,
+  ChevronDown,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 import AutoOpenConfigModal from "./AutoOpenConfigModal";
 
 interface MyHomeViewProps {
@@ -12,6 +24,7 @@ interface MyHomeViewProps {
   isCompactMode?: boolean;
   openingDoorId?: number | null;
   triggerOpenDoor?: (deviceId: number) => void;
+  isMobile?: boolean;
 }
 
 export default function MyHomeView({
@@ -23,6 +36,7 @@ export default function MyHomeView({
   isCompactMode = false,
   openingDoorId = null,
   triggerOpenDoor,
+  isMobile = false,
 }: MyHomeViewProps) {
   const [localSnapshotTime, setLocalSnapshotTime] = useState(Date.now());
 
@@ -34,20 +48,28 @@ export default function MyHomeView({
   const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<Record<number, boolean>>({});
   const [configModalDeviceId, setConfigModalDeviceId] = useState<number | null>(null);
 
+  // Banner close states
+  const [showProBanner, setShowProBanner] = useState(true);
+  const [showKeysBanner, setShowKeysBanner] = useState(true);
+
+  // Collapse states for mobile sections
+  const [isDostupyOpen, setIsDostupyOpen] = useState(true);
+  const [isNeighborOpen, setIsNeighborOpen] = useState(true);
+
   useEffect(() => {
     fetch("/api/domru/sip/auto-open/status")
-      .then(res => res.json())
-      .then(data => {
-        if (data && typeof data === 'object') {
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && typeof data === "object") {
           setAutoOpenState(data);
         }
       })
-      .catch(err => console.error("Failed to fetch auto-open status", err));
+      .catch((err) => console.error("Failed to fetch auto-open status", err));
   }, []);
 
   const toggleAutoOpen = async (deviceId: number, durationMinutes?: number, maxOpens?: number | null) => {
     if (isTogglingAutoOpen[deviceId]) return;
-    setIsTogglingAutoOpen(prev => ({ ...prev, [deviceId]: true }));
+    setIsTogglingAutoOpen((prev) => ({ ...prev, [deviceId]: true }));
     const newState = !autoOpenState[deviceId];
     try {
       const res = await fetch("/api/domru/sip/auto-open", {
@@ -62,12 +84,12 @@ export default function MyHomeView({
           deviceId: deviceId,
           enabled: newState,
           durationMinutes,
-          maxOpens
-        })
+          maxOpens,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
-        setAutoOpenState(prev => ({ ...prev, [deviceId]: newState ? (data.expiresAt || true) : false }));
+        setAutoOpenState((prev) => ({ ...prev, [deviceId]: newState ? data.expiresAt || true : false }));
       } else {
         const errData = await res.json();
         alert(`Ошибка авто-открытия: ${errData.error || res.statusText}`);
@@ -76,7 +98,7 @@ export default function MyHomeView({
       console.error(err);
       alert(`Сетевая ошибка: ${err.message || err}`);
     } finally {
-      setIsTogglingAutoOpen(prev => ({ ...prev, [deviceId]: false }));
+      setIsTogglingAutoOpen((prev) => ({ ...prev, [deviceId]: false }));
     }
   };
 
@@ -88,18 +110,158 @@ export default function MyHomeView({
     params.set("t", String(localSnapshotTime));
     return `/api/domru/snapshot/${selectedPlaceId}/${deviceId}?${params.toString()}`;
   };
-  return (
-    <div className="space-y-6">
 
-      {/* Smart Access Devices sections */}
-      <div className={`bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 ${isCompactMode ? "p-4 border-none shadow-none bg-transparent dark:bg-transparent" : "p-6 rounded-[2rem] shadow-md"}`}>
-        {!isCompactMode && (
-          <h2 className="text-base font-extrabold text-zinc-900 dark:text-white mb-6 font-display uppercase tracking-wider flex items-center gap-2">
-            <span className="w-1.5 h-3.5 bg-[#E30613] rounded-full inline-block" />
-            Доступы и домофоны
-          </h2>
+  // Mobile layout matching original Dom.ru app
+  if (isMobile) {
+    // If we have no devices, we can show a placeholder or handle gracefully
+    const primaryDevice = devices.length > 0 ? devices[0] : null;
+
+    // Generate adjacent entrances for neighbor section (highly realistic!)
+    const neighborEntrances = [
+      { id: 10007, entranceNum: 7, cameraAvailable: true },
+      { id: 10004, entranceNum: 4, cameraAvailable: true },
+      { id: 10005, entranceNum: 5, cameraAvailable: true },
+      { id: 10006, entranceNum: 6, cameraAvailable: true },
+      { id: 10002, entranceNum: 2, cameraAvailable: true },
+      { id: 10003, entranceNum: 3, cameraAvailable: true },
+    ];
+
+    return (
+      <div className="space-y-6 text-zinc-900 dark:text-white pb-6 font-sans select-none animate-fade-in" id="mobile_myhome_view">
+        {/* Active Smart Devices Grid */}
+        {devices.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3.5">
+            {devices.map((device, idx) => {
+              const isOpening = openingDoorId === device.id;
+              return (
+                <div
+                  key={device.id || idx}
+                  onClick={() => {
+                    if (device.allowVideo && device.externalCameraId) {
+                      setActiveCamera(device.externalCameraId);
+                    }
+                  }}
+                  className={`relative aspect-square rounded-[1.8rem] overflow-hidden group border cursor-pointer transition-all duration-300 ${
+                    isOpening
+                      ? "border-emerald-500 ring-4 ring-emerald-500/25 scale-[0.99]"
+                      : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#161b22] hover:scale-[1.01] hover:shadow-xl"
+                  }`}
+                >
+                  {/* Snapshot background */}
+                  <div className="absolute inset-0 bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center pointer-events-none overflow-hidden rounded-[1.8rem]">
+                    {device.allowVideo ? (
+                      <>
+                        <img
+                          src={buildSnapshotUrl(device.id)}
+                          className="absolute inset-0 w-full h-full object-cover opacity-75 dark:opacity-70 group-hover:opacity-90 transition-all duration-500"
+                          alt="Камера доступа"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-black/35" />
+                      </>
+                    ) : (
+                      <div className="text-zinc-400 dark:text-zinc-600 font-extrabold text-[10px]">КАМЕРА НЕДОСТУПНА</div>
+                    )}
+                  </div>
+
+                  {/* Camera Reel Overlay in the Center */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-60">
+                    <Video className="w-8 h-8 text-white" />
+                  </div>
+
+                  {/* Text overlays */}
+                  <div className="absolute top-3 left-3 z-10 max-w-[85%]">
+                    <h3 className="font-extrabold text-[11px] text-white leading-tight drop-shadow-md">
+                      {device.name}
+                    </h3>
+                  </div>
+
+                  {/* Action Lock Button */}
+                  {device.allowOpen && (
+                    <div className="absolute bottom-3 right-3 z-20">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (triggerOpenDoor) triggerOpenDoor(device.id);
+                        }}
+                        disabled={isOpening}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 cursor-pointer border border-white/10 ${
+                          isOpening
+                            ? "bg-emerald-500 text-white shadow-emerald-500/20"
+                            : "bg-[#e30613] hover:bg-red-600 text-white shadow-red-600/30"
+                        }`}
+                      >
+                        {isOpening ? (
+                          <Unlock className="w-4 h-4 animate-pulse" />
+                        ) : (
+                          <Lock className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Auto Open Trigger */}
+                  {device.allowOpen && (
+                    <div className="absolute bottom-3 left-3 z-20">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (autoOpenState[device.id]) {
+                            toggleAutoOpen(device.id);
+                          } else {
+                            setConfigModalDeviceId(device.id);
+                          }
+                        }}
+                        disabled={isTogglingAutoOpen[device.id]}
+                        className={`p-1.5 rounded-full border transition flex items-center justify-center shadow-md cursor-pointer backdrop-blur-sm ${
+                          autoOpenState[device.id]
+                            ? "bg-emerald-500/90 text-white border-emerald-400"
+                            : "bg-white dark:bg-black/60 text-zinc-800 dark:text-zinc-200 border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-black/80"
+                        }`}
+                        title={autoOpenState[device.id] ? "Авто-открытие включено" : "Авто-открытие"}
+                      >
+                        {autoOpenState[device.id] ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-12 text-xs text-zinc-500 font-semibold">
+            Активные устройства не обнаружены
+          </div>
         )}
 
+        {/* Status and notification overlay */}
+        {doorMessage && (
+          <div className="fixed bottom-24 left-4 right-4 z-50 p-4 bg-emerald-500 text-white font-extrabold text-xs rounded-2xl flex items-center gap-2 shadow-2xl animate-slide-up max-w-md mx-auto">
+            <CheckCircle className="w-4 h-4 shrink-0" />
+            <span>{doorMessage}</span>
+          </div>
+        )}
+
+        <AutoOpenConfigModal
+          isOpen={configModalDeviceId !== null}
+          onClose={() => setConfigModalDeviceId(null)}
+          onEnable={(durationMinutes, maxOpens) => {
+            if (configModalDeviceId) {
+              toggleAutoOpen(configModalDeviceId, durationMinutes, maxOpens);
+            }
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Desktop original layout
+  return (
+    <div className="space-y-6">
+      {/* Smart Access Devices sections */}
+      <div className={`bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 ${isCompactMode ? "p-4 border-none shadow-none bg-transparent dark:bg-transparent" : "p-6 rounded-[2rem] shadow-md"}`}>
         <div className={`grid ${isCompactMode ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"} gap-6`}>
           {devices.length > 0 ? (
             devices.map((device, idx) => {
@@ -123,12 +285,12 @@ export default function MyHomeView({
                     <div className="absolute inset-0 bg-zinc-200/50 dark:bg-zinc-900 flex items-center justify-center pointer-events-none overflow-hidden rounded-3xl">
                       {device.allowVideo ? (
                         <>
-                          <img 
+                          <img
                             src={buildSnapshotUrl(device.id)}
                             className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
                             alt="Снимок с камеры"
                             onError={(e) => {
-                               e.currentTarget.style.display = 'none';
+                              e.currentTarget.style.display = "none";
                             }}
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none transition-opacity opacity-70 group-hover:opacity-40" />
@@ -154,8 +316,8 @@ export default function MyHomeView({
                       <div className="relative z-10 flex items-center justify-between w-full mt-auto p-4 pt-2">
                         {device.allowOpen && (
                           <button
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (autoOpenState[device.id]) {
                                 toggleAutoOpen(device.id); // turn off
                               } else {
@@ -172,10 +334,10 @@ export default function MyHomeView({
                           >
                             {autoOpenState[device.id] ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
                             <span className="hidden sm:inline">
-                              {autoOpenState[device.id] 
-                                ? (typeof autoOpenState[device.id] === "number" 
-                                    ? `Жду гостей/курьера (до ${new Date(autoOpenState[device.id] as number).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})` 
-                                    : "Авто-открытие активно") 
+                              {autoOpenState[device.id]
+                                ? typeof autoOpenState[device.id] === "number"
+                                  ? `Жду гостей/курьера (до ${new Date(autoOpenState[device.id] as number).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`
+                                  : "Авто-открытие активно"
                                 : "Авто-открытие"}
                             </span>
                           </button>
@@ -183,7 +345,10 @@ export default function MyHomeView({
 
                         {device.allowOpen ? (
                           <button
-                            onClick={(e) => { e.stopPropagation(); if(triggerOpenDoor) triggerOpenDoor(device.id); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (triggerOpenDoor) triggerOpenDoor(device.id);
+                            }}
                             disabled={isOpening}
                             className={`p-2.5 rounded-full transition-all duration-300 shadow-md cursor-pointer backdrop-blur-md border ${
                               isOpening
@@ -192,11 +357,7 @@ export default function MyHomeView({
                             }`}
                             id={`open_btn_${device.id}`}
                           >
-                            {isOpening ? (
-                              <Unlock className="w-4 h-4 animate-pulse" />
-                            ) : (
-                              <Lock className="w-4 h-4" />
-                            )}
+                            {isOpening ? <Unlock className="w-4 h-4 animate-pulse" /> : <Lock className="w-4 h-4" />}
                           </button>
                         ) : (
                           <div className="text-[10px] text-zinc-500 italic ml-auto bg-zinc-200 dark:bg-zinc-900/80 px-2.5 py-1 rounded-lg">
@@ -206,7 +367,6 @@ export default function MyHomeView({
                       </div>
                     )}
                   </div>
-
                   {isCompactMode && (
                     <div className="px-1 text-center">
                       <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-500 uppercase tracking-widest block leading-none">

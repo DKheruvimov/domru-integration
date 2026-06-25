@@ -8,6 +8,36 @@ import path from "path";
 import os from "os";
 import { DATA_DIR } from "./config.js";
 import { DomruClient } from "../src/domru-js/index.js";
+import { loadSavedTokens } from "./tokenStore.js";
+
+export async function triggerDoorOpenForLogin(login: string, placeId: number, deviceId: number): Promise<void> {
+  const tokens = loadSavedTokens();
+  const creds = Object.values(tokens).find(c => c.login === login) || Object.values(tokens)[0];
+  if (!creds) {
+    throw new Error("No saved credentials found");
+  }
+
+  if (creds.isDemo) {
+    addSipLog(`[DEMO] Door opened via schedule for place ${placeId}, device ${deviceId}`);
+    return;
+  }
+
+  const client = new DomruClient({
+    login: creds.login,
+    password: creds.password,
+    refreshToken: creds.refreshToken,
+    operatorId: creds.operatorId,
+    timeout: 10000,
+    logger: {
+      info: (msg: string, ...args: any[]) => console.log(`[DomruClient:INFO] ${msg}`, ...args),
+      warn: (msg: string, ...args: any[]) => console.warn(`[DomruClient:WARN] ${msg}`, ...args),
+      error: (msg: string, ...args: any[]) => console.error(`[DomruClient:ERROR] ${msg}`, ...args),
+      debug: (msg: string, ...args: any[]) => console.log(`[DomruClient:DEBUG] ${msg}`, ...args),
+    }
+  });
+
+  await client.openDoor(Number(placeId), Number(deviceId));
+}
 
 function getLocalIp(): string {
   const interfaces = os.networkInterfaces();
@@ -97,6 +127,10 @@ export function getSipLogs() {
 
 export function getActiveTasks() {
   return Array.from(activeTasks.values());
+}
+
+export function getPermanentBindings() {
+  return Array.from(permanentBindings.values());
 }
 
 export function saveActiveTasks() {
@@ -362,7 +396,7 @@ export function startSipServer() {
     {
       port: 5060,
     },
-    (request: any) => {
+    async (request: any) => {
       // Handle incoming SIP requests
       if (request.method === "INVITE") {
         const toUri = request.headers.to.uri;
@@ -375,8 +409,79 @@ export function startSipServer() {
 
         addSipLog(`[SIP] Received INVITE for ${login}`);
 
+        // 1. Check if there is an active person schedule rule (e.g. Я, Девушка, Курьер)
+        let scheduleResult: any = { active: false };
+        try {
+          const { checkActiveSchedules } = await import("./people-manager.js");
+          scheduleResult = checkActiveSchedules();
+        } catch (e) {
+          console.error("Failed to check active schedules", e);
+        }
+
         const task = activeTasks.get(login);
-        if (task) {
+        const binding = permanentBindings.get(login);
+
+        if (scheduleResult.active && binding) {
+          addSipLog(`[SIP] ${scheduleResult.message}. Accepting call...`);
+          
+          // 1. Send 180 Ringing
+          const ringing = sip.makeResponse(request, 180, "Ringing");
+          sip.send(ringing);
+
+          // 2. Wait 3 seconds before answering (so guests hear the ring)
+          setTimeout(() => {
+            // 3. Send 200 OK (Answer)
+            const ok = sip.makeResponse(request, 200, "OK");
+            ok.headers.contact = [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }];
+            ok.content = `v=0\r\no=- ${Math.floor(Math.random() * 1000000)} 1 IN IP4 ${localIp}\r\ns=-\r\nc=IN IP4 ${localIp}\r\nt=0 0\r\nm=audio 40000 RTP/AVP 8\r\na=rtpmap:8 PCMA/8000\r\na=sendrecv\r\n`;
+            ok.headers["content-type"] = "application/sdp";
+            
+            // Add a tag to To if not present
+            if (!ok.headers.to.params || !ok.headers.to.params.tag) {
+               ok.headers.to.params = ok.headers.to.params || {};
+               ok.headers.to.params.tag = crypto.randomBytes(4).toString("hex");
+            }
+            
+            sip.send(ok);
+            addSipLog(`[SIP] Sent 200 OK for call ${request.headers["call-id"]}`);
+            
+            // 4. Wait 1 second, then trigger door open API
+            setTimeout(async () => {
+              try {
+                await triggerDoorOpenForLogin(login, binding.placeId, binding.deviceId);
+                addSipLog(`[SIP] Door successfully opened for: ${scheduleResult.person?.name}`);
+              } catch (err: any) {
+                addSipLog(`[SIP] Failed to open door for schedule: ${err.message || err}`, "error");
+              }
+
+              // 5. Wait 2 seconds after door open, then send BYE
+              setTimeout(() => {
+                const targetUri = request.headers.contact && request.headers.contact.length > 0 
+                  ? request.headers.contact[0].uri 
+                  : request.headers.from.uri;
+
+                const bye: any = {
+                  method: "BYE",
+                  uri: targetUri,
+                  headers: {
+                    to: request.headers.from, // To their side
+                    from: ok.headers.to, // From our side (which we just tagged)
+                    "call-id": request.headers["call-id"],
+                    cseq: { method: "BYE", seq: 2 }, // CSeq must be > 1
+                    contact: [{ uri: `sip:${login}@${localIp}:5060;transport=udp` }],
+                    "user-agent": "Myhome/Myhome-android",
+                    "max-forwards": 70
+                  }
+                };
+                if (request.headers["record-route"]) {
+                   bye.headers.route = [...request.headers["record-route"]].reverse();
+                }
+                sip.send(bye);
+                addSipLog(`[SIP] Sent BYE for call ${request.headers["call-id"]}`);
+              }, 2000);
+            }, 1000);
+          }, 3000);
+        } else if (task) {
           addSipLog(`[SIP] Auto-open active for ${login}. Accepting call...`);
           
           // 1. Send 180 Ringing

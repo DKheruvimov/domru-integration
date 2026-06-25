@@ -27,6 +27,7 @@
     "node_modules",
     "examples",
     "src/domru-js/tests",
-    "src/domru-js/examples"
+    "src/domru-js/examples",
+    "scratch"
   ]
 }

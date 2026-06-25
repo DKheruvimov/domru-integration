@@ -140,7 +140,7 @@ export default function App() {
                   {/* Status Badge / Cabinet Trigger Button */}
                   <button
                     onClick={() => setIsCabinetOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-[#E30613]/30 dark:border-[#E30613]/20 font-mono text-xs rounded-xl text-zinc-800 dark:text-zinc-200 shadow-2xs hover:bg-[#E30613]/5 dark:hover:bg-[#E30613]/10 transition-colors cursor-pointer"
+                    className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-[#E30613]/30 dark:border-[#E30613]/20 font-mono text-xs rounded-xl text-zinc-800 dark:text-zinc-200 shadow-2xs hover:bg-[#E30613]/5 dark:hover:bg-[#E30613]/10 transition-colors cursor-pointer"
                   >
                     <Database className="w-3.5 h-3.5 text-[#E30613]" />
                     <span>Личный кабинет</span>

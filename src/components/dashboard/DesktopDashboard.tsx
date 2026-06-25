@@ -8,8 +8,8 @@ import CabinetView from "./CabinetView";
 import CctvPlayer from "./CctvPlayer";
 
 interface DesktopDashboardProps {
-  activeTab: "myhome" | "events" | "people";
-  setActiveTab: (tab: "myhome" | "events" | "people") => void;
+  activeTab: "myhome" | "events" | "people" | "cabinet";
+  setActiveTab: (tab: "myhome" | "events" | "people" | "cabinet") => void;
   places: SmartPlace[];
   selectedPlace: SmartPlace | null;
   setSelectedPlace: (p: SmartPlace) => void;

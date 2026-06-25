@@ -16,7 +16,8 @@ import {
   MOCK_EVENTS,
 } from "../domruClientHelper.js";
 import { getProxiedStreamUrl } from "../yandexHelper.js";
-import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice, getSipLogs, getActiveTasks, handleManualOpen } from "../sip-manager.js";
+import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice, getSipLogs, getActiveTasks, handleManualOpen, getPermanentBindings } from "../sip-manager.js";
+import { getPeople, savePeople, addTemporaryAutoOpenPerson, removeTemporaryAutoOpenPerson, isScheduleActive } from "../people-manager.js";
 
 const router = express.Router();
 
@@ -717,6 +718,23 @@ router.get("/stream-proxy*", async (req, res) => {
             }
           };
 
+          // Protect from uncaughtExceptions on helper streams (broken pipe EPIPE errors)
+          if (ffmpeg.stdin) {
+            ffmpeg.stdin.on("error", (err: any) => {
+              console.error("[STREAM_PROXY] ffmpeg.stdin error (likely broken pipe EPIPE, safe to ignore):", err.message || err);
+            });
+          }
+          if (ffmpeg.stdout) {
+            ffmpeg.stdout.on("error", (err: any) => {
+              console.error("[STREAM_PROXY] ffmpeg.stdout error:", err.message || err);
+            });
+          }
+          if (ffmpeg.stderr) {
+            ffmpeg.stderr.on("error", (err: any) => {
+              console.error("[STREAM_PROXY] ffmpeg.stderr error:", err.message || err);
+            });
+          }
+
           ffmpeg.stderr.on("data", (data) => {
             console.error(`[STREAM_PROXY_FFMPEG] ${data.toString().trim()}`);
           });
@@ -734,9 +752,26 @@ router.get("/stream-proxy*", async (req, res) => {
           res.on("error", () => cleanup());
 
           // Write buffered data to ffmpeg stdin and pipe stdout to client response
-          ffmpeg.stdin.write(segmentBuffer);
-          ffmpeg.stdin.end();
-          ffmpeg.stdout.pipe(res);
+          if (ffmpeg.stdin && ffmpeg.stdin.writable) {
+            try {
+              ffmpeg.stdin.write(segmentBuffer, (err) => {
+                if (err) {
+                  console.error("[STREAM_PROXY] ffmpeg.stdin.write callback error:", err);
+                }
+                try {
+                  ffmpeg.stdin.end();
+                } catch (e) {}
+              });
+            } catch (writeErr) {
+              console.error("[STREAM_PROXY] Error writing to ffmpeg.stdin:", writeErr);
+              try {
+                ffmpeg.stdin.end();
+              } catch (e) {}
+            }
+          }
+          if (ffmpeg.stdout) {
+            ffmpeg.stdout.pipe(res);
+          }
         } catch (spawnErr) {
           console.error("[STREAM_PROXY] Error initiating transcoding:", spawnErr);
           if (!res.headersSent) {
@@ -810,16 +845,50 @@ router.get("/sip/logs", (req, res) => {
 // API Route: Get SIP Auto Open Status
 router.get("/sip/auto-open/status", (req, res) => {
   const activeTasks = getActiveTasks();
-  const status: Record<number, number> = {};
+  const status: Record<number, number | boolean> = {};
   for (const task of activeTasks) {
     status[task.deviceId] = task.expiresAt;
   }
+
+  // Check if we have active guests or couriers currently scheduled
+  try {
+    const people = getPeople();
+    const activeGuest = people.find(p => p.role !== "resident" && isScheduleActive(p));
+    if (activeGuest) {
+      // Find all device IDs that we have permanent bindings for, and set status to true
+      const bindings = getPermanentBindings();
+      
+      for (const binding of bindings) {
+        if (!status[binding.deviceId]) {
+          status[binding.deviceId] = true;
+        }
+      }
+      
+      // Fallback: also enable for mock devices so they light up in the frontend camera view immediately
+      const allMockDevices = Object.values(MOCK_DEVICES).flat();
+      for (const dev of allMockDevices) {
+        if (!status[dev.id]) {
+          status[dev.id] = true;
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error updating auto-open status from schedules:", err);
+  }
+
   res.json(status);
 });
 
 // API Route: Toggle SIP Courier Auto Open
 router.post("/sip/auto-open", async (req, res) => {
   const { placeId, deviceId, enabled, durationMinutes, maxOpens } = req.body;
+  
+  if (enabled) {
+    addTemporaryAutoOpenPerson(Number(deviceId), maxOpens || null, durationMinutes || 60);
+  } else {
+    removeTemporaryAutoOpenPerson(Number(deviceId));
+  }
+
   if (isDemo(req)) {
     return res.json({ status: "SUCCESS", message: enabled ? "Включено авто-открытие (Demo)" : "Отключено" });
   }
@@ -930,6 +999,70 @@ router.get("/finances", async (req, res) => {
     res.json(finances);
   } catch (err: any) {
     handleClientError(err, res);
+  }
+});
+
+// API Routes: People Schedules
+router.get("/people", (req, res) => {
+  try {
+    res.json(getPeople());
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/people", (req, res) => {
+  try {
+    const { people } = req.body;
+    if (Array.isArray(people)) {
+      const oldPeople = getPeople();
+      savePeople(people);
+
+      // Detect deleted temporary cards to clean up active SIP tasks
+      const newIds = new Set(people.map((p: any) => p.id));
+      for (const oldPerson of oldPeople) {
+        if (oldPerson.id.startsWith("temp-") && !newIds.has(oldPerson.id)) {
+          const match = oldPerson.id.match(/^temp-(\d+)$/);
+          if (match) {
+            const deviceId = Number(match[1]);
+            disableAutoOpenByDevice(deviceId);
+          }
+        }
+      }
+
+      res.json({ status: "SUCCESS", people });
+    } else {
+      res.status(400).json({ error: "people must be an array" });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/people/toggle", (req, res) => {
+  try {
+    const { id, enabled } = req.body;
+    const people = getPeople();
+    const person = people.find((p: any) => p.id === id);
+    if (person) {
+      person.enabled = enabled;
+      savePeople(people);
+
+      // If disabling a temporary/courier person, disable their active SIP task as well!
+      if (!enabled && id.startsWith("temp-")) {
+        const match = id.match(/^temp-(\d+)$/);
+        if (match) {
+          const deviceId = Number(match[1]);
+          disableAutoOpenByDevice(deviceId);
+        }
+      }
+
+      res.json({ status: "SUCCESS", person });
+    } else {
+      res.status(404).json({ error: "Person not found" });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 

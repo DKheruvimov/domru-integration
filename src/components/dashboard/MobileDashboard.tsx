@@ -1,6 +1,6 @@
 import React from "react";
 import { SmartPlace, SmartDevice, SmartCamera, GuestPin, HistoryEvent, AppCredentials } from "../../types";
-import { Home, Bell, Users, Sliders, RefreshCw, Car } from "lucide-react";
+import { Home, Bell, Users, Sliders, RefreshCw, Car, MoreHorizontal } from "lucide-react";
 import MyHomeView from "./MyHomeView";
 import EventsView from "./EventsView";
 import PeopleView from "./PeopleView";
@@ -8,8 +8,8 @@ import CabinetView from "./CabinetView";
 import CctvPlayer from "./CctvPlayer";
 
 interface MobileDashboardProps {
-  activeTab: "myhome" | "events" | "people";
-  setActiveTab: (tab: "myhome" | "events" | "people") => void;
+  activeTab: "myhome" | "events" | "people" | "cabinet";
+  setActiveTab: (tab: "myhome" | "events" | "people" | "cabinet") => void;
   places: SmartPlace[];
   selectedPlace: SmartPlace | null;
   setSelectedPlace: (p: SmartPlace) => void;
@@ -160,7 +160,6 @@ export default function MobileDashboard({
           />
         </div>
       )}
-
       {/* Content Rendering based on Tab */}
       <div className="flex-1">
         {activeTab === "myhome" && (
@@ -173,67 +172,62 @@ export default function MobileDashboard({
             isCompactMode={!!activeCamera}
             openingDoorId={openingDoorId}
             triggerOpenDoor={triggerOpenDoor}
+            isMobile={true}
           />
         )}
-        {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
+        {activeTab === "events" && <EventsView groupedEvents={groupedEvents} isMobile={true} />}
         {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} />}
+        {activeTab === "cabinet" && (
+          <CabinetView selectedPlace={selectedPlace} onLogout={onLogout} isMobile={true} />
+        )}
       </div>
 
-      {isCabinetOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
-          <div className="bg-white dark:bg-[#101418] w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl relative animate-slide-up">
-            <div className="sticky top-0 bg-white/80 dark:bg-[#101418]/80 backdrop-blur-md z-10 flex justify-between items-center p-4 border-b border-zinc-200 dark:border-zinc-800">
-              <h3 className="font-extrabold text-lg">Личный кабинет</h3>
-              <button 
-                onClick={() => setIsCabinetOpen(false)}
-                className="w-8 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-2">
-              <CabinetView selectedPlace={selectedPlace} onLogout={onLogout} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#101418] border-t border-zinc-200 dark:border-zinc-800/80 p-2 shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.08)] dark:shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.3)]">
-        <div className="grid grid-cols-3 max-w-md mx-auto">
-          <button
-            onClick={() => setActiveTab("myhome")}
-            className={`py-1.5 text-[10px] font-bold rounded-xl flex flex-col items-center justify-center gap-0.5 transition cursor-pointer ${
-              activeTab === "myhome"
-                ? "text-[#E30613]"
-                : "text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-300"
-            }`}
-          >
-            <Home className="w-5 h-5" />
-            <span>Мой дом</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("events")}
-            className={`py-1.5 text-[10px] font-bold rounded-xl flex flex-col items-center justify-center gap-0.5 transition cursor-pointer ${
-              activeTab === "events"
-                ? "text-[#E30613]"
-                : "text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-300"
-            }`}
-          >
-            <Bell className="w-5 h-5" />
-            <span>События</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("people")}
-            className={`py-1.5 text-[10px] font-bold rounded-xl flex flex-col items-center justify-center gap-0.5 transition cursor-pointer ${
-              activeTab === "people"
-                ? "text-[#E30613]"
-                : "text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-300"
-            }`}
-          >
-            <Users className="w-5 h-5" />
-            <span>Люди</span>
-          </button>
-        </div>
+      {/* Floating Capsule Bottom Navigation matching original Dom.ru app */}
+      <div className="fixed bottom-4 left-4 right-4 z-40 bg-[#161b22]/95 backdrop-blur-md border border-zinc-800/80 rounded-[2rem] p-1.5 px-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] max-w-md mx-auto flex items-center justify-between gap-1 select-none">
+        <button
+          onClick={() => setActiveTab("myhome")}
+          className={`py-2 px-3 text-[10px] font-black flex flex-col items-center justify-center gap-1 transition-all duration-300 flex-1 max-w-[85px] cursor-pointer ${
+            activeTab === "myhome"
+              ? "bg-[#252c36] text-[#b5f314] rounded-2xl scale-[1.03] shadow-xs"
+              : "text-zinc-400 hover:text-zinc-200"
+          }`}
+        >
+          <Home className="w-5 h-5 shrink-0" />
+          <span className="leading-none">Мой дом</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("events")}
+          className={`py-2 px-3 text-[10px] font-black flex flex-col items-center justify-center gap-1 transition-all duration-300 flex-1 max-w-[85px] cursor-pointer ${
+            activeTab === "events"
+              ? "bg-[#252c36] text-[#b5f314] rounded-2xl scale-[1.03] shadow-xs"
+              : "text-zinc-400 hover:text-zinc-200"
+          }`}
+        >
+          <Bell className="w-5 h-5 shrink-0" />
+          <span className="leading-none">События</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("people")}
+          className={`py-2 px-3 text-[10px] font-black flex flex-col items-center justify-center gap-1 transition-all duration-300 flex-1 max-w-[85px] cursor-pointer ${
+            activeTab === "people"
+              ? "bg-[#252c36] text-[#b5f314] rounded-2xl scale-[1.03] shadow-xs"
+              : "text-zinc-400 hover:text-zinc-200"
+          }`}
+        >
+          <Users className="w-5 h-5 shrink-0" />
+          <span className="leading-none">Люди</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("cabinet")}
+          className={`py-2 px-3 text-[10px] font-black flex flex-col items-center justify-center gap-1 transition-all duration-300 flex-1 max-w-[85px] cursor-pointer ${
+            activeTab === "cabinet"
+              ? "bg-[#252c36] text-[#b5f314] rounded-2xl scale-[1.03] shadow-xs"
+              : "text-zinc-400 hover:text-zinc-200"
+          }`}
+        >
+          <MoreHorizontal className="w-5 h-5 shrink-0" />
+          <span className="leading-none">Кабинет</span>
+        </button>
       </div>
     </div>
   );
