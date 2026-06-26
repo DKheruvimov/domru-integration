@@ -26,6 +26,7 @@ interface CctvPlayerProps {
   selectedPlaceId?: number;
   openingDoorId: number | null;
   triggerOpenDoor: (id: number) => void;
+  isDevModeEnabled?: boolean;
 }
 
 export default function CctvPlayer({
@@ -50,13 +51,13 @@ export default function CctvPlayer({
   selectedPlaceId,
   openingDoorId,
   triggerOpenDoor,
+  isDevModeEnabled = false,
 }: CctvPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const [autoOpenState, setAutoOpenState] = useState<number | boolean>(false);
   const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<boolean>(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState<boolean>(false);
-  const [streamEngine, setStreamEngine] = useState<"webrtc" | "hls">("webrtc");
 
   const matchingDevice = devices.find(
     (d) => d.externalCameraId === activeCamera || String(d.id) === activeCamera
@@ -162,7 +163,7 @@ export default function CctvPlayer({
     let pc: RTCPeerConnection | null = null;
     let ws: WebSocket | null = null;
 
-    if (streamType === "go2rtc" && streamEngine === "webrtc") {
+    if (streamType === "go2rtc") {
       addStreamLog("⚡ Запуск WebRTC стриминга через go2rtc...");
       try {
         pc = new RTCPeerConnection({
@@ -271,36 +272,6 @@ export default function CctvPlayer({
         addStreamLog(`⛔ Ошибка инициализации WebRTC: ${webrtcErr.message}`);
         setHasStreamError(true);
       }
-    } else if (streamType === "go2rtc" && streamEngine === "hls") {
-      addStreamLog("📡 Запуск HLS-стриминга через go2rtc-прокси...");
-      const hlsUrl = `${window.location.protocol}//${window.location.host}/api/domru/go2rtc-proxy/api/hls.m3u8?src=${activeCamera}`;
-      
-      if (nativeHlsSupported && !forceHlsJS) {
-        addStreamLog("▶ Запуск HLS через нативный плеер браузера.");
-        video.src = hlsUrl;
-      } else {
-        addStreamLog("▶ Инициализация Hls.js для воспроизведения HLS...");
-        const loadHls = async () => {
-          if (!(window as any).Hls) {
-            await new Promise<void>((resolve, reject) => {
-              const script = document.createElement("script");
-              script.src = "https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js";
-              script.onload = () => resolve();
-              script.onerror = () => reject(new Error("Не удалось загрузить Hls.js"));
-              document.head.appendChild(script);
-            });
-          }
-          const Hls = (window as any).Hls;
-          if (Hls && Hls.isSupported()) {
-            hlsInstance = new Hls({ lowLatencyMode: true, maxBufferLength: 10 });
-            hlsInstance.loadSource(hlsUrl);
-            hlsInstance.attachMedia(video);
-          } else {
-            video.src = hlsUrl;
-          }
-        };
-        loadHls().catch((e) => console.error(e));
-      }
     } else {
       // Legacy streaming fallback
       const isHls = streamType === "hls" || streamUrl.includes(".m3u8");
@@ -368,7 +339,7 @@ export default function CctvPlayer({
       video.srcObject = null;
       video.src = "";
     };
-  }, [streamUrl, streamType, forceHlsJS, streamEngine, addStreamLog, setHasStreamError, activeCamera]);
+  }, [streamUrl, streamType, forceHlsJS, addStreamLog, setHasStreamError, activeCamera]);
 
   return (
     <div
@@ -405,7 +376,7 @@ export default function CctvPlayer({
                   : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-white"
               }`}
             >
-              📡 Поток (HLS)
+              📡 Трансляция
             </button>
             <button
               onClick={() => setPlayerMode("snapshot")}
@@ -551,35 +522,12 @@ export default function CctvPlayer({
         </div>
       )}
 
-      {streamUrl && (
+      {streamUrl && isDevModeEnabled && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2.5 text-[10px] text-zinc-500 dark:text-zinc-400 font-mono border-b border-zinc-200 dark:border-zinc-800 pb-2">
             <span>Состояние: Подключено</span>
             <div className="flex items-center gap-2">
-              {streamType === "go2rtc" ? (
-                <>
-                  <button
-                    onClick={() => setStreamEngine("webrtc")}
-                    className={`px-2.5 py-1.5 rounded-lg font-sans font-bold transition border cursor-pointer text-xs ${
-                      streamEngine === "webrtc"
-                        ? "bg-[#E30613]/10 text-[#E30613] border-[#E30613]/20"
-                        : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-750"
-                    }`}
-                  >
-                    ⚡ WebRTC
-                  </button>
-                  <button
-                    onClick={() => setStreamEngine("hls")}
-                    className={`px-2.5 py-1.5 rounded-lg font-sans font-bold transition border cursor-pointer text-xs ${
-                      streamEngine === "hls"
-                        ? "bg-[#E30613]/10 text-[#E30613] border-[#E30613]/20"
-                        : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-750"
-                    }`}
-                  >
-                    📡 HLS (go2rtc)
-                  </button>
-                </>
-              ) : (
+              {streamType !== "go2rtc" && (
                 <button
                   onClick={() => setForceHlsJS(!forceHlsJS)}
                   className="hover:text-[#E30613] bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 rounded-lg font-sans font-bold transition border border-zinc-200 dark:border-zinc-700 cursor-pointer text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-750"
@@ -589,10 +537,7 @@ export default function CctvPlayer({
               )}
               <button
                 onClick={() => {
-                  const urlToCopy = streamType === "go2rtc"
-                    ? (streamEngine === "webrtc" ? streamUrl : `${window.location.protocol}//${window.location.host}/api/domru/go2rtc-proxy/api/hls.m3u8?src=${activeCamera}`)
-                    : streamUrl;
-                  navigator.clipboard.writeText(urlToCopy || "");
+                  navigator.clipboard.writeText(streamUrl || "");
                   addStreamLog("📋 Ссылка скопирована!");
                 }}
                 className="hover:text-[#E30613] bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 rounded-lg transition border border-zinc-200 dark:border-zinc-700 cursor-pointer text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-750"

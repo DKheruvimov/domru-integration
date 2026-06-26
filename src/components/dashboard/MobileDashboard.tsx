@@ -42,6 +42,7 @@ interface MobileDashboardProps {
   loadData: () => void;
   isCabinetOpen: boolean;
   setIsCabinetOpen: (open: boolean) => void;
+  isDevModeEnabled: boolean;
 }
 
 export default function MobileDashboard({
@@ -79,6 +80,7 @@ export default function MobileDashboard({
   loadData,
   isCabinetOpen,
   setIsCabinetOpen,
+  isDevModeEnabled,
 }: MobileDashboardProps) {
   return (
     <div className="flex flex-col space-y-6 pb-24" id="mobile_dashboard">
@@ -150,6 +152,7 @@ export default function MobileDashboard({
             streamLogs={streamLogs}
             setStreamLogs={setStreamLogs}
             addStreamLog={addStreamLog}
+            isDevModeEnabled={isDevModeEnabled}
             onClose={() => {
               setActiveCamera(null);
               setStreamUrl(null);

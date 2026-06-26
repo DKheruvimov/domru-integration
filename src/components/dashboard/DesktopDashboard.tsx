@@ -42,6 +42,7 @@ interface DesktopDashboardProps {
   loadData: () => void;
   isCabinetOpen: boolean;
   setIsCabinetOpen: (open: boolean) => void;
+  isDevModeEnabled: boolean;
 }
 
 export default function DesktopDashboard({
@@ -79,6 +80,7 @@ export default function DesktopDashboard({
   loadData,
   isCabinetOpen,
   setIsCabinetOpen,
+  isDevModeEnabled,
 }: DesktopDashboardProps) {
   return (
     <div className="space-y-6" id="desktop_dashboard">
@@ -190,6 +192,7 @@ export default function DesktopDashboard({
               streamLogs={streamLogs}
               setStreamLogs={setStreamLogs}
               addStreamLog={addStreamLog}
+              isDevModeEnabled={isDevModeEnabled}
               onClose={() => {
                 setActiveCamera(null);
                 setStreamUrl(null);

@@ -8,9 +8,10 @@ interface DashboardProps {
   onLogout: () => void;
   isCabinetOpen: boolean;
   setIsCabinetOpen: (open: boolean) => void;
+  isDevModeEnabled: boolean;
 }
 
-export default function Dashboard({ credentials, onLogout, isCabinetOpen, setIsCabinetOpen }: DashboardProps) {
+export default function Dashboard({ credentials, onLogout, isCabinetOpen, setIsCabinetOpen, isDevModeEnabled }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<"myhome" | "events" | "people" | "cabinet">("myhome");
   const [places, setPlaces] = useState<SmartPlace[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<SmartPlace | null>(null);
@@ -432,6 +433,7 @@ export default function Dashboard({ credentials, onLogout, isCabinetOpen, setIsC
     loadData,
     isCabinetOpen,
     setIsCabinetOpen,
+    isDevModeEnabled,
   };
 
   return (

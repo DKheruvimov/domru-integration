@@ -25,6 +25,13 @@ export default function App() {
     const saved = localStorage.getItem("theme");
     return (saved as "light" | "dark" | "system") || "system";
   });
+  const [isDevModeEnabled, setIsDevModeEnabled] = useState<boolean>(() => {
+    return localStorage.getItem("is_dev_mode_enabled") === "true";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("is_dev_mode_enabled", String(isDevModeEnabled));
+  }, [isDevModeEnabled]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -140,7 +147,7 @@ export default function App() {
                   {/* Status Badge / Cabinet Trigger Button */}
                   <button
                     onClick={() => setIsCabinetOpen(true)}
-                    className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-[#E30613]/30 dark:border-[#E30613]/20 font-mono text-xs rounded-xl text-zinc-800 dark:text-zinc-200 shadow-2xs hover:bg-[#E30613]/5 dark:hover:bg-[#E30613]/10 transition-colors cursor-pointer"
+                    className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/85 text-zinc-700 dark:text-zinc-200 text-xs font-semibold rounded-xl transition-all shadow-2xs cursor-pointer border border-zinc-200/30"
                   >
                     <Database className="w-3.5 h-3.5 text-[#E30613]" />
                     <span>Личный кабинет</span>
@@ -205,6 +212,7 @@ export default function App() {
             onLogout={handleLogout} 
             isCabinetOpen={isCabinetOpen}
             setIsCabinetOpen={setIsCabinetOpen}
+            isDevModeEnabled={isDevModeEnabled}
           />
           </main>
 
@@ -265,15 +273,37 @@ export default function App() {
                     </button>
                   </div>
 
-                  <a
-                    href="https://github.com/S0yora/domru-js"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] text-zinc-450 hover:text-zinc-700 dark:hover:text-zinc-200 font-mono flex items-center gap-1 hover:underline"
-                  >
-                    <span>Оригинальный SDK</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
+                  <div className="flex items-center gap-4">
+                    {/* Developer Toggle Switch */}
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-250/30 dark:bg-zinc-800/60 rounded-xl border border-zinc-200/50 dark:border-zinc-800/80">
+                      <span className="text-[10px] font-semibold text-zinc-650 dark:text-zinc-300">
+                        Панель логов в плеере:
+                      </span>
+                      <button
+                        onClick={() => setIsDevModeEnabled(!isDevModeEnabled)}
+                        className={`relative inline-flex h-4.5 w-8.5 shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          isDevModeEnabled ? "bg-[#E30613]" : "bg-zinc-350 dark:bg-zinc-700"
+                        }`}
+                        title="Показывать технические логи и средства диагностики под видео-трансляцией"
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                            isDevModeEnabled ? "translate-x-4" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <a
+                      href="https://github.com/S0yora/domru-js"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-zinc-450 hover:text-zinc-700 dark:hover:text-zinc-200 font-mono flex items-center gap-1 hover:underline"
+                    >
+                      <span>Оригинальный SDK</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
                 </div>
 
                 {/* Scrollable Modal Content */}
