@@ -616,6 +616,11 @@ router.get("/stream-proxy*", async (req, res) => {
       return res.status(axiosResponse.status).send(`Stream request failed: ${axiosResponse.statusText || 'Error'}`);
     }
 
+    // Attach error listener to prevent uncaughtExceptions during async piping or reading
+    axiosResponse.data.on("error", (err: any) => {
+      console.error("[STREAM_PROXY] axiosResponse.data stream error (likely safe/expected on client disconnect):", err.message || err);
+    });
+
     const contentType = String(axiosResponse.headers["content-type"] || "").toLowerCase();
     console.log(`[STREAM_PROXY] Remote Content-Type: ${contentType}`);
 
@@ -781,13 +786,15 @@ router.get("/stream-proxy*", async (req, res) => {
         // Force correct content-type for TS segments
         res.setHeader("Content-Type", "video/mp2t");
 
+        const chunks: Buffer[] = [];
+        let segmentBuffer: Buffer | null = null;
+
         try {
           // Buffer the TS segment data to inspect and parse its codecs
-          const chunks: Buffer[] = [];
           for await (const chunk of axiosResponse.data) {
             chunks.push(chunk);
           }
-          const segmentBuffer = Buffer.concat(chunks);
+          segmentBuffer = Buffer.concat(chunks);
 
           const codecs = parseMpegTsCodecs(segmentBuffer);
           const hasAudio = codecs.some(c => c.toLowerCase().includes("audio"));
@@ -878,7 +885,11 @@ router.get("/stream-proxy*", async (req, res) => {
             cleanup();
             if (!res.headersSent && !res.destroyed && res.writable) {
               try {
-                res.send(segmentBuffer);
+                if (segmentBuffer) {
+                  res.send(segmentBuffer);
+                } else {
+                  res.status(500).send("Fallback buffer empty on spawn error");
+                }
               } catch (sendErr) {
                 console.error("[STREAM_PROXY] Error sending fallback segmentBuffer after error:", sendErr);
               }
@@ -890,7 +901,7 @@ router.get("/stream-proxy*", async (req, res) => {
           res.on("error", () => cleanup());
 
           // Write buffered data to ffmpeg stdin and pipe stdout to client response
-          if (ffmpeg.stdin && ffmpeg.stdin.writable) {
+          if (ffmpeg.stdin && ffmpeg.stdin.writable && segmentBuffer) {
             try {
               ffmpeg.stdin.write(segmentBuffer, (err) => {
                 if (err) {
@@ -914,9 +925,15 @@ router.get("/stream-proxy*", async (req, res) => {
           console.error("[STREAM_PROXY] Error initiating transcoding:", spawnErr);
           if (!res.headersSent && !res.destroyed && res.writable) {
             try {
-              axiosResponse.data.pipe(res);
+              if (segmentBuffer && segmentBuffer.length > 0) {
+                res.send(segmentBuffer);
+              } else if (chunks.length > 0) {
+                res.send(Buffer.concat(chunks));
+              } else {
+                res.status(500).send("Transcoding exception fallback failed");
+              }
             } catch (pipeErr) {
-              console.error("[STREAM_PROXY] Error piping fallback data on spawn exception:", pipeErr);
+              console.error("[STREAM_PROXY] Error sending fallback data on spawn exception:", pipeErr);
             }
           }
         }
