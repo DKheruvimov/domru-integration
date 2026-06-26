@@ -23,10 +23,33 @@ export default function AutoOpenConfigModal({ isOpen, onClose, onEnable }: AutoO
   ];
 
   function getMinutesUntilEndOfDay() {
-    const now = new Date();
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-    return Math.floor((endOfDay.getTime() - now.getTime()) / 60000);
+    try {
+      const tz = localStorage.getItem("app_timezone") || "Europe/Moscow";
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz,
+        hour12: false,
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric"
+      });
+      const parts = formatter.formatToParts(new Date());
+      const partVal = (type: string) => parts.find(p => p.type === type)?.value || "0";
+      
+      const hour = parseInt(partVal("hour"), 10);
+      const minute = parseInt(partVal("minute"), 10);
+      
+      const minutesSpent = hour * 60 + minute;
+      const totalMinutesInDay = 24 * 60;
+      return Math.max(15, totalMinutesInDay - minutesSpent - 1);
+    } catch (e) {
+      const now = new Date();
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+      return Math.floor((endOfDay.getTime() - now.getTime()) / 60000);
+    }
   }
 
   const handleEnable = () => {

@@ -43,6 +43,11 @@ interface MobileDashboardProps {
   isCabinetOpen: boolean;
   setIsCabinetOpen: (open: boolean) => void;
   isDevModeEnabled: boolean;
+  setIsDevModeEnabled: (enabled: boolean) => void;
+  theme: "light" | "dark" | "system";
+  setTheme: (t: "light" | "dark" | "system") => void;
+  timezone: string;
+  setTimezone: (tz: string) => void;
 }
 
 export default function MobileDashboard({
@@ -81,6 +86,11 @@ export default function MobileDashboard({
   isCabinetOpen,
   setIsCabinetOpen,
   isDevModeEnabled,
+  setIsDevModeEnabled,
+  theme,
+  setTheme,
+  timezone,
+  setTimezone,
 }: MobileDashboardProps) {
   return (
     <div className="flex flex-col space-y-6 pb-24" id="mobile_dashboard">
@@ -181,7 +191,18 @@ export default function MobileDashboard({
         {activeTab === "events" && <EventsView groupedEvents={groupedEvents} isMobile={true} />}
         {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} />}
         {activeTab === "cabinet" && (
-          <CabinetView selectedPlace={selectedPlace} onLogout={onLogout} isMobile={true} />
+          <CabinetView 
+            selectedPlace={selectedPlace} 
+            onLogout={onLogout} 
+            isMobile={true} 
+            theme={theme}
+            setTheme={setTheme}
+            isDevModeEnabled={isDevModeEnabled}
+            setIsDevModeEnabled={setIsDevModeEnabled}
+            timezone={timezone}
+            setTimezone={setTimezone}
+            credentials={credentials}
+          />
         )}
       </div>
 

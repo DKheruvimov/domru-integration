@@ -9,9 +9,25 @@ interface DashboardProps {
   isCabinetOpen: boolean;
   setIsCabinetOpen: (open: boolean) => void;
   isDevModeEnabled: boolean;
+  setIsDevModeEnabled: (enabled: boolean) => void;
+  theme: "light" | "dark" | "system";
+  setTheme: (t: "light" | "dark" | "system") => void;
+  timezone: string;
+  setTimezone: (tz: string) => void;
 }
 
-export default function Dashboard({ credentials, onLogout, isCabinetOpen, setIsCabinetOpen, isDevModeEnabled }: DashboardProps) {
+export default function Dashboard({ 
+  credentials, 
+  onLogout, 
+  isCabinetOpen, 
+  setIsCabinetOpen, 
+  isDevModeEnabled,
+  setIsDevModeEnabled,
+  theme,
+  setTheme,
+  timezone,
+  setTimezone
+}: DashboardProps) {
   const [activeTab, setActiveTab] = useState<"myhome" | "events" | "people" | "cabinet">("myhome");
   const [places, setPlaces] = useState<SmartPlace[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<SmartPlace | null>(null);
@@ -434,6 +450,11 @@ export default function Dashboard({ credentials, onLogout, isCabinetOpen, setIsC
     isCabinetOpen,
     setIsCabinetOpen,
     isDevModeEnabled,
+    setIsDevModeEnabled,
+    theme,
+    setTheme,
+    timezone,
+    setTimezone,
   };
 
   return (

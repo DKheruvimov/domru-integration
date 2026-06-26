@@ -1,5 +1,6 @@
 import { HistoryEvent } from "../../types";
 import { Bell } from "lucide-react";
+import { formatTimeInTimezone } from "../../lib/timezone";
 
 interface EventsViewProps {
   groupedEvents: Record<string, HistoryEvent[]>;
@@ -70,7 +71,7 @@ export default function EventsView({ groupedEvents, isMobile = false }: EventsVi
                     </div>
 
                     <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 ml-3">
-                      {new Date(event.timestamp).toLocaleTimeString([], {
+                      {formatTimeInTimezone(event.timestamp, {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}

@@ -43,6 +43,11 @@ interface DesktopDashboardProps {
   isCabinetOpen: boolean;
   setIsCabinetOpen: (open: boolean) => void;
   isDevModeEnabled: boolean;
+  setIsDevModeEnabled: (enabled: boolean) => void;
+  theme: "light" | "dark" | "system";
+  setTheme: (t: "light" | "dark" | "system") => void;
+  timezone: string;
+  setTimezone: (tz: string) => void;
 }
 
 export default function DesktopDashboard({
@@ -81,7 +86,20 @@ export default function DesktopDashboard({
   isCabinetOpen,
   setIsCabinetOpen,
   isDevModeEnabled,
+  setIsDevModeEnabled,
+  theme,
+  setTheme,
+  timezone,
+  setTimezone,
 }: DesktopDashboardProps) {
+  const [activeSubScreen, setActiveSubScreen] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!isCabinetOpen) {
+      setActiveSubScreen(null);
+    }
+  }, [isCabinetOpen]);
+
   return (
     <div className="space-y-6" id="desktop_dashboard">
       {/* Top Address & Action Bar */}
@@ -241,21 +259,55 @@ export default function DesktopDashboard({
         </div>
       )}
 
-      {/* Cabinet Modal Overlay */}
+      {/* Cabinet Drawer Overlay (Option B: Slide-out Panel) */}
       {isCabinetOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white dark:bg-[#101418] w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[2rem] shadow-2xl relative animate-scale-up">
-            <div className="sticky top-0 bg-white/80 dark:bg-[#101418]/80 backdrop-blur-md z-10 flex justify-between items-center p-6 border-b border-zinc-200 dark:border-zinc-800">
-              <h3 className="font-extrabold text-xl">Личный кабинет</h3>
+        <div className="fixed inset-0 z-50 bg-black/40 dark:bg-black/65 backdrop-blur-xs flex justify-end animate-fade-in">
+          {/* Backdrop closer */}
+          <div 
+            className="absolute inset-0 cursor-pointer" 
+            onClick={() => setIsCabinetOpen(false)}
+          />
+          
+          {/* Drawer Body with dynamic width transition */}
+          <div 
+            className={`relative h-full bg-zinc-50 dark:bg-[#101418] border-l border-zinc-200 dark:border-zinc-800 shadow-2xl flex flex-col z-10 transition-all duration-300 ease-in-out animate-slide-in-right ${
+              activeSubScreen === "dev"
+                ? "w-full md:w-[750px] lg:w-[950px] xl:w-[1100px]"
+                : "w-full md:w-[480px]"
+            }`}
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center px-6 py-5 bg-white dark:bg-[#101418] border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+              <div>
+                <h3 className="font-extrabold text-lg tracking-tight text-zinc-900 dark:text-white">Личный кабинет</h3>
+                {activeSubScreen === "dev" && (
+                  <p className="text-[10px] font-black text-[#e30613] uppercase tracking-wider mt-0.5 animate-fade-in">
+                    Инструменты разработчика
+                  </p>
+                )}
+              </div>
               <button 
                 onClick={() => setIsCabinetOpen(false)}
-                className="w-8 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition cursor-pointer"
+                className="w-8 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-white rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition cursor-pointer text-xs"
               >
                 ✕
               </button>
             </div>
-            <div className="p-4">
-              <CabinetView selectedPlace={selectedPlace} onLogout={onLogout} />
+            
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6" id="cabinet_drawer_scrollable">
+              <CabinetView 
+                selectedPlace={selectedPlace} 
+                onLogout={onLogout} 
+                theme={theme}
+                setTheme={setTheme}
+                isDevModeEnabled={isDevModeEnabled}
+                setIsDevModeEnabled={setIsDevModeEnabled}
+                timezone={timezone}
+                setTimezone={setTimezone}
+                credentials={credentials}
+                onSubScreenChange={setActiveSubScreen}
+              />
             </div>
           </div>
         </div>

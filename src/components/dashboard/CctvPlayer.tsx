@@ -3,6 +3,7 @@ import { AppCredentials, SmartDevice, SmartCamera } from "../../types";
 import { Video, VideoOff, RefreshCw, Terminal, Lock, Unlock, PhoneForwarded, PhoneOff } from "lucide-react";
 import AutoOpenConfigModal from "./AutoOpenConfigModal";
 import SipLogsViewer from "./SipLogsViewer";
+import { formatTimeInTimezone } from "../../lib/timezone";
 
 interface CctvPlayerProps {
   activeCamera: string;
@@ -392,7 +393,7 @@ export default function CctvPlayer({
           <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mr-2 hidden sm:block font-bold">
             {playerMode === "stream"
               ? "Рекомендуется H.264"
-              : `Обновление ~1.5с • ${new Date(snapshotTime).toLocaleTimeString()}`}
+              : `Обновление ~1.5с • ${formatTimeInTimezone(snapshotTime, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`}
           </div>
         </div>
       )}
@@ -417,7 +418,7 @@ export default function CctvPlayer({
                <span className="hidden sm:inline">
                  {autoOpenState 
                    ? (typeof autoOpenState === "number" 
-                       ? `Жду гостей/курьера (до ${new Date(autoOpenState as number).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})` 
+                       ? `Жду гостей/курьера (до ${formatTimeInTimezone(autoOpenState as number, { hour: "2-digit", minute: "2-digit" })})` 
                        : "Авто-открытие активно") 
                    : "Авто-открытие"}
                </span>
