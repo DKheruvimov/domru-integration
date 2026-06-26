@@ -144,6 +144,7 @@ export default function Dashboard({
     const fetchPlaceDetails = async () => {
       setError("");
       let realDeviceIds: number[] = [];
+      let loadedDevices: any[] = [];
 
       // 1. Load Devices
       try {
@@ -151,6 +152,7 @@ export default function Dashboard({
         if (devRes.ok) {
           const devRaw = await devRes.json();
           realDeviceIds = devRaw.map((d: any) => d.id);
+          loadedDevices = devRaw;
           setDevices(
             devRaw.map((d: any) => ({
               id: d.id,
@@ -221,6 +223,30 @@ export default function Dashboard({
         });
         if (eventsRes.ok) {
           const eventsRaw: any[] = await eventsRes.json();
+          const parseSafeDate = (raw: any): string => {
+            if (!raw) return new Date().toISOString();
+            if (typeof raw === "number") {
+              const d = new Date(raw < 100000000000 ? raw * 1000 : raw);
+              return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+            }
+            if (typeof raw === "string") {
+              if (/^\d+$/.test(raw)) {
+                const num = parseInt(raw, 10);
+                const d = new Date(num < 100000000000 ? num * 1000 : num);
+                return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+              }
+              let cleaned = raw.trim();
+              if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(cleaned)) {
+                cleaned = cleaned.replace(" ", "T");
+              }
+              const d = new Date(cleaned);
+              if (!isNaN(d.getTime())) {
+                return d.toISOString();
+              }
+            }
+            return new Date().toISOString();
+          };
+
           const parsedEvents: HistoryEvent[] = eventsRaw.map((e: any, index: number) => {
             if (e.title !== undefined) {
               return {
@@ -235,22 +261,75 @@ export default function Dashboard({
               "GATE_OPENED": "Калитка открыта",
               "BARRIER_OPENED": "Шлагбаум открыт",
               "PLAY_STREAM": "Просмотр видео",
+              "accessControlCallIncoming": "Входящий вызов",
+              "accessControlCallAccepted": "Вызов принят",
+              "accessControlCallDeclined": "Вызов отклонен",
+              "accessControlCallMissed": "Пропущенный вызов",
+              "accessControlCallNoAnswer": "Вызов без ответа",
+              "accessControlCallEnded": "Разговор завершен",
+              "accessControlDoorOpened": "Дверь открыта",
+              "accessControlDoorOpen": "Дверь открыта",
+              "accessControlOpen": "Дверь открыта",
+              "accessControlCallCallback": "Обратный вызов",
+              "accessControlCallTimeout": "Таймаут вызова",
+              "accessControlCallOffline": "Офлайн вызов",
+              "accessControlCallBuzzer": "Звонок в квартиру",
             };
 
-            const title = titleMap[e.eventTypeName] || e.eventTypeName || "Событие домофона";
+            let title = titleMap[e.eventTypeName] || e.eventTypeName || "Событие домофона";
+            if (!titleMap[e.eventTypeName] && e.eventTypeName) {
+              const name = e.eventTypeName.toLowerCase();
+              if (name.includes("dooropened") || name.includes("dooropen") || name.includes("door_opened")) {
+                title = "Дверь открыта";
+              } else if (name.includes("callincoming") || name.includes("visitor_call") || name.includes("visitorcall")) {
+                title = "Входящий вызов";
+              } else if (name.includes("callaccepted")) {
+                title = "Вызов принят";
+              } else if (name.includes("calldeclined")) {
+                title = "Вызов отклонен";
+              } else if (name.includes("callmissed") || name.includes("noanswer") || name.includes("no_answer")) {
+                title = "Пропущенный вызов";
+              } else if (name.includes("callended")) {
+                title = "Разговор завершен";
+              } else if (name.includes("playstream") || name.includes("play_stream")) {
+                title = "Просмотр видео";
+              }
+            }
+
             const imageUrl =
               e.value?.images?.p_640x480 ||
               e.value?.images?.raw ||
               e.value?.images?.p_144x96 ||
               undefined;
 
+            let description = e.message;
+            if (!description || description === "Вызов или проход на территорию") {
+              const name = (e.eventTypeName || "").toLowerCase();
+              if (name.includes("callaccepted")) {
+                description = "Вызов принят из приложения или с трубки";
+              } else if (name.includes("calldeclined")) {
+                description = "Вызов отклонен пользователем";
+              } else if (name.includes("callincoming")) {
+                description = "Входящий звонок на домофон";
+              } else if (name.includes("callmissed") || name.includes("noanswer")) {
+                description = "Звонок остался без ответа";
+              } else if (name.includes("dooropened") || name.includes("dooropen")) {
+                description = "Дверь успешно открыта";
+              } else {
+                description = "Событие на точке прохода";
+              }
+            }
+
+            const matchedDevice = loadedDevices.find((d: any) => Number(d.id) === Number(e.source?.id));
+            const deviceName = matchedDevice?.name || e.source?.name || "Входной домофон";
+
             return {
               id: Number(e.id) || (Date.now() + index),
-              timestamp: e.timestamp || new Date().toISOString(),
+              timestamp: parseSafeDate(e.occurredAt || e.timestamp),
               eventType: e.eventTypeName || "INFO",
               title,
-              description: e.message || "Вызов или проход на территорию",
-              deviceName: e.source?.name || "Входной домофон",
+              description,
+              deviceName,
               imageUrl,
             };
           });
