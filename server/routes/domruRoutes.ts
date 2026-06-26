@@ -21,6 +21,7 @@ import { registerStream } from "../go2rtc-manager.js";
 import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice, getSipLogs, getActiveTasks, handleManualOpen, getPermanentBindings } from "../sip-manager.js";
 import { getPeople, savePeople, addTemporaryAutoOpenPerson, removeTemporaryAutoOpenPerson, isScheduleActive } from "../people-manager.js";
 import { findSnapshotForEvent, getSnapshotPath } from "../snapshots-manager.js";
+import { getOpeningByOurService } from "../openings-manager.js";
 import fs from "fs";
 
 const router = express.Router();
@@ -1062,6 +1063,8 @@ router.post("/sip/auto-open", async (req, res) => {
         domruCredentials,
         onOpenDoor: async () => {
           await client.openDoor(Number(placeId), Number(deviceId));
+          const { recordDoorOpening } = await import("../openings-manager.js");
+          recordDoorOpening(Number(deviceId), "auto", `Временное авто-открытие SIP (${credentials.login})`);
         }
       });
       res.json({ status: "SUCCESS", message: "SIP Auto-open enabled", login: credentials.login, expiresAt });
@@ -1098,13 +1101,19 @@ router.post("/events", async (req, res) => {
     const enhancedMockEvents = MOCK_EVENTS.map((e: any) => {
       const eventTimeMs = new Date(e.timestamp).getTime();
       const snapshot = findSnapshotForEvent(1001, eventTimeMs) || findSnapshotForEvent(2001, eventTimeMs);
+      let resEvent = { ...e };
       if (snapshot) {
-        return {
-          ...e,
-          sipSnapshotUrl: `/api/domru/snapshots/${snapshot.fileName}`
+        resEvent.sipSnapshotUrl = `/api/domru/snapshots/${snapshot.fileName}`;
+      }
+      
+      const opening = getOpeningByOurService(1001, eventTimeMs) || getOpeningByOurService(2001, eventTimeMs);
+      if (opening) {
+        resEvent.openedByOurService = {
+          type: opening.type,
+          details: opening.details
         };
       }
-      return e;
+      return resEvent;
     });
     return res.json(enhancedMockEvents);
   }
@@ -1113,8 +1122,9 @@ router.post("/events", async (req, res) => {
     const client = getDomruInstance(req);
     const events = await client.getEvents(placeIds, page, sort);
     
-    // Inject local SIP snapshot URLs if they match the event source device and time
+    // Inject local SIP snapshot URLs and local door opening information
     const enhancedEvents = events.map((e: any) => {
+      let resEvent = { ...e };
       if (e.source?.id) {
         const eventTimeMs = e.occurredAt 
           ? new Date(e.occurredAt).getTime() 
@@ -1123,14 +1133,19 @@ router.post("/events", async (req, res) => {
         if (eventTimeMs) {
           const snapshot = findSnapshotForEvent(Number(e.source.id), eventTimeMs);
           if (snapshot) {
-            return {
-              ...e,
-              sipSnapshotUrl: `/api/domru/snapshots/${snapshot.fileName}`
+            resEvent.sipSnapshotUrl = `/api/domru/snapshots/${snapshot.fileName}`;
+          }
+
+          const opening = getOpeningByOurService(Number(e.source.id), eventTimeMs);
+          if (opening) {
+            resEvent.openedByOurService = {
+              type: opening.type,
+              details: opening.details
             };
           }
         }
       }
-      return e;
+      return resEvent;
     });
 
     res.json(enhancedEvents);

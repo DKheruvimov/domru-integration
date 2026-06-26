@@ -35,6 +35,10 @@ export interface HistoryEvent {
   deviceName: string;
   imageUrl?: string;
   sipSnapshotUrl?: string;
+  openedByOurService?: {
+    type: "manual" | "auto";
+    details: string;
+  };
 }
 
 export interface GuestPin {

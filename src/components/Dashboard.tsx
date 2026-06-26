@@ -332,6 +332,7 @@ export default function Dashboard({
               deviceName,
               imageUrl,
               sipSnapshotUrl: e.sipSnapshotUrl || undefined,
+              openedByOurService: e.openedByOurService || undefined,
             };
           });
           setEvents(parsedEvents);

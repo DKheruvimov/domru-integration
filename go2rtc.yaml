@@ -1,0 +1,15 @@
+# go2rtc configuration
+api:
+  listen: "127.0.0.1:1984" # listen on localhost only for security
+rtsp:
+  listen: "0.0.0.0:8554"
+webrtc:
+  listen: "0.0.0.0:8555"
+srtp:
+  listen: "0.0.0.0:8443"
+ffmpeg:
+  bin: ffmpeg
+  re: "-re -fflags nobuffer -flags low_delay -i {input}"
+  hls_re: "-re -fflags nobuffer -flags low_delay -i {input}"
+streams:
+  "82869397": https://cctv-sa4-dmfn.ulu.vs.ertelecom.ru:18080/hls/a3383405/xly64E4QPUzsRbL3cjHy/playlist.m3u8
