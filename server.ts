@@ -58,13 +58,15 @@ async function startServer() {
   const wss = new WebSocketServer({ noServer: true });
 
   server.on("upgrade", (request, socket, head) => {
-    const urlObj = new URL(request.url || "", `http://${request.headers.host || "localhost"}`);
-    if (urlObj.pathname === "/api/go2rtc/ws") {
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        handleWsProxy(ws, request.url || "");
-      });
-    } else {
-      socket.destroy();
+    try {
+      const urlObj = new URL(request.url || "", `http://${request.headers.host || "localhost"}`);
+      if (urlObj.pathname === "/api/go2rtc/ws") {
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          handleWsProxy(ws, request.url || "");
+        });
+      }
+    } catch (err) {
+      console.error("[Server Upgrade] Error parsing upgrade URL:", err);
     }
   });
 }
