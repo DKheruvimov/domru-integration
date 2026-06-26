@@ -379,7 +379,7 @@ router.get("/stream-go2rtc/:cameraId", async (req, res) => {
       // This bypasses CPU-heavy double-ffmpeg loops and prevents server OOM crashes
       // while ensuring the stream decryption keys and segments are fetched with proper authorization.
       const proxiedLoopbackUrl = `http://127.0.0.1:3000/api/domru/stream-proxy/index.m3u8?url=${encodeURIComponent(originalUrl)}&token=${encodeURIComponent(client.token || "")}&operatorId=${encodeURIComponent(String(client.refreshData.operatorId || ""))}&transcode=false`;
-      const go2rtcSource = `ffmpeg:${proxiedLoopbackUrl}#video=copy#audio=opus`;
+      const go2rtcSource = `ffmpeg:${proxiedLoopbackUrl}#video=copy#audio=opus#input=hls_re`;
       
       const success = await registerStream(cameraId, go2rtcSource);
       

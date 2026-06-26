@@ -91,6 +91,10 @@ webrtc:
   listen: "0.0.0.0:8555"
 srtp:
   listen: "0.0.0.0:8443"
+ffmpeg:
+  bin: ffmpeg
+  re: "-re -fflags nobuffer -flags low_delay -i {input}"
+  hls_re: "-re -fflags nobuffer -flags low_delay -i {input}"
 `;
     fs.writeFileSync(CONFIG_FILE, configContent, "utf8");
     console.log(`[go2rtc-manager] Created default go2rtc config at ${CONFIG_FILE}`);

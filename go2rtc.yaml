@@ -7,5 +7,9 @@ webrtc:
   listen: "0.0.0.0:8555"
 srtp:
   listen: "0.0.0.0:8443"
+ffmpeg:
+  bin: ffmpeg
+  re: "-re -fflags nobuffer -flags low_delay -i {input}"
+  hls_re: "-re -fflags nobuffer -flags low_delay -i {input}"
 streams:
   "82869397": https://cctv-sa4-dmfn.ulu.vs.ertelecom.ru:18080/hls/a3383405/xly64E4QPUzsRbL3cjHy/playlist.m3u8
