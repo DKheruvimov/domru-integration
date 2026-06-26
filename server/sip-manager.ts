@@ -389,6 +389,50 @@ function buildAuthorizationString(
   }
 }
 
+async function triggerSnapshotForLogin(login: string, placeId: number, deviceId: number) {
+  addSipLog(`[SIP] Triggering camera snapshot for place ${placeId}, device ${deviceId}...`);
+  try {
+    const tokens = loadSavedTokens();
+    const creds = Object.values(tokens).find(c => c.login === login) || Object.values(tokens)[0];
+    if (!creds) {
+      addSipLog(`[SIP] No saved credentials found for snapshot`, "error");
+      return;
+    }
+
+    if (creds.isDemo) {
+      const { addMockSnapshot } = await import("./snapshots-manager.js");
+      await addMockSnapshot(login, placeId, deviceId);
+      addSipLog(`[DEMO] Created mock snapshot for place ${placeId}, device ${deviceId}`);
+      return;
+    }
+
+    const client = new DomruClient({
+      login: creds.login,
+      password: creds.password,
+      refreshToken: creds.refreshToken,
+      operatorId: creds.operatorId,
+      timeout: 10000,
+      logger: {
+        info: (msg: string, ...args: any[]) => console.log(`[SnapshotClient:INFO] ${msg}`, ...args),
+        warn: (msg: string, ...args: any[]) => console.warn(`[SnapshotClient:WARN] ${msg}`, ...args),
+        error: (msg: string, ...args: any[]) => console.error(`[SnapshotClient:ERROR] ${msg}`, ...args),
+        debug: (msg: string, ...args: any[]) => console.log(`[SnapshotClient:DEBUG] ${msg}`, ...args),
+      }
+    });
+
+    const snapshot = await client.getSnapshot(Number(placeId), Number(deviceId));
+    if (snapshot && snapshot.length > 0) {
+      const { addSnapshot } = await import("./snapshots-manager.js");
+      const entry = await addSnapshot(login, Number(placeId), Number(deviceId), snapshot);
+      addSipLog(`[SIP] Camera snapshot successfully saved: ${entry.fileName} (${snapshot.length} bytes)`);
+    } else {
+      addSipLog(`[SIP] Camera snapshot returned empty buffer`, "error");
+    }
+  } catch (err: any) {
+    addSipLog(`[SIP] Failed to save camera snapshot: ${err.message || err}`, "error");
+  }
+}
+
 export function startSipServer() {
   if (isSipStarted) return;
 
@@ -409,6 +453,18 @@ export function startSipServer() {
 
         addSipLog(`[SIP] Received INVITE for ${login}`);
 
+        // Retrieve placeId and deviceId to take snapshot
+        const binding = permanentBindings.get(login);
+        const task = activeTasks.get(login);
+        const snapshotPlaceId = binding?.placeId ?? task?.placeId;
+        const snapshotDeviceId = binding?.deviceId ?? task?.deviceId;
+
+        if (snapshotPlaceId && snapshotDeviceId) {
+          triggerSnapshotForLogin(login, snapshotPlaceId, snapshotDeviceId).catch((err) => {
+            console.error("[SIP] Background snapshot failed:", err);
+          });
+        }
+
         // 1. Check if there is an active person schedule rule (e.g. Я, Девушка, Курьер)
         let scheduleResult: any = { active: false };
         try {
@@ -417,9 +473,6 @@ export function startSipServer() {
         } catch (e) {
           console.error("Failed to check active schedules", e);
         }
-
-        const task = activeTasks.get(login);
-        const binding = permanentBindings.get(login);
 
         if (scheduleResult.active && binding) {
           addSipLog(`[SIP] ${scheduleResult.message}. Accepting call...`);

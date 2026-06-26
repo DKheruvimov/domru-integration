@@ -34,6 +34,7 @@ export interface HistoryEvent {
   description: string;
   deviceName: string;
   imageUrl?: string;
+  sipSnapshotUrl?: string;
 }
 
 export interface GuestPin {

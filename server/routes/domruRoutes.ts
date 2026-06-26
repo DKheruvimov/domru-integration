@@ -20,6 +20,8 @@ import { getProxiedStreamUrl } from "../yandexHelper.js";
 import { registerStream } from "../go2rtc-manager.js";
 import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice, getSipLogs, getActiveTasks, handleManualOpen, getPermanentBindings } from "../sip-manager.js";
 import { getPeople, savePeople, addTemporaryAutoOpenPerson, removeTemporaryAutoOpenPerson, isScheduleActive } from "../people-manager.js";
+import { findSnapshotForEvent, getSnapshotPath } from "../snapshots-manager.js";
+import fs from "fs";
 
 const router = express.Router();
 
@@ -1075,17 +1077,63 @@ router.post("/sip/auto-open", async (req, res) => {
   }
 });
 
+// API Route: Serves SIP snapshots stored in the data directory
+router.get("/snapshots/:fileName", (req, res) => {
+  const { fileName } = req.params;
+  const filePath = getSnapshotPath(fileName);
+  
+  if (fs.existsSync(filePath)) {
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Cache-Control", "public, max-age=2592000"); // cache for 30 days
+    return res.sendFile(filePath);
+  }
+  
+  res.status(404).json({ error: "Snapshot not found" });
+});
+
 // API Route: Historical Events
 router.post("/events", async (req, res) => {
   const { placeIds, page, sort } = req.body;
   if (isDemo(req)) {
-    return res.json(MOCK_EVENTS);
+    const enhancedMockEvents = MOCK_EVENTS.map((e: any) => {
+      const eventTimeMs = new Date(e.timestamp).getTime();
+      const snapshot = findSnapshotForEvent(1001, eventTimeMs) || findSnapshotForEvent(2001, eventTimeMs);
+      if (snapshot) {
+        return {
+          ...e,
+          sipSnapshotUrl: `/api/domru/snapshots/${snapshot.fileName}`
+        };
+      }
+      return e;
+    });
+    return res.json(enhancedMockEvents);
   }
 
   try {
     const client = getDomruInstance(req);
     const events = await client.getEvents(placeIds, page, sort);
-    res.json(events);
+    
+    // Inject local SIP snapshot URLs if they match the event source device and time
+    const enhancedEvents = events.map((e: any) => {
+      if (e.source?.id) {
+        const eventTimeMs = e.occurredAt 
+          ? new Date(e.occurredAt).getTime() 
+          : (e.timestamp ? new Date(e.timestamp).getTime() : null);
+          
+        if (eventTimeMs) {
+          const snapshot = findSnapshotForEvent(Number(e.source.id), eventTimeMs);
+          if (snapshot) {
+            return {
+              ...e,
+              sipSnapshotUrl: `/api/domru/snapshots/${snapshot.fileName}`
+            };
+          }
+        }
+      }
+      return e;
+    });
+
+    res.json(enhancedEvents);
   } catch (err: any) {
     handleClientError(err, res);
   }
