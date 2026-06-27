@@ -21,7 +21,8 @@ import { motion, AnimatePresence } from "motion/react";
 
 interface PeopleViewProps {
   pins: GuestPin[];
-  makeGuestPin: () => void;
+  makeGuestPin: (pin: string, allowSip: boolean) => Promise<void>;
+  proxyHeaders: Record<string, string>;
 }
 
 const WEEKDAYS = [
@@ -34,7 +35,7 @@ const WEEKDAYS = [
   { value: 0, label: "Вс" },
 ];
 
-export default function PeopleView({ pins, makeGuestPin }: PeopleViewProps) {
+export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<"schedules" | "pins">("schedules");
   const [people, setPeople] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +59,9 @@ export default function PeopleView({ pins, makeGuestPin }: PeopleViewProps) {
   const fetchPeople = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/domru/people");
+      const res = await fetch("/api/domru/people", {
+        headers: { ...proxyHeaders },
+      });
       if (!res.ok) throw new Error("Ошибка при получении списка расписаний");
       const data = await res.json();
       setPeople(data);
@@ -78,7 +81,7 @@ export default function PeopleView({ pins, makeGuestPin }: PeopleViewProps) {
     try {
       const res = await fetch("/api/domru/people", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...proxyHeaders },
         body: JSON.stringify({ people: updatedList }),
       });
       if (!res.ok) throw new Error("Ошибка при сохранении расписаний");
@@ -96,7 +99,7 @@ export default function PeopleView({ pins, makeGuestPin }: PeopleViewProps) {
     try {
       await fetch("/api/domru/people/toggle", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...proxyHeaders },
         body: JSON.stringify({ id, enabled: !currentEnabled }),
       });
     } catch (err) {

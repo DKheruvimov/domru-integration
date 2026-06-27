@@ -48,6 +48,7 @@ interface DesktopDashboardProps {
   setTheme: (t: "light" | "dark" | "system") => void;
   timezone: string;
   setTimezone: (tz: string) => void;
+  proxyHeaders: Record<string, string>;
 }
 
 export default function DesktopDashboard({
@@ -91,6 +92,7 @@ export default function DesktopDashboard({
   setTheme,
   timezone,
   setTimezone,
+  proxyHeaders,
 }: DesktopDashboardProps) {
   const [activeSubScreen, setActiveSubScreen] = React.useState<string | null>(null);
 
@@ -236,7 +238,7 @@ export default function DesktopDashboard({
               />
             )}
             {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
-            {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} />}
+            {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} proxyHeaders={proxyHeaders} />}
           </div>
         </div>
       ) : (
@@ -255,7 +257,7 @@ export default function DesktopDashboard({
             />
           )}
           {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
-          {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} />}
+          {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} proxyHeaders={proxyHeaders} />}
         </div>
       )}
 

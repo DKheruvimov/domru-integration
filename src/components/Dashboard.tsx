@@ -536,6 +536,7 @@ export default function Dashboard({
     setTheme,
     timezone,
     setTimezone,
+    proxyHeaders,
   };
 
   return (

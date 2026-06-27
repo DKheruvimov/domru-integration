@@ -48,6 +48,7 @@ interface MobileDashboardProps {
   setTheme: (t: "light" | "dark" | "system") => void;
   timezone: string;
   setTimezone: (tz: string) => void;
+  proxyHeaders: Record<string, string>;
 }
 
 export default function MobileDashboard({
@@ -91,6 +92,7 @@ export default function MobileDashboard({
   setTheme,
   timezone,
   setTimezone,
+  proxyHeaders,
 }: MobileDashboardProps) {
   return (
     <div className="flex flex-col space-y-6 pb-24" id="mobile_dashboard">
@@ -189,7 +191,7 @@ export default function MobileDashboard({
           />
         )}
         {activeTab === "events" && <EventsView groupedEvents={groupedEvents} isMobile={true} />}
-        {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} />}
+        {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} proxyHeaders={proxyHeaders} />}
         {activeTab === "cabinet" && (
           <CabinetView 
             selectedPlace={selectedPlace} 
