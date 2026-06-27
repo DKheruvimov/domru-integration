@@ -72,7 +72,8 @@ export const requireDomruAuth = async (req: express.Request, res: express.Respon
   }
   try {
     const client = getDomruInstance(req);
-    if (!client.token && (!client.login || !client.password)) {
+    const ctx = (client as any).ctx;
+    if (!client.token && (!ctx.login || !ctx.password)) {
       return res.status(401).json({ error: "Unauthorized: Missing Domru credentials" });
     }
     // Eagerly verify credentials by hitting a lightweight Domru API endpoint

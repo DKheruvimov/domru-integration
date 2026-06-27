@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from "motion/react";
 
 interface PeopleViewProps {
   pins: GuestPin[];
-  makeGuestPin: (pin: string, allowSip: boolean) => Promise<void>;
+  makeGuestPin: () => void;
   proxyHeaders: Record<string, string>;
 }
 

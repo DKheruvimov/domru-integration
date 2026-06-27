@@ -370,13 +370,13 @@ export default function Dashboard({
         if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status} ${res.statusText}`);
         const data = await res.json();
 
-        if (!data || !data.webrtcUrl) {
+        if (!data || !data.hlsUrl) {
           throw new Error("Сервер вернул некорректный ответ (возможно, ошибка go2rtc).");
         }
 
-        addStreamLog(`[go2rtc] Камера зарегистрирована! WebRTC URL: ${data.webrtcUrl}`);
-        setStreamUrl(data.webrtcUrl);
-        setStreamType("go2rtc");
+        addStreamLog(`[go2rtc] Камера зарегистрирована! HLS URL: ${data.hlsUrl}`);
+        setStreamUrl(data.hlsUrl);
+        setStreamType("hls");
       } catch (err: any) {
         console.error(err);
         addStreamLog(`⛔ Сбой получения потока: ${err.message}`);

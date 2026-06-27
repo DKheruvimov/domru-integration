@@ -38,7 +38,12 @@ async function main() {
     console.log(`Найдено объектов: ${places.length}`);
 
     if (places.length > 0) {
-        const placeId = places[0].place.id;
+        const place = places[0]?.place;
+        if (!place) {
+            console.error("No place found");
+            return;
+        }
+        const placeId = place.id;
 
         // Получаем устройства (кешируется автоматически)
         const devices = await client.getDevices(placeId);
@@ -46,6 +51,10 @@ async function main() {
 
         if (devices.length > 0) {
             const device = devices[0];
+            if (!device) {
+                console.error("No device found");
+                return;
+            }
             console.log(`Выбрано устройство: ${device.name}`);
 
             // Получаем URL видеопотока
