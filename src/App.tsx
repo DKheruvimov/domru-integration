@@ -24,6 +24,9 @@ export default function App() {
   const [isDevModeEnabled, setIsDevModeEnabled] = useState<boolean>(() => {
     return localStorage.getItem("is_dev_mode_enabled") === "true";
   });
+  const [useWebRTC, setUseWebRTC] = useState<boolean>(() => {
+    return localStorage.getItem("is_webrtc_enabled") === "true";
+  });
   const [timezone, setTimezone] = useState<string>(() => {
     return localStorage.getItem("app_timezone") || "Europe/Moscow";
   });
@@ -31,6 +34,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("is_dev_mode_enabled", String(isDevModeEnabled));
   }, [isDevModeEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem("is_webrtc_enabled", String(useWebRTC));
+  }, [useWebRTC]);
 
   useEffect(() => {
     localStorage.setItem("app_timezone", timezone);
@@ -168,6 +175,8 @@ export default function App() {
               setIsCabinetOpen={setIsCabinetOpen}
               isDevModeEnabled={isDevModeEnabled}
               setIsDevModeEnabled={setIsDevModeEnabled}
+              useWebRTC={useWebRTC}
+              setUseWebRTC={setUseWebRTC}
               theme={theme}
               setTheme={setTheme}
               timezone={timezone}

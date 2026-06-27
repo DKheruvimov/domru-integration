@@ -10,6 +10,8 @@ interface DashboardProps {
   setIsCabinetOpen: (open: boolean) => void;
   isDevModeEnabled: boolean;
   setIsDevModeEnabled: (enabled: boolean) => void;
+  useWebRTC: boolean;
+  setUseWebRTC: (enabled: boolean) => void;
   theme: "light" | "dark" | "system";
   setTheme: (t: "light" | "dark" | "system") => void;
   timezone: string;
@@ -23,6 +25,8 @@ export default function Dashboard({
   setIsCabinetOpen, 
   isDevModeEnabled,
   setIsDevModeEnabled,
+  useWebRTC,
+  setUseWebRTC,
   theme,
   setTheme,
   timezone,
@@ -366,17 +370,24 @@ export default function Dashboard({
         setStreamLogs([]);
         addStreamLog(`Запрос URL потока для камеры ${activeCamera} с сервера...`);
 
-        const res = await fetch(`/api/domru/stream/${activeCamera}`, { headers: proxyHeaders });
-        if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status} ${res.statusText}`);
-        const data = await res.json();
-
-        if (!data || !data.url) {
-          throw new Error("Сервер не вернул URL потока.");
+        if (useWebRTC) {
+          addStreamLog(`⚠️ Используется WebRTC (режим без задержек)`);
+          const res = await fetch(`/api/domru/stream-go2rtc/${activeCamera}`, { headers: proxyHeaders });
+          if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status} ${res.statusText}`);
+          const data = await res.json();
+          if (!data || !data.webrtcUrl) throw new Error("Сервер не вернул WebRTC URL.");
+          addStreamLog(`[WebRTC] Камера зарегистрирована в go2rtc.`);
+          setStreamUrl(data.webrtcUrl);
+          setStreamType("go2rtc");
+        } else {
+          const res = await fetch(`/api/domru/stream/${activeCamera}`, { headers: proxyHeaders });
+          if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status} ${res.statusText}`);
+          const data = await res.json();
+          if (!data || !data.url) throw new Error("Сервер не вернул URL потока.");
+          addStreamLog(`[HLS] Камера зарегистрирована! URL: ${data.url}`);
+          setStreamUrl(data.url);
+          setStreamType("hls");
         }
-
-        addStreamLog(`[HLS] Камера зарегистрирована! URL: ${data.url}`);
-        setStreamUrl(data.url);
-        setStreamType("hls");
       } catch (err: any) {
         console.error(err);
         addStreamLog(`⛔ Сбой получения потока: ${err.message}`);
@@ -532,6 +543,8 @@ export default function Dashboard({
     setIsCabinetOpen,
     isDevModeEnabled,
     setIsDevModeEnabled,
+    useWebRTC,
+    setUseWebRTC,
     theme,
     setTheme,
     timezone,

@@ -38,6 +38,8 @@ interface CabinetViewProps {
   setIsDevModeEnabled?: (enabled: boolean) => void;
   timezone?: string;
   setTimezone?: (tz: string) => void;
+  useWebRTC?: boolean;
+  setUseWebRTC?: (enabled: boolean) => void;
   credentials?: AppCredentials;
   onSubScreenChange?: (screen: string | null) => void;
 }
@@ -66,6 +68,8 @@ export default function CabinetView({
   setIsDevModeEnabled = () => {},
   timezone = "Europe/Moscow",
   setTimezone = () => {},
+  useWebRTC = false,
+  setUseWebRTC = () => {},
   credentials,
   onSubScreenChange,
 }: CabinetViewProps) {
@@ -459,6 +463,33 @@ export default function CabinetView({
                         <span
                           className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
                             isDevModeEnabled ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl space-y-4 shadow-xs">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <span className="text-xs font-extrabold text-zinc-800 dark:text-white block">
+                          Использовать WebRTC (UDP)
+                        </span>
+                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
+                          Трансляция без задержек. Использование UDP может привести к блокировке IP-адреса на стороне хостинга Cloud.ru.
+                        </span>
+                      </div>
+                      
+                      {/* WebRTC Toggle Switch */}
+                      <button
+                        onClick={() => setUseWebRTC(!useWebRTC)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          useWebRTC ? "bg-[#e30613]" : "bg-zinc-200 dark:bg-zinc-700"
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                            useWebRTC ? "translate-x-5" : "translate-x-0"
                           }`}
                         />
                       </button>

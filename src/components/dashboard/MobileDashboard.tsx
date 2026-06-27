@@ -44,6 +44,8 @@ interface MobileDashboardProps {
   setIsCabinetOpen: (open: boolean) => void;
   isDevModeEnabled: boolean;
   setIsDevModeEnabled: (enabled: boolean) => void;
+  useWebRTC: boolean;
+  setUseWebRTC: (enabled: boolean) => void;
   theme: "light" | "dark" | "system";
   setTheme: (t: "light" | "dark" | "system") => void;
   timezone: string;
@@ -88,6 +90,8 @@ export default function MobileDashboard({
   setIsCabinetOpen,
   isDevModeEnabled,
   setIsDevModeEnabled,
+  useWebRTC,
+  setUseWebRTC,
   theme,
   setTheme,
   timezone,
@@ -201,6 +205,8 @@ export default function MobileDashboard({
             setTheme={setTheme}
             isDevModeEnabled={isDevModeEnabled}
             setIsDevModeEnabled={setIsDevModeEnabled}
+            useWebRTC={useWebRTC}
+            setUseWebRTC={setUseWebRTC}
             timezone={timezone}
             setTimezone={setTimezone}
             credentials={credentials}
