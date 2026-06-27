@@ -366,16 +366,16 @@ export default function Dashboard({
         setStreamLogs([]);
         addStreamLog(`Запрос URL потока для камеры ${activeCamera} с сервера...`);
 
-        const res = await fetch(`/api/domru/stream-go2rtc/${activeCamera}`, { headers: proxyHeaders });
+        const res = await fetch(`/api/domru/stream/${activeCamera}`, { headers: proxyHeaders });
         if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status} ${res.statusText}`);
         const data = await res.json();
 
-        if (!data || !data.hlsUrl) {
-          throw new Error("Сервер вернул некорректный ответ (возможно, ошибка go2rtc).");
+        if (!data || !data.url) {
+          throw new Error("Сервер не вернул URL потока.");
         }
 
-        addStreamLog(`[go2rtc] Камера зарегистрирована! HLS URL: ${data.hlsUrl}`);
-        setStreamUrl(data.hlsUrl);
+        addStreamLog(`[HLS] Камера зарегистрирована! URL: ${data.url}`);
+        setStreamUrl(data.url);
         setStreamType("hls");
       } catch (err: any) {
         console.error(err);
