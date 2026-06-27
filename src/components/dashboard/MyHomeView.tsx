@@ -82,7 +82,7 @@ export default function MyHomeView({
     };
 
     fetchStatus();
-    const intervalId = setInterval(fetchStatus, 5000);
+    const intervalId = setInterval(fetchStatus, 30000);
 
     return () => clearInterval(intervalId);
   }, []);
