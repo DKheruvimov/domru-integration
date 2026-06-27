@@ -1,4 +1,5 @@
 import express from "express";
+import { PORT } from "./config.js";
 
 // Helper for Yandex Smart Home Request ID extraction
 export const getRequestId = (req: express.Request): string => {
@@ -7,7 +8,7 @@ export const getRequestId = (req: express.Request): string => {
 
 // Helper to construct fully qualified stream URLs in production environment
 export const getBaseUrl = (req: express.Request) => {
-  const host = req.headers.host || "localhost:3000";
+  const host = req.headers.host || `localhost:${PORT}`;
   const protocol = (req.secure || req.headers["x-forwarded-proto"] === "https" || (!host.includes("localhost") && !host.includes("127.0.0.1"))) ? "https" : "http";
   return `${protocol}://${host}`;
 };

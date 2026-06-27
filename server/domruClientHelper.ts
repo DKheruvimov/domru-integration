@@ -65,6 +65,26 @@ export const getDomruInstance = (req: express.Request) => {
   return client;
 };
 
+// Middleware to prevent Authentication Bypass for local settings (Schedules, Auto-open)
+export const requireDomruAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (isDemo(req)) {
+    return next();
+  }
+  try {
+    const client = getDomruInstance(req);
+    if (!client.token && (!client.login || !client.password)) {
+      return res.status(401).json({ error: "Unauthorized: Missing Domru credentials" });
+    }
+    // Eagerly verify credentials by hitting a lightweight Domru API endpoint
+    // If credentials are bad, this will throw a 401 error which is caught below
+    await client.getFinances();
+    next();
+  } catch (err: any) {
+    console.error("[Auth Middleware] Invalid credentials:", err.message);
+    res.status(401).json({ error: "Unauthorized: Invalid Domru credentials" });
+  }
+};
+
 // Mock / Simulation Data for DEMO mode
 export const isDemo = (req: express.Request) => {
   return req.headers["x-domru-demo"] === "true" || req.query.demo === "true";

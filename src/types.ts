@@ -1,5 +1,6 @@
-import type { SharedCredentials } from "../shared/types.js";
+import type { SharedCredentials, Person, ScheduleRule } from "../shared/types.js";
 export type AppCredentials = SharedCredentials;
+export type { Person, ScheduleRule };
 
 export interface SmartPlace {
   id: number;
@@ -48,22 +49,7 @@ export interface GuestPin {
   expiresAt: string;
 }
 
-export interface ScheduleRule {
-  id: string;
-  days: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  startTime: string; // "18:00"
-  endTime: string;   // "19:00"
-}
-
-export interface Person {
-  id: string;
-  name: string;
-  role: "resident" | "guest" | "courier";
-  enabled: boolean;
-  schedules: ScheduleRule[];
-  maxOpens?: number | null;
-  opensRemaining?: number | null;
-}
+// Person and ScheduleRule imported from shared
 
 export interface LibraryFile {
   path: string;

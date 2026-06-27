@@ -11,9 +11,10 @@ import { initPermanentSipBindings } from "./server/sip-init.js";
 import { startGo2Rtc, handleWsProxy } from "./server/go2rtc-manager.js";
 import { WebSocketServer } from "ws";
 
+import { PORT } from "./server/config.js";
+
 async function startServer() {
   const app = express();
-  const PORT = 3000;
 
   app.set("trust proxy", true);
 

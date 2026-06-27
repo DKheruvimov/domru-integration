@@ -8,3 +8,6 @@ export const TOKENS_FILE = path.join(DATA_DIR, "tokens.json");
 
 // Global cache for refreshed tokens to prevent repeated login overhead in subresources / segments
 export const tokenCache = new Map<string, { token: string; expiresAt: number }>();
+
+export const PORT = Number(process.env.PORT) || 3000;
+export const HOST = process.env.HOST || "localhost";
