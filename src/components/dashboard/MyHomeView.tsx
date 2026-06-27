@@ -70,14 +70,21 @@ export default function MyHomeView({
   const [isNeighborOpen, setIsNeighborOpen] = useState(true);
 
   useEffect(() => {
-    fetch("/api/domru/sip/auto-open/status")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && typeof data === "object") {
-          setAutoOpenState(data);
-        }
-      })
-      .catch((err) => console.error("Failed to fetch auto-open status", err));
+    const fetchStatus = () => {
+      fetch("/api/domru/sip/auto-open/status")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && typeof data === "object") {
+            setAutoOpenState(data);
+          }
+        })
+        .catch((err) => console.error("Failed to fetch auto-open status", err));
+    };
+
+    fetchStatus();
+    const intervalId = setInterval(fetchStatus, 5000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const toggleAutoOpen = async (deviceId: number, durationMinutes?: number, maxOpens?: number | null) => {
