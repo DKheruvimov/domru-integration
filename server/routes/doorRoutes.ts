@@ -138,13 +138,13 @@ router.post("/sip/auto-open", requireDomruAuth, async (req, res) => {
     const client = getDomruInstance(req);
 
     if (enabled) {
-      const { randomBytes } = await import("crypto");
-      const installationId = randomBytes(16).toString("hex");
+      const { createHash } = await import("crypto");
+      const ctx = (client as any).ctx;
+      const installationId = createHash("md5").update(`autoopen-${placeId}-${deviceId}-${ctx?.login || ""}`).digest("hex");
       const credentials = await client.getSipCredentials(Number(placeId), Number(deviceId), installationId);
       
       const expiresAt = Date.now() + (durationMinutes ? durationMinutes * 60 * 1000 : 60 * 60 * 1000);
       
-      const ctx = (client as any).ctx;
       const domruCredentials = {
         login: ctx?.login,
         password: ctx?.password,

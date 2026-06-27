@@ -138,16 +138,32 @@ export function isScheduleActive(person: Person, now: Date = new Date()): boolea
 
   const { day, hours, minutes } = getMskTime(now);
   const currentMinutesSinceMidnight = hours * 60 + minutes;
+  const prevDay = (day - 1 + 7) % 7;
 
   for (const rule of person.schedules) {
-    if (rule.days.includes(day)) {
-      const [startH, startM] = rule.startTime.split(":").map(Number);
-      const [endH, endM] = rule.endTime.split(":").map(Number);
-      
-      const startMinutes = startH * 60 + startM;
-      const endMinutes = endH * 60 + endM;
+    const [startH, startM] = rule.startTime.split(":").map(Number);
+    const [endH, endM] = rule.endTime.split(":").map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
 
-      if (currentMinutesSinceMidnight >= startMinutes && currentMinutesSinceMidnight <= endMinutes) {
+    const wrapsMidnight = startMinutes > endMinutes;
+
+    if (rule.days.includes(day)) {
+      if (!wrapsMidnight) {
+        if (currentMinutesSinceMidnight >= startMinutes && currentMinutesSinceMidnight <= endMinutes) {
+          return true;
+        }
+      } else {
+        // e.g. 23:00 to 01:00, it is currently 23:30 on the start day
+        if (currentMinutesSinceMidnight >= startMinutes) {
+          return true;
+        }
+      }
+    }
+    
+    if (wrapsMidnight && rule.days.includes(prevDay)) {
+      // e.g. 23:00 to 01:00, it is currently 00:30 on the next day
+      if (currentMinutesSinceMidnight <= endMinutes) {
         return true;
       }
     }
