@@ -91,12 +91,7 @@ router.get("/sip/auto-open/status", requireDomruAuth, (req, res) => {
   // Check if we have active guests or couriers currently scheduled
   try {
     const people = getPeople();
-    const activeGuest = people.find(p => {
-      if (p.role === "resident") return false;
-      if (!p.enabled) return false;
-      if (p.opensRemaining !== undefined && p.opensRemaining !== null && p.opensRemaining <= 0) return false;
-      return true; // We don't check time schedules here, just if the rule is armed
-    });
+    const activeGuest = people.find(p => p.role !== "resident" && isScheduleActive(p));
     if (activeGuest) {
       // Find all device IDs that we have permanent bindings for, and set status to true
       const bindings = getPermanentBindings();
