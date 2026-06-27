@@ -39,9 +39,22 @@ export default function MyHomeView({
   isMobile = false,
 }: MyHomeViewProps) {
   const [localSnapshotTime, setLocalSnapshotTime] = useState(Date.now());
+  const [staggeredLoadIndices, setStaggeredLoadIndices] = useState<number[]>([]);
 
   useEffect(() => {
     setLocalSnapshotTime(Date.now());
+    setStaggeredLoadIndices([]);
+    
+    let timer: ReturnType<typeof setTimeout>;
+    const loadNext = (currentIndex: number) => {
+      if (currentIndex < devices.length) {
+        setStaggeredLoadIndices((prev) => [...prev, currentIndex]);
+        timer = setTimeout(() => loadNext(currentIndex + 1), 600); // 600ms stagger to bypass Cloud.ru WAF
+      }
+    };
+    loadNext(0);
+
+    return () => clearTimeout(timer);
   }, [devices]);
 
   const [autoOpenState, setAutoOpenState] = useState<Record<number, number | boolean>>({});
@@ -151,14 +164,18 @@ export default function MyHomeView({
                   <div className="absolute inset-0 bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center pointer-events-none overflow-hidden rounded-[1.8rem]">
                     {device.allowVideo ? (
                       <>
-                        <img
-                          src={buildSnapshotUrl(device.id)}
-                          className="absolute inset-0 w-full h-full object-cover opacity-75 dark:opacity-70 group-hover:opacity-90 transition-all duration-500"
-                          alt="Камера доступа"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
+                        {staggeredLoadIndices.includes(idx) ? (
+                          <img
+                            src={buildSnapshotUrl(device.id)}
+                            className="absolute inset-0 w-full h-full object-cover opacity-75 dark:opacity-70 group-hover:opacity-90 transition-all duration-500"
+                            alt="Камера доступа"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="absolute inset-0 w-full h-full bg-zinc-200/20 dark:bg-zinc-800/20 animate-pulse" />
+                        )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-black/35" />
                       </>
                     ) : (
@@ -285,14 +302,18 @@ export default function MyHomeView({
                     <div className="absolute inset-0 bg-zinc-200/50 dark:bg-zinc-900 flex items-center justify-center pointer-events-none overflow-hidden rounded-3xl">
                       {device.allowVideo ? (
                         <>
-                          <img
-                            src={buildSnapshotUrl(device.id)}
-                            className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
-                            alt="Снимок с камеры"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                            }}
-                          />
+                          {staggeredLoadIndices.includes(idx) ? (
+                            <img
+                              src={buildSnapshotUrl(device.id)}
+                              className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
+                              alt="Снимок с камеры"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <div className="absolute inset-0 w-full h-full bg-zinc-200/20 dark:bg-zinc-800/20 animate-pulse" />
+                          )}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none transition-opacity opacity-70 group-hover:opacity-40" />
                         </>
                       ) : (
