@@ -227,19 +227,21 @@ export default function MyHomeView({
                           e.stopPropagation();
                           if (autoOpenState[device.id]) {
                             toggleAutoOpen(device.id);
+                          } else if ((autoOpenState as any)["global"]) {
+                            alert("Авто-открытие активировано расписанием из вкладки 'Люди'. Измените или удалите правило там, чтобы отключить.");
                           } else {
                             setConfigModalDeviceId(device.id);
                           }
                         }}
                         disabled={isTogglingAutoOpen[device.id]}
                         className={`p-1.5 rounded-full border transition flex items-center justify-center shadow-md cursor-pointer backdrop-blur-sm ${
-                          autoOpenState[device.id]
+                          autoOpenState[device.id] || (autoOpenState as any)["global"]
                             ? "bg-emerald-500/90 text-white border-emerald-400"
                             : "bg-white dark:bg-black/60 text-zinc-800 dark:text-zinc-200 border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-black/80"
                         }`}
-                        title={autoOpenState[device.id] ? "Авто-открытие включено" : "Авто-открытие"}
+                        title={autoOpenState[device.id] || (autoOpenState as any)["global"] ? "Авто-открытие включено" : "Авто-открытие"}
                       >
-                        {autoOpenState[device.id] ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
+                        {autoOpenState[device.id] || (autoOpenState as any)["global"] ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   )}
@@ -341,6 +343,8 @@ export default function MyHomeView({
                               e.stopPropagation();
                               if (autoOpenState[device.id]) {
                                 toggleAutoOpen(device.id); // turn off
+                              } else if ((autoOpenState as any)["global"]) {
+                                alert("Авто-открытие активировано расписанием из вкладки 'Люди'. Измените или удалите правило там, чтобы отключить.");
                               } else {
                                 setConfigModalDeviceId(device.id); // open modal
                               }
@@ -348,14 +352,14 @@ export default function MyHomeView({
                             disabled={isTogglingAutoOpen[device.id]}
                             title="Авто-открытие при звонке курьера"
                             className={`px-3 py-1.5 text-[10px] font-bold rounded-full border transition flex items-center gap-1 shadow-sm cursor-pointer backdrop-blur-md ${
-                              autoOpenState[device.id]
+                              autoOpenState[device.id] || (autoOpenState as any)["global"]
                                 ? "bg-emerald-500/90 text-white border-emerald-400"
                                 : "bg-white/80 dark:bg-black/60 text-zinc-700 dark:text-zinc-200 border-white/20 hover:bg-white dark:hover:bg-black/80"
                             }`}
                           >
-                            {autoOpenState[device.id] ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
+                            {autoOpenState[device.id] || (autoOpenState as any)["global"] ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
                             <span className="hidden sm:inline">
-                              {autoOpenState[device.id]
+                              {autoOpenState[device.id] || (autoOpenState as any)["global"]
                                 ? typeof autoOpenState[device.id] === "number"
                                   ? `Жду гостей/курьера (до ${new Date(autoOpenState[device.id] as number).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`
                                   : "Авто-открытие активно"

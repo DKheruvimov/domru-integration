@@ -57,6 +57,7 @@ export default function CctvPlayer({
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const [autoOpenState, setAutoOpenState] = useState<number | boolean>(false);
+  const [isGlobalAutoOpen, setIsGlobalAutoOpen] = useState<boolean>(false);
   const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<boolean>(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState<boolean>(false);
 
@@ -71,6 +72,7 @@ export default function CctvPlayer({
         .then(data => {
           if (data && matchingDevice) {
             setAutoOpenState(data[matchingDevice.id] || false);
+            setIsGlobalAutoOpen(!!data["global"]);
           }
         })
         .catch(err => console.error("Failed to fetch auto-open status", err));
@@ -404,19 +406,20 @@ export default function CctvPlayer({
              <button
                onClick={() => {
                  if (autoOpenState) toggleAutoOpen(); // turn off
+                 else if (isGlobalAutoOpen) alert("Авто-открытие активировано расписанием из вкладки 'Люди'. Измените или удалите правило там, чтобы отключить.");
                  else setIsConfigModalOpen(true); // show modal
                }}
                disabled={isTogglingAutoOpen}
                title="Авто-открытие при звонке курьера"
                className={`px-3 py-1.5 text-[10px] font-bold rounded-full border transition flex items-center gap-1 shadow-sm cursor-pointer backdrop-blur-md ${
-                 autoOpenState
+                 autoOpenState || isGlobalAutoOpen
                    ? "bg-emerald-500/90 text-white border-emerald-400"
                    : "bg-black/60 text-zinc-200 border-white/20 hover:bg-black/80"
                }`}
              >
-               {autoOpenState ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
+               {autoOpenState || isGlobalAutoOpen ? <PhoneForwarded className="w-3.5 h-3.5" /> : <PhoneOff className="w-3.5 h-3.5" />}
                <span className="hidden sm:inline">
-                 {autoOpenState 
+                 {autoOpenState || isGlobalAutoOpen 
                    ? (typeof autoOpenState === "number" 
                        ? `Жду гостей/курьера (до ${formatTimeInTimezone(autoOpenState as number, { hour: "2-digit", minute: "2-digit" })})` 
                        : "Авто-открытие активно") 

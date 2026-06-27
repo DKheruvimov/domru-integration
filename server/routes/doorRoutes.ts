@@ -109,6 +109,9 @@ router.get("/sip/auto-open/status", requireDomruAuth, (req, res) => {
           status[dev.id] = true;
         }
       }
+      
+      // Add a global flag so the UI can highlight the auto-open button for all devices
+      (status as any)["global"] = true;
     }
   } catch (err) {
     console.error("Error updating auto-open status from schedules:", err);
