@@ -476,7 +476,7 @@ export default function CabinetView({
                           Использовать WebRTC (UDP)
                         </span>
                         <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
-                          Трансляция без задержек. Использование UDP может привести к блокировке IP-адреса на стороне хостинга Cloud.ru.
+                          Трансляция без задержек. Использование UDP может привести к блокировке IP-адреса строгими брандмауэрами или Anti-DDoS защитой на стороне хостинга.
                         </span>
                       </div>
                       
