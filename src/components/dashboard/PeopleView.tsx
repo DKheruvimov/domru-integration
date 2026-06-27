@@ -40,6 +40,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleV
   const [people, setPeople] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showHelpText, setShowHelpText] = useState(false);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -387,7 +388,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleV
         <div>
           <h2 className="text-lg font-black text-zinc-900 dark:text-white font-display flex items-center gap-2">
             <span className="w-1.5 h-4 bg-[#E30613] rounded-full inline-block" />
-            Доступы и Любимые Любители Автооткрытия
+            Управление доступом
           </h2>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
             Настройте умные правила открытия для членов семьи, регулярных гостей или курьеров
@@ -425,13 +426,22 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleV
             <span className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
               Правила авто-открытия ({people.length})
             </span>
-            <button
-              onClick={() => openModal()}
-              className="flex items-center gap-1 px-4 py-2 bg-[#E30613] hover:bg-[#c20510] text-white text-xs font-black rounded-full transition shadow-md shadow-[#E30613]/10 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Добавить человека</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowHelpText(!showHelpText)}
+                className={`p-1.5 rounded-full transition cursor-pointer flex items-center justify-center ${showHelpText ? "bg-[#E30613]/10 text-[#E30613]" : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
+                title="Как это работает?"
+              >
+                <HelpCircle className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => openModal()}
+                className="flex items-center gap-1 px-4 py-2 bg-[#E30613] hover:bg-[#c20510] text-white text-xs font-black rounded-full transition shadow-md shadow-[#E30613]/10 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Добавить человека</span>
+              </button>
+            </div>
           </div>
 
           {isLoading ? (
@@ -486,15 +496,17 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleV
           )}
 
           {/* Quick instructions panel */}
-          <div className="bg-[#E30613]/5 border border-[#E30613]/10 p-4 rounded-2xl flex items-start gap-2.5 mt-2">
-            <HelpCircle className="w-5 h-5 text-[#E30613] shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <h4 className="text-xs font-bold text-zinc-900 dark:text-white">Как это работает?</h4>
-              <p className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-                Благодаря интеграции SIP-домофонии, система постоянно слушает входящие звонки. Когда в вашу квартиру звонят в то время, когда у кого-то из жильцов активен интервал расписания, домофон автоматически открывает дверь, имитируя поднятие трубки и нажатие кнопки открытия. Гостевые и курьерские расписания дополнительно ведут счётчик оставшихся открытий и перестают срабатывать, как только лимит исчерпан.
-              </p>
+          {showHelpText && (
+            <div className="bg-[#E30613]/5 border border-[#E30613]/10 p-4 rounded-2xl flex items-start gap-2.5 mt-2 animate-fade-in">
+              <HelpCircle className="w-5 h-5 text-[#E30613] shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <h4 className="text-xs font-bold text-zinc-900 dark:text-white">Как это работает?</h4>
+                <p className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+                  Благодаря интеграции SIP-домофонии, система постоянно слушает входящие звонки. Когда в вашу квартиру звонят в то время, когда у кого-то из жильцов активен интервал расписания, домофон автоматически открывает дверь, имитируя поднятие трубки и нажатие кнопки открытия. Гостевые и курьерские расписания дополнительно ведут счётчик оставшихся открытий и перестают срабатывать, как только лимит исчерпан.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ) : (
         /* Pin code section identical to original visual */
