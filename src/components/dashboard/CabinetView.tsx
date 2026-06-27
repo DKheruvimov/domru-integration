@@ -446,10 +446,10 @@ export default function CabinetView({
                     <div className="flex items-center justify-between gap-4">
                       <div className="space-y-1">
                         <span className="text-xs font-extrabold text-zinc-800 dark:text-white block">
-                          Диагностика в плеере
+                          Режим разработчика
                         </span>
                         <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
-                          Показывать технические логи и средства переключения видео-движка непосредственно под видео-трансляцией.
+                          Включает технические логи, средства диагностики и дополнительные настройки под видео-трансляцией.
                         </span>
                       </div>
                       
@@ -469,32 +469,34 @@ export default function CabinetView({
                     </div>
                   </div>
 
-                  <div className="p-4 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl space-y-4 shadow-xs">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <span className="text-xs font-extrabold text-zinc-800 dark:text-white block">
-                          Использовать WebRTC (UDP)
-                        </span>
-                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
-                          Трансляция без задержек. Использование UDP может привести к блокировке IP-адреса строгими брандмауэрами или Anti-DDoS защитой на стороне хостинга.
-                        </span>
-                      </div>
-                      
-                      {/* WebRTC Toggle Switch */}
-                      <button
-                        onClick={() => setUseWebRTC(!useWebRTC)}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                          useWebRTC ? "bg-[#e30613]" : "bg-zinc-200 dark:bg-zinc-700"
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                            useWebRTC ? "translate-x-5" : "translate-x-0"
+                  {isDevModeEnabled && (
+                    <div className="p-4 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl space-y-4 shadow-xs animate-fade-in">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <span className="text-xs font-extrabold text-zinc-800 dark:text-white block">
+                            Использовать WebRTC (UDP)
+                          </span>
+                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
+                            Трансляция без задержек. Использование UDP может привести к блокировке IP-адреса строгими брандмауэрами или Anti-DDoS защитой на стороне хостинга.
+                          </span>
+                        </div>
+                        
+                        {/* WebRTC Toggle Switch */}
+                        <button
+                          onClick={() => setUseWebRTC(!useWebRTC)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            useWebRTC ? "bg-[#e30613]" : "bg-zinc-200 dark:bg-zinc-700"
                           }`}
-                        />
-                      </button>
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                              useWebRTC ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Diagnostics system table */}
                   <div className="bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl overflow-hidden divide-y divide-zinc-150 dark:divide-zinc-800/50 shadow-xs">
@@ -508,7 +510,7 @@ export default function CabinetView({
                     </div>
                     <div className="p-3 px-4 flex items-center justify-between text-xs font-semibold">
                       <span className="text-zinc-500 dark:text-zinc-400">Формат потока</span>
-                      <span className="font-mono text-zinc-800 dark:text-zinc-200 font-black">WebRTC / HLS</span>
+                      <span className="font-mono text-zinc-800 dark:text-zinc-200 font-black">{useWebRTC ? "WebRTC" : "HLS"}</span>
                     </div>
                     <div className="p-3 px-4 flex items-center justify-between text-xs font-semibold">
                       <span className="text-zinc-500 dark:text-zinc-400">Ping до камер</span>
