@@ -68,7 +68,7 @@ export default function CctvPlayer({
 
   useEffect(() => {
     const fetchStatus = () => {
-      fetch("/api/domru/sip/auto-open/status", { cache: "no-store" })
+      fetch(`/api/domru/sip/auto-open/status?_t=${Date.now()}`, { cache: "no-store" })
         .then((res) => res.json())
         .then((data) => {
           if (data && matchingDevice) {
