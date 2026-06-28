@@ -68,9 +68,9 @@ export default function CctvPlayer({
 
   useEffect(() => {
     const fetchStatus = () => {
-      fetch("/api/domru/sip/auto-open/status")
-        .then(res => res.json())
-        .then(data => {
+      fetch("/api/domru/sip/auto-open/status", { cache: "no-store" })
+        .then((res) => res.json())
+        .then((data) => {
           if (data && matchingDevice) {
             setAutoOpenState(data[matchingDevice.id] || false);
             setIsGlobalAutoOpen(!!data["global"]);

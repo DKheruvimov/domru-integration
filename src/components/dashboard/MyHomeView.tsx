@@ -72,7 +72,7 @@ export default function MyHomeView({
 
   useEffect(() => {
     const fetchStatus = () => {
-      fetch("/api/domru/sip/auto-open/status")
+      fetch("/api/domru/sip/auto-open/status", { cache: "no-store" })
         .then((res) => res.json())
         .then((data) => {
           if (data && typeof data === "object") {
