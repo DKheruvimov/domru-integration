@@ -10,6 +10,7 @@ import { loadAndResumeActiveTasks } from "./server/sip-manager.js";
 import { initPermanentSipBindings } from "./server/sip-init.js";
 import { startGo2Rtc, handleWsProxy } from "./server/go2rtc-manager.js";
 import { WebSocketServer } from "ws";
+import { initWebSocketServer } from "./server/ws-manager.js";
 
 import { PORT } from "./server/config.js";
 
@@ -55,6 +56,9 @@ async function startServer() {
       console.error("Failed to start go2rtc on boot:", err);
     });
   });
+
+  // Initialize socket.io for real-time app events
+  initWebSocketServer(server);
 
   const wss = new WebSocketServer({ noServer: true });
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Terminal, RefreshCw } from "lucide-react";
+import { getSocket } from "../../socket";
 
 interface SipLog {
   timestamp: number;
@@ -30,8 +31,18 @@ export default function SipLogsViewer() {
 
   useEffect(() => {
     if (!isOpen) return;
-    const interval = setInterval(() => fetchLogs(true), 3000);
-    return () => clearInterval(interval);
+
+    const socket = getSocket();
+    
+    const handleNewLog = (newLog: SipLog) => {
+      setLogs((prev) => [newLog, ...prev].slice(0, 200));
+    };
+
+    socket.on("sip_log_added", handleNewLog);
+
+    return () => {
+      socket.off("sip_log_added", handleNewLog);
+    };
   }, [isOpen]);
 
   return (

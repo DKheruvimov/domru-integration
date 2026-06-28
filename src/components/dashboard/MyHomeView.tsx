@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import AutoOpenConfigModal from "./AutoOpenConfigModal";
+import { getSocket } from "../../socket";
 
 interface MyHomeViewProps {
   devices: SmartDevice[];
@@ -82,9 +83,13 @@ export default function MyHomeView({
     };
 
     fetchStatus();
-    const intervalId = setInterval(fetchStatus, 30000);
 
-    return () => clearInterval(intervalId);
+    const socket = getSocket();
+    socket.on("auto_open_status_changed", fetchStatus);
+
+    return () => {
+      socket.off("auto_open_status_changed", fetchStatus);
+    };
   }, []);
 
   const toggleAutoOpen = async (deviceId: number, durationMinutes?: number, maxOpens?: number | null) => {

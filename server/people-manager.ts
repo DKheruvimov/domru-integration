@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./config.js";
+import { broadcastAutoOpenStatusChanged } from "./ws-manager.js";
 
 import type { Person, ScheduleRule } from "../shared/types.js";
 export type { Person, ScheduleRule };
@@ -111,6 +112,7 @@ export function savePeople(people: Person[]) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(PEOPLE_FILE, JSON.stringify(people, null, 2), "utf-8");
+    broadcastAutoOpenStatusChanged();
   } catch (err) {
     console.error("Failed to save people schedules", err);
   }

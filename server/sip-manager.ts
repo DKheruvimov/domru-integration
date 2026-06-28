@@ -9,6 +9,7 @@ import os from "os";
 import { DATA_DIR } from "./config.js";
 import { DomruClient } from "../src/domru-js/index.js";
 import { loadSavedTokens } from "./tokenStore.js";
+import { broadcastAutoOpenStatusChanged, broadcastSipLogAdded, broadcastIncomingCall } from "./ws-manager.js";
 
 export async function triggerDoorOpenForLogin(login: string, placeId: number, deviceId: number, details?: string): Promise<void> {
   const tokens = loadSavedTokens();
@@ -155,6 +156,7 @@ export function saveActiveTasks() {
       });
     }
     fs.writeFileSync(SIP_TASKS_FILE, JSON.stringify(tasksArray, null, 2), "utf-8");
+    broadcastAutoOpenStatusChanged();
   } catch (err: any) {
     addSipLog(`[SIP] Failed to save active tasks: ${err.message || err}`, "error");
   }
@@ -315,6 +317,7 @@ export function addSipLog(message: string, type: "info" | "error" = "info") {
   } else {
     console.log(message);
   }
+  broadcastSipLogAdded(log);
 }
 
 function startCleanupTask() {
@@ -458,6 +461,7 @@ export function startSipServer() {
         }
 
         addSipLog(`[SIP] Received INVITE for ${login}`);
+        broadcastIncomingCall(login, "Incoming SIP INVITE");
 
         // Retrieve placeId and deviceId to take snapshot
         const binding = permanentBindings.get(login);

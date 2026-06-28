@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AppCredentials, SmartDevice, SmartCamera } from "../../types";
+import { SmartDevice, SmartCamera, AppCredentials } from "../../types";
 import { Video, VideoOff, RefreshCw, Terminal, Lock, Unlock, PhoneForwarded, PhoneOff } from "lucide-react";
 import AutoOpenConfigModal from "./AutoOpenConfigModal";
 import SipLogsViewer from "./SipLogsViewer";
 import { formatTimeInTimezone } from "../../lib/timezone";
+import { getSocket } from "../../socket";
 
 interface CctvPlayerProps {
   activeCamera: string;
@@ -79,9 +80,13 @@ export default function CctvPlayer({
     };
 
     fetchStatus();
-    const intervalId = setInterval(fetchStatus, 30000);
 
-    return () => clearInterval(intervalId);
+    const socket = getSocket();
+    socket.on("auto_open_status_changed", fetchStatus);
+
+    return () => {
+      socket.off("auto_open_status_changed", fetchStatus);
+    };
   }, [matchingDevice?.id]);
 
   const buildSnapshotUrl = (
