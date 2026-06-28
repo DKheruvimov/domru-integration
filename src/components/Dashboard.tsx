@@ -77,7 +77,7 @@ export default function Dashboard({
     if (!activeCamera || playerMode !== "snapshot") return;
     const interval = setInterval(() => {
       setSnapshotTime(Date.now());
-    }, 1500);
+    }, 30000);
     return () => clearInterval(interval);
   }, [activeCamera, playerMode]);
 
