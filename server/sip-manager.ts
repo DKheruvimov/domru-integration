@@ -9,6 +9,7 @@ import os from "os";
 import { DATA_DIR } from "./config.js";
 import { DomruClient } from "../src/domru-js/index.js";
 import { loadSavedTokens } from "./tokenStore.js";
+import { getSettings } from "./settings-manager.js";
 import { broadcastAutoOpenStatusChanged, broadcastSipLogAdded, broadcastIncomingCall } from "./ws-manager.js";
 
 export async function triggerDoorOpenForLogin(login: string, placeId: number, deviceId: number, details?: string): Promise<void> {
@@ -543,7 +544,7 @@ export function startSipServer() {
                 }
               }, 2000);
             }, 1000);
-          }, 3000);
+          }, getSettings().autoOpenDelayMs);
         };
 
         if (scheduleResult.active && binding) {

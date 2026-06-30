@@ -6,6 +6,7 @@ import codeRoutes from "./server/routes/codeRoutes.js";
 import domruRoutes from "./server/routes/domruRoutes.js";
 import yandexRoutes from "./server/routes/yandexRoutes.js";
 import yandexDialogs from "./server/routes/yandexDialogs.js";
+import settingsRoutes from "./server/routes/settingsRoutes.js";
 import { loadAndResumeActiveTasks } from "./server/sip-manager.js";
 import { initPermanentSipBindings } from "./server/sip-init.js";
 import { startGo2Rtc, handleWsProxy } from "./server/go2rtc-manager.js";
@@ -30,6 +31,7 @@ async function startServer() {
   // Mount modular route controllers
   app.use("/api/code", codeRoutes);
   app.use("/api/domru", domruRoutes);
+  app.use("/api/settings", settingsRoutes);
   app.use("/api/yandex/dialogs", yandexDialogs);
   app.use("/", yandexRoutes);
 

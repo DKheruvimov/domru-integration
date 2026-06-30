@@ -75,6 +75,27 @@ export default function CabinetView({
 }: CabinetViewProps) {
   const [activeSubScreen, setActiveSubScreenInternal] = useState<null | "keys" | "theme" | "dev" | "timezone">(null);
   const [devTab, setDevTab] = useState<"diagnostics" | "integrations" | "inspector">("diagnostics");
+  const [autoOpenDelayMs, setAutoOpenDelayMs] = useState<number>(3000);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data.autoOpenDelayMs === "number") {
+          setAutoOpenDelayMs(data.autoOpenDelayMs);
+        }
+      })
+      .catch(err => console.error("Failed to load settings", err));
+  }, []);
+
+  const saveSettings = (newDelay: number) => {
+    setAutoOpenDelayMs(newDelay);
+    fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ autoOpenDelayMs: newDelay }),
+    }).catch(err => console.error("Failed to save settings", err));
+  };
 
   const setActiveSubScreen = (screen: null | "keys" | "theme" | "dev" | "timezone") => {
     setActiveSubScreenInternal(screen);
@@ -494,6 +515,34 @@ export default function CabinetView({
                             }`}
                           />
                         </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {isDevModeEnabled && (
+                    <div className="p-4 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl space-y-4 shadow-xs animate-fade-in">
+                      <div className="space-y-1 mb-4">
+                        <span className="text-xs font-extrabold text-zinc-800 dark:text-white block">
+                          Задержка перед автооткрытием (SIP)
+                        </span>
+                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
+                          Время ожидания звонка перед автоматическим ответом и открытием двери (в секундах).
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="range"
+                          min="0"
+                          max="15"
+                          step="1"
+                          value={autoOpenDelayMs / 1000}
+                          onChange={(e) => saveSettings(Number(e.target.value) * 1000)}
+                          className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#e30613]"
+                        />
+                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 w-8 text-right shrink-0">
+                          {autoOpenDelayMs / 1000} с
+                        </span>
                       </div>
                     </div>
                   )}
