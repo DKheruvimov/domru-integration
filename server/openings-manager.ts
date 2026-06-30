@@ -74,16 +74,14 @@ export function getOpeningByOurService(placeId: number, eventTimeMs: number): Do
   let smallestDiff = Infinity;
 
   for (const entry of entries) {
-    const diff = Math.abs(entry.timestamp - eventTimeMs);
+    const matchesPlace = !entry.placeId || isNaN(placeId) || !placeId || entry.placeId === placeId;
     
-    // Account for potential timezone parsing mismatches (exact hour differences)
-    const hourMs = 60 * 60 * 1000;
-    const normalizedDiff = diff % hourMs;
-    const effectiveDiff = Math.min(normalizedDiff, hourMs - normalizedDiff);
-
-    if (effectiveDiff <= maxDiffMs && effectiveDiff < smallestDiff) {
-      smallestDiff = effectiveDiff;
-      bestMatch = entry;
+    if (matchesPlace) {
+      const diff = Math.abs(entry.timestamp - eventTimeMs);
+      if (diff <= maxDiffMs && diff < smallestDiff) {
+        smallestDiff = diff;
+        bestMatch = entry;
+      }
     }
   }
 

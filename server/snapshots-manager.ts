@@ -156,13 +156,8 @@ export function findSnapshotForEvent(placeId: number, eventTimeMs: number): SipS
   for (const entry of entries) {
     const diff = Math.abs(entry.timestamp - eventTimeMs);
     
-    // Account for potential timezone parsing mismatches (exact hour differences)
-    const hourMs = 60 * 60 * 1000;
-    const normalizedDiff = diff % hourMs;
-    const effectiveDiff = Math.min(normalizedDiff, hourMs - normalizedDiff);
-
-    if (effectiveDiff <= maxDiffMs && effectiveDiff < smallestDiff) {
-      smallestDiff = effectiveDiff;
+    if (diff <= maxDiffMs && diff < smallestDiff) {
+      smallestDiff = diff;
       bestMatch = entry;
     }
   }
