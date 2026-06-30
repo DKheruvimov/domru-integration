@@ -477,7 +477,7 @@ export default function SettingsView({
                   onChange={(e) => saveSettings(Number(e.target.value) * 1000, autoOpenDelayGuestMs)}
                   className="flex-1 h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#e30613]"
                 />
-                <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 w-10 text-right shrink-0 bg-zinc-100 dark:bg-zinc-800 py-1.5 rounded-lg">
+                <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 w-12 text-center shrink-0 bg-zinc-100 dark:bg-zinc-800 py-1.5 rounded-lg">
                   {autoOpenDelayResidentMs / 1000} с
                 </span>
               </div>
@@ -500,7 +500,7 @@ export default function SettingsView({
                   onChange={(e) => saveSettings(autoOpenDelayResidentMs, Number(e.target.value) * 1000)}
                   className="flex-1 h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#e30613]"
                 />
-                <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 w-10 text-right shrink-0 bg-zinc-100 dark:bg-zinc-800 py-1.5 rounded-lg">
+                <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 w-12 text-center shrink-0 bg-zinc-100 dark:bg-zinc-800 py-1.5 rounded-lg">
                   {autoOpenDelayGuestMs / 1000} с
                 </span>
               </div>

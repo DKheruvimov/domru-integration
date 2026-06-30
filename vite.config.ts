@@ -13,10 +13,9 @@ const getGitHash = () => {
   if (envHash) return envHash.substring(0, 7);
 
   try {
-    return execSync('git rev-parse --short HEAD').toString().trim();
+    return execSync('git rev-parse --short HEAD', { stdio: 'ignore' }).toString().trim();
   } catch (e) {
-    console.error("Failed to get git hash:", e);
-    return 'unknown';
+    return 'stable';
   }
 };
 
