@@ -6,8 +6,6 @@ import DesktopDashboard from "./dashboard/DesktopDashboard";
 interface DashboardProps {
   credentials: AppCredentials;
   onLogout: () => void;
-  isCabinetOpen: boolean;
-  setIsCabinetOpen: (open: boolean) => void;
   isDevModeEnabled: boolean;
   setIsDevModeEnabled: (enabled: boolean) => void;
   useWebRTC: boolean;
@@ -21,8 +19,6 @@ interface DashboardProps {
 export default function Dashboard({ 
   credentials, 
   onLogout, 
-  isCabinetOpen, 
-  setIsCabinetOpen, 
   isDevModeEnabled,
   setIsDevModeEnabled,
   useWebRTC,
@@ -32,7 +28,7 @@ export default function Dashboard({
   timezone,
   setTimezone
 }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<"myhome" | "events" | "people" | "cabinet">("myhome");
+  const [activeTab, setActiveTab] = useState<"myhome" | "events" | "people" | "settings">("myhome");
   const [places, setPlaces] = useState<SmartPlace[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<SmartPlace | null>(null);
   const [devices, setDevices] = useState<SmartDevice[]>([]);
@@ -539,8 +535,6 @@ export default function Dashboard({
     groupedEvents,
     onLogout,
     loadData,
-    isCabinetOpen,
-    setIsCabinetOpen,
     isDevModeEnabled,
     setIsDevModeEnabled,
     useWebRTC,
