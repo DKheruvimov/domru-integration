@@ -611,10 +611,19 @@ export default function SettingsView({
                 </div>
               </div>
 
-              <div className="bg-amber-500/10 border border-amber-500/20 p-5 rounded-2xl flex items-start gap-3">
+              <div className="space-y-4">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">
+                  <strong className="text-zinc-900 dark:text-white font-extrabold">Действительно умный клиент домофона Дом.ru</strong> — это приложение, созданное для объединения разрозненных экосистем. Оно предлагает быстрый, современный интерфейс и открывает доступ к глубокой интеграции с другими сервисами.
+                </p>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">
+                  С его помощью можно автоматизировать работу домофона, настроить гибкие правила автооткрытия, а главное — легко интегрировать устройства в систему <strong>Умного дома Яндекса</strong> (Алису) и другие платформы домашней автоматизации.
+                </p>
+              </div>
+
+              <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3">
                 <Info className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-600 dark:text-amber-500/90 font-semibold leading-relaxed">
-                  Данное приложение является неофициальным клиентом. Разработано энтузиастами для обеспечения более удобного интерфейса и дополнительных возможностей.
+                <p className="text-xs text-amber-600 dark:text-amber-500/90 font-semibold leading-relaxed">
+                  Данное приложение является неофициальным клиентом, разработанным энтузиастами. Оно никак не связано с провайдером Дом.ru («ЭР-Телеком»).
                 </p>
               </div>
 
