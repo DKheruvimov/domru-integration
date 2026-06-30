@@ -147,21 +147,23 @@ export async function cleanupOldSnapshots(): Promise<void> {
 
 export function findSnapshotForEvent(placeId: number, eventTimeMs: number): SipSnapshotEntry | null {
   const entries = loadSnapshotsIndex();
-  const maxDiffMs = 5 * 60 * 1000; // 5 minutes tolerance
+  // Increase tolerance to 15 minutes just in case Dom.ru events are heavily delayed
+  const maxDiffMs = 15 * 60 * 1000; 
 
   let bestMatch: SipSnapshotEntry | null = null;
   let smallestDiff = Infinity;
 
   for (const entry of entries) {
-    // If the event didn't provide a valid placeId (e.g. missing in Dom.ru API), or it matches exactly
-    const matchesPlace = !entry.placeId || isNaN(placeId) || !placeId || entry.placeId === placeId;
+    const diff = Math.abs(entry.timestamp - eventTimeMs);
     
-    if (matchesPlace) {
-      const diff = Math.abs(entry.timestamp - eventTimeMs);
-      if (diff <= maxDiffMs && diff < smallestDiff) {
-        smallestDiff = diff;
-        bestMatch = entry;
-      }
+    // Account for potential timezone parsing mismatches (exact hour differences)
+    const hourMs = 60 * 60 * 1000;
+    const normalizedDiff = diff % hourMs;
+    const effectiveDiff = Math.min(normalizedDiff, hourMs - normalizedDiff);
+
+    if (effectiveDiff <= maxDiffMs && effectiveDiff < smallestDiff) {
+      smallestDiff = effectiveDiff;
+      bestMatch = entry;
     }
   }
 

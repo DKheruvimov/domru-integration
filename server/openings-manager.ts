@@ -68,20 +68,22 @@ export function recordDoorOpening(placeId: number, deviceId: number, type: "manu
 
 export function getOpeningByOurService(placeId: number, eventTimeMs: number): DoorOpeningRecord | null {
   const entries = loadOpenings();
-  const maxDiffMs = 5 * 60 * 1000; // 5 minutes tolerance
+  const maxDiffMs = 15 * 60 * 1000; // 15 minutes tolerance
 
   let bestMatch: DoorOpeningRecord | null = null;
   let smallestDiff = Infinity;
 
   for (const entry of entries) {
-    const matchesPlace = !entry.placeId || isNaN(placeId) || !placeId || entry.placeId === placeId;
+    const diff = Math.abs(entry.timestamp - eventTimeMs);
     
-    if (matchesPlace) {
-      const diff = Math.abs(entry.timestamp - eventTimeMs);
-      if (diff <= maxDiffMs && diff < smallestDiff) {
-        smallestDiff = diff;
-        bestMatch = entry;
-      }
+    // Account for potential timezone parsing mismatches (exact hour differences)
+    const hourMs = 60 * 60 * 1000;
+    const normalizedDiff = diff % hourMs;
+    const effectiveDiff = Math.min(normalizedDiff, hourMs - normalizedDiff);
+
+    if (effectiveDiff <= maxDiffMs && effectiveDiff < smallestDiff) {
+      smallestDiff = effectiveDiff;
+      bestMatch = entry;
     }
   }
 
