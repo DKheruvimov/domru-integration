@@ -238,9 +238,9 @@ export default function SettingsView({
       )}
 
       {/* Content Area */}
-      <div className={`flex-1 ${isMobile ? "" : "h-[calc(100vh-140px)] overflow-y-auto pr-2"} max-w-4xl pb-10`}>
+      <div className={`flex-1 ${isMobile ? "" : "h-[calc(100vh-140px)] overflow-y-auto pr-2"} pb-10`}>
         {settingsTab === "account" && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-6 animate-fade-in max-w-2xl">
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2rem] shadow-lg space-y-6">
               <div>
                 <span className="text-xs font-black text-zinc-500 uppercase tracking-widest block leading-none">
@@ -274,18 +274,18 @@ export default function SettingsView({
                 </div>
               </div>
 
-              <button className="w-full mt-4 py-4 bg-[#E30613] hover:bg-[#c20510] active:scale-98 transition text-white rounded-2xl text-sm font-bold shadow-md shadow-[#E30613]/15 flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer">
-                <CreditCard className="w-5 h-5" />
-                Пополнить баланс
+              <button className="w-full sm:w-auto mt-6 py-3.5 px-8 bg-[#E30613] hover:bg-[#c20510] active:scale-98 transition text-white rounded-2xl text-sm font-bold shadow-md shadow-[#E30613]/15 flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer">
+                <CreditCard className="w-5 h-5 shrink-0" />
+                <span>Пополнить баланс</span>
               </button>
             </div>
 
             <button
               onClick={onLogout}
-              className="w-full py-4 border border-red-500/25 hover:border-red-500/40 text-sm font-bold text-red-500 dark:text-red-400 rounded-2xl hover:bg-red-500/5 transition flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider"
+              className="w-full sm:w-auto px-8 py-3.5 border border-red-500/25 hover:border-red-500/40 text-sm font-bold text-red-500 dark:text-red-400 rounded-2xl hover:bg-red-500/5 transition flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider"
             >
-              <LogOut className="w-5 h-5" />
-              Выйти из аккаунта
+              <LogOut className="w-5 h-5 shrink-0" />
+              <span>Выйти из аккаунта</span>
             </button>
           </div>
         )}
@@ -367,7 +367,7 @@ export default function SettingsView({
         )}
 
         {settingsTab === "general" && (
-          <div className="space-y-8 animate-fade-in">
+          <div className="space-y-8 animate-fade-in max-w-3xl">
             <div className="space-y-4">
               <span className="text-xs text-zinc-500 font-black uppercase tracking-widest block px-1">
                 Тема оформления
@@ -375,7 +375,7 @@ export default function SettingsView({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button
                   onClick={() => setTheme("light")}
-                  className={`p-4 rounded-3xl border text-left flex flex-col items-center justify-center gap-3 transition cursor-pointer active:scale-[0.99] ${
+                  className={`p-3 rounded-3xl border text-left flex flex-col items-center justify-center gap-3 transition cursor-pointer active:scale-[0.99] ${
                     theme === "light"
                       ? "bg-[#e30613]/5 dark:bg-[#e30613]/10 border-[#e30613]/35 text-[#e30613] shadow-md shadow-[#e30613]/5"
                       : "bg-white dark:bg-[#161b22] border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300"
@@ -386,7 +386,7 @@ export default function SettingsView({
                 </button>
                 <button
                   onClick={() => setTheme("dark")}
-                  className={`p-4 rounded-3xl border text-left flex flex-col items-center justify-center gap-3 transition cursor-pointer active:scale-[0.99] ${
+                  className={`p-3 rounded-3xl border text-left flex flex-col items-center justify-center gap-3 transition cursor-pointer active:scale-[0.99] ${
                     theme === "dark"
                       ? "bg-[#e30613]/5 dark:bg-[#e30613]/10 border-[#e30613]/35 text-[#e30613] shadow-md shadow-[#e30613]/5"
                       : "bg-white dark:bg-[#161b22] border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300"
@@ -397,7 +397,7 @@ export default function SettingsView({
                 </button>
                 <button
                   onClick={() => setTheme("system")}
-                  className={`p-4 rounded-3xl border text-left flex flex-col items-center justify-center gap-3 transition cursor-pointer active:scale-[0.99] ${
+                  className={`p-3 rounded-3xl border text-left flex flex-col items-center justify-center gap-3 transition cursor-pointer active:scale-[0.99] ${
                     theme === "system"
                       ? "bg-[#e30613]/5 dark:bg-[#e30613]/10 border-[#e30613]/35 text-[#e30613] shadow-md shadow-[#e30613]/5"
                       : "bg-white dark:bg-[#161b22] border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300"
@@ -418,7 +418,7 @@ export default function SettingsView({
                   <button
                     key={tz.id}
                     onClick={() => setTimezone(tz.id)}
-                    className={`p-4 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer active:scale-99 ${
+                    className={`p-3.5 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer active:scale-99 ${
                       timezone === tz.id
                         ? "bg-[#e30613]/5 dark:bg-[#e30613]/10 border-[#e30613]/35 text-[#e30613] shadow-md shadow-[#e30613]/5"
                         : "bg-white dark:bg-[#161b22] border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/20"
@@ -512,13 +512,13 @@ export default function SettingsView({
               
               <button
                 onClick={() => setIsDevModeEnabled(!isDevModeEnabled)}
-                className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                   isDevModeEnabled ? "bg-[#e30613]" : "bg-zinc-200 dark:bg-zinc-700"
                 }`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                    isDevModeEnabled ? "translate-x-6" : "translate-x-0"
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                    isDevModeEnabled ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
               </button>
@@ -538,13 +538,13 @@ export default function SettingsView({
                   
                   <button
                     onClick={() => setUseWebRTC(!useWebRTC)}
-                    className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                       useWebRTC ? "bg-[#e30613]" : "bg-zinc-200 dark:bg-zinc-700"
                     }`}
                   >
                     <span
-                      className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                        useWebRTC ? "translate-x-6" : "translate-x-0"
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                        useWebRTC ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
                   </button>

@@ -261,7 +261,7 @@ export default function DesktopDashboard({
         </div>
       ) : (
         /* Normal Centered Single Column view when no camera active */
-        <div className="max-w-4xl mx-auto w-full">
+        <div className={activeTab === "settings" ? "w-full" : "max-w-4xl mx-auto w-full"}>
           {activeTab === "myhome" && (
             <MyHomeView
               devices={devices}
