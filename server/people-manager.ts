@@ -79,14 +79,29 @@ export function getPeople(): Person[] {
     const content = fs.readFileSync(PEOPLE_FILE, "utf-8");
     const people: Person[] = JSON.parse(content);
 
-    // Auto-clean expired temporary guest/couriers
+    // Auto-clean expired temporary guest/couriers and reset daily limits
     const now = Date.now();
+    const todayStr = getMskDateString(new Date(now));
     let hasChanges = false;
     const filtered = people.filter(p => {
       if (p.id.startsWith("temp-") && p.expiresAt && now > p.expiresAt) {
         hasChanges = true;
         return false;
       }
+      
+      // Reset daily limits for guests/couriers
+      if (p.role !== "resident" && p.maxOpens !== undefined && p.maxOpens !== null) {
+        if (p.lastOpenedDate && p.lastOpenedDate !== todayStr && p.opensRemaining !== p.maxOpens) {
+          p.opensRemaining = p.maxOpens;
+          hasChanges = true;
+        }
+        // Backward compatibility for existing data without lastOpenedDate
+        if (!p.lastOpenedDate && p.opensRemaining !== p.maxOpens) {
+           p.opensRemaining = p.maxOpens;
+           hasChanges = true;
+        }
+      }
+      
       return true;
     });
 
@@ -126,6 +141,11 @@ export function getMskTime(now: Date = new Date()) {
     hours: mskTime.getUTCHours(),
     minutes: mskTime.getUTCMinutes()
   };
+}
+
+export function getMskDateString(now: Date = new Date()): string {
+  const mskTime = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  return mskTime.toISOString().split("T")[0]; // Returns "YYYY-MM-DD"
 }
 
 export function isScheduleActive(person: Person, now: Date = new Date()): boolean {
@@ -200,6 +220,7 @@ export function checkActiveSchedules(): { active: boolean; person?: Person; mess
     const activeGuest = people[activeGuestIndex];
     if (activeGuest.opensRemaining !== undefined && activeGuest.opensRemaining !== null) {
       activeGuest.opensRemaining = Math.max(0, activeGuest.opensRemaining - 1);
+      activeGuest.lastOpenedDate = getMskDateString(new Date());
     }
     savePeople(people);
     return {
