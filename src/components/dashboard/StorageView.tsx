@@ -19,7 +19,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
         if (credentials.token) headers["x-domru-token"] = credentials.token;
       }
       
-      const res = await fetch("/api/domru/snapshots/history", { headers });
+      const res = await fetch(`/api/domru/snapshots/history?login=${encodeURIComponent(credentials?.login || "")}`, { headers });
       const data = await res.json();
       if (Array.isArray(data)) {
         setSnapshots(data);
@@ -68,7 +68,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
         if (credentials.token) headers["x-domru-token"] = credentials.token;
       }
 
-      await fetch("/api/domru/snapshots/delete", {
+      await fetch(`/api/domru/snapshots/delete?login=${encodeURIComponent(credentials?.login || "")}`, {
         method: "POST",
         headers,
         body: JSON.stringify({ ids: Array.from(selectedIds) })
