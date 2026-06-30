@@ -64,25 +64,30 @@ router.post("/events", async (req, res) => {
       
       if (rawTime) {
         if (typeof rawTime === "number") {
-          eventTimeMs = rawTime;
-        } else {
-          let cleaned = String(rawTime).trim();
+          eventTimeMs = rawTime < 100000000000 ? rawTime * 1000 : rawTime;
+        } else if (typeof rawTime === "string") {
+          let cleaned = rawTime.trim();
           
-          // Handle DD.MM.YYYY HH:mm:ss or DD-MM-YYYY HH:mm:ss
-          const ruDateMatch = cleaned.match(/^(\d{2})[.-](\d{2})[.-](\d{4})(?:\s+(.*))?$/);
-          if (ruDateMatch) {
-            const [_, dd, mm, yyyy, timePart] = ruDateMatch;
-            cleaned = `${yyyy}-${mm}-${dd}${timePart ? 'T' + timePart : ''}`;
-          }
-          
-          if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(cleaned)) {
-            cleaned = cleaned.replace(" ", "T");
-          }
-          const d = new Date(cleaned);
-          if (!isNaN(d.getTime())) {
-            eventTimeMs = d.getTime();
+          if (/^\d+$/.test(cleaned)) {
+            const num = parseInt(cleaned, 10);
+            eventTimeMs = num < 100000000000 ? num * 1000 : num;
           } else {
-            console.error(`[Events] Failed to parse timestamp: ${rawTime}`);
+            // Handle DD.MM.YYYY HH:mm:ss or DD-MM-YYYY HH:mm:ss
+            const ruDateMatch = cleaned.match(/^(\d{2})[.-](\d{2})[.-](\d{4})(?:\s+(.*))?$/);
+            if (ruDateMatch) {
+              const [_, dd, mm, yyyy, timePart] = ruDateMatch;
+              cleaned = `${yyyy}-${mm}-${dd}${timePart ? 'T' + timePart : ''}`;
+            }
+            
+            if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(cleaned)) {
+              cleaned = cleaned.replace(" ", "T");
+            }
+            const d = new Date(cleaned);
+            if (!isNaN(d.getTime())) {
+              eventTimeMs = d.getTime();
+            } else {
+              console.error(`[Events] Failed to parse timestamp: ${rawTime}`);
+            }
           }
         }
       }
