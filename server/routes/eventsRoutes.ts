@@ -59,38 +59,36 @@ router.post("/events", async (req, res) => {
       let resEvent = { ...e };
       const sourceId = e.source?.id || e.device?.id;
       
-      if (sourceId) {
-        let eventTimeMs = null;
-        const rawTime = e.occurredAt || e.timestamp;
-        
-        if (rawTime) {
-          if (typeof rawTime === "number") {
-            eventTimeMs = rawTime;
-          } else {
-            let cleaned = String(rawTime).trim();
-            if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(cleaned)) {
-              cleaned = cleaned.replace(" ", "T");
-            }
-            const d = new Date(cleaned);
-            if (!isNaN(d.getTime())) {
-              eventTimeMs = d.getTime();
-            }
+      let eventTimeMs = null;
+      const rawTime = e.occurredAt || e.timestamp;
+      
+      if (rawTime) {
+        if (typeof rawTime === "number") {
+          eventTimeMs = rawTime;
+        } else {
+          let cleaned = String(rawTime).trim();
+          if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(cleaned)) {
+            cleaned = cleaned.replace(" ", "T");
+          }
+          const d = new Date(cleaned);
+          if (!isNaN(d.getTime())) {
+            eventTimeMs = d.getTime();
           }
         }
-          
-        if (eventTimeMs) {
-          const snapshot = findSnapshotForEvent(Number(e.placeId), eventTimeMs);
-          if (snapshot) {
-            resEvent.sipSnapshotUrl = `/api/domru/snapshots/${snapshot.fileName}`;
-          }
+      }
+        
+      if (eventTimeMs) {
+        const snapshot = findSnapshotForEvent(Number(e.placeId), eventTimeMs);
+        if (snapshot) {
+          resEvent.sipSnapshotUrl = `/api/domru/snapshots/${snapshot.fileName}`;
+        }
 
-          const opening = getOpeningByOurService(Number(e.placeId), eventTimeMs);
-          if (opening) {
-            resEvent.openedByOurService = {
-              type: opening.type,
-              details: opening.details
-            };
-          }
+        const opening = getOpeningByOurService(Number(e.placeId), eventTimeMs);
+        if (opening) {
+          resEvent.openedByOurService = {
+            type: opening.type,
+            details: opening.details
+          };
         }
       }
       return resEvent;
