@@ -67,20 +67,40 @@ router.post("/events", async (req, res) => {
           eventTimeMs = rawTime;
         } else {
           let cleaned = String(rawTime).trim();
+          
+          // Handle DD.MM.YYYY HH:mm:ss or DD-MM-YYYY HH:mm:ss
+          const ruDateMatch = cleaned.match(/^(\d{2})[.-](\d{2})[.-](\d{4})(?:\s+(.*))?$/);
+          if (ruDateMatch) {
+            const [_, dd, mm, yyyy, timePart] = ruDateMatch;
+            cleaned = `${yyyy}-${mm}-${dd}${timePart ? 'T' + timePart : ''}`;
+          }
+          
           if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(cleaned)) {
             cleaned = cleaned.replace(" ", "T");
           }
           const d = new Date(cleaned);
           if (!isNaN(d.getTime())) {
             eventTimeMs = d.getTime();
+          } else {
+            console.error(`[Events] Failed to parse timestamp: ${rawTime}`);
           }
         }
       }
         
       if (eventTimeMs) {
+        resEvent.debug_eventTimeMs = eventTimeMs;
         const snapshot = findSnapshotForEvent(Number(e.placeId), eventTimeMs);
         if (snapshot) {
           resEvent.sipSnapshotUrl = `/api/domru/snapshots/${snapshot.fileName}`;
+        } else {
+          // Find the closest snapshot just to debug
+          const entries = loadSnapshotsIndex();
+          let closestDiff = Infinity;
+          for (const entry of entries) {
+            const diff = Math.abs(entry.timestamp - eventTimeMs);
+            if (diff < closestDiff) closestDiff = diff;
+          }
+          resEvent.debug_closestSnapshotDiffMs = closestDiff;
         }
 
         const opening = getOpeningByOurService(Number(e.placeId), eventTimeMs);
@@ -90,6 +110,8 @@ router.post("/events", async (req, res) => {
             details: opening.details
           };
         }
+      } else {
+        resEvent.debug_error = "Could not parse eventTimeMs from rawTime: " + rawTime;
       }
       return resEvent;
     });
