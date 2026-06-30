@@ -20,6 +20,9 @@ import {
   Blocks,
   FolderCode,
   User,
+  X,
+  Info,
+  ShieldAlert,
 } from "lucide-react";
 
 interface SettingsViewProps {
@@ -65,7 +68,8 @@ export default function SettingsView({
   setUseWebRTC = () => {},
   credentials,
 }: SettingsViewProps) {
-  const [settingsTab, setSettingsTab] = useState<"account" | "keys" | "general" | "notifications" | "integrations" | "developer" | "inspector">("account");
+  const [settingsTab, setSettingsTab] = useState<string>("account");
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [autoOpenDelayResidentMs, setAutoOpenDelayResidentMs] = useState<number>(0);
   const [autoOpenDelayGuestMs, setAutoOpenDelayGuestMs] = useState<number>(3000);
 
@@ -435,7 +439,10 @@ export default function SettingsView({
               </div>
             </div>
             
-            <div className="p-5 flex items-center justify-between text-sm font-bold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/60 rounded-3xl">
+            <button 
+              onClick={() => setIsAboutOpen(true)}
+              className="w-full p-5 flex items-center justify-between text-sm font-bold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/60 rounded-3xl hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition cursor-pointer"
+            >
               <div className="flex items-center gap-3">
                 <Clock className="w-5 h-5 text-[#e30613] dark:text-zinc-400" />
                 <span>О приложении</span>
@@ -443,7 +450,7 @@ export default function SettingsView({
               <div className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500">
                 <span className="font-semibold text-zinc-450">v1.2.4</span>
               </div>
-            </div>
+            </button>
           </div>
         )}
 
@@ -582,6 +589,52 @@ export default function SettingsView({
           </div>
         )}
       </div>
+
+      {/* About Modal */}
+      {isAboutOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col relative">
+            <button
+              onClick={() => setIsAboutOpen(false)}
+              className="absolute top-4 right-4 p-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 rounded-full transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="p-8 space-y-6">
+              <div className="flex flex-col items-center justify-center space-y-3">
+                <div className="w-16 h-16 bg-[#E30613] rounded-2xl flex items-center justify-center shadow-lg shadow-[#E30613]/20">
+                  <span className="font-display font-black text-3xl text-white">дом</span>
+                </div>
+                <div className="text-center">
+                  <h2 className="text-xl font-extrabold text-zinc-900 dark:text-white">Умный Дом Дом.ru</h2>
+                  <span className="text-sm font-bold text-zinc-500">Версия 1.2.4</span>
+                </div>
+              </div>
+
+              <div className="bg-amber-500/10 border border-amber-500/20 p-5 rounded-2xl flex items-start gap-3">
+                <Info className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-600 dark:text-amber-500/90 font-semibold leading-relaxed">
+                  Данное приложение является неофициальным клиентом. Разработано энтузиастами для обеспечения более удобного интерфейса и дополнительных возможностей.
+                </p>
+              </div>
+
+              <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-2xl flex items-start gap-3">
+                <ShieldAlert className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                <p className="text-sm text-red-600 dark:text-red-500/90 font-semibold leading-relaxed">
+                  Приложение использует закрытое API «Дом.ru», полученное методом обратной разработки (reverse engineering). Авторы не несут ответственности за возможные блокировки аккаунта со стороны провайдера.
+                </p>
+              </div>
+              
+              <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800/80 text-center">
+                <p className="text-xs text-zinc-400 font-medium">
+                  Исходный код доступен на GitHub.<br />
+                  © 2026 Неофициальный клиент Умного Дома.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
