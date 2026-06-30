@@ -1,5 +1,6 @@
 import express from "express";
-import { loadSnapshotsIndex, deleteSnapshots } from "../snapshots-manager.js";
+import { loadSnapshotsIndex, deleteSnapshots, getSnapshotPath } from "../snapshots-manager.js";
+import fs from "fs";
 import { isDemo } from "../domruClientHelper.js";
 
 const router = express.Router();
@@ -10,6 +11,7 @@ const router = express.Router();
  */
 router.get("/history", async (req, res) => {
   try {
+    console.log(`[Snapshots API] GET /history requested. isDemo: ${isDemo(req)}, query:`, req.query, "headers:", req.headers["x-domru-login"]);
     if (isDemo(req)) {
       const now = Date.now();
       const dayMs = 24 * 60 * 60 * 1000;
@@ -65,6 +67,34 @@ router.post("/delete", async (req, res) => {
     console.error("[Snapshots API] Failed to delete snapshots:", error);
     res.status(500).json({ error: "Failed to delete snapshots" });
   }
+});
+
+/**
+ * GET /api/domru/snapshots/:fileName
+ * Serves the actual image file.
+ */
+router.get("/:fileName", async (req, res) => {
+  if (isDemo(req)) {
+    try {
+      const dummyResponse = await fetch("https://picsum.photos/640/360");
+      const buffer = await dummyResponse.arrayBuffer();
+      res.setHeader("Content-Type", "image/jpeg");
+      return res.send(Buffer.from(buffer));
+    } catch {
+      return res.status(500).send("Demo image error");
+    }
+  }
+
+  const { fileName } = req.params;
+  const filePath = getSnapshotPath(fileName);
+  
+  if (fs.existsSync(filePath)) {
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Cache-Control", "public, max-age=2592000"); // cache for 30 days
+    return res.sendFile(filePath);
+  }
+  
+  res.status(404).json({ error: "Snapshot not found" });
 });
 
 export default router;
