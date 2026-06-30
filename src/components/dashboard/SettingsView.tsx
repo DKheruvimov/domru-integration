@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { SmartPlace, AppCredentials } from "../../types";
 import Integrations from "../Integrations";
 import CodeBrowser from "../CodeBrowser";
+import StorageView from "./StorageView";
 import {
   CreditCard,
   KeyRound,
@@ -23,6 +24,7 @@ import {
   X,
   Info,
   ShieldAlert,
+  HardDrive,
 } from "lucide-react";
 
 declare const __APP_VERSION__: string;
@@ -211,6 +213,17 @@ export default function SettingsView({
               <Blocks className="w-4 h-4 shrink-0" />
               <span>Интеграции</span>
             </button>
+            <button
+              onClick={() => setSettingsTab("storage")}
+              className={`w-full text-left py-2.5 px-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                settingsTab === "storage"
+                  ? "bg-white dark:bg-zinc-800 text-[#e30613] shadow-xs border border-zinc-200/50 dark:border-zinc-700/50"
+                  : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
+              }`}
+            >
+              <HardDrive className="w-4 h-4 shrink-0" />
+              <span>Хранилище</span>
+            </button>
             
             <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block mt-6 mb-3 px-1">
               Система
@@ -295,6 +308,8 @@ export default function SettingsView({
             </button>
           </div>
         )}
+
+        {settingsTab === "storage" && <StorageView />}
 
         {settingsTab === "keys" && (
           <div className="space-y-6 animate-fade-in">

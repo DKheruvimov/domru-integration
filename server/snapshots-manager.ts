@@ -170,3 +170,32 @@ export function getSnapshotPath(fileName: string): string {
   const cleanFileName = path.basename(fileName);
   return path.join(SNAPSHOTS_DIR, cleanFileName);
 }
+
+export function deleteSnapshots(ids: string[]): { success: boolean; deletedCount: number } {
+  ensureSnapshotsDir();
+  const entries = loadSnapshotsIndex();
+  
+  const idSet = new Set(ids);
+  let deletedCount = 0;
+  const remainingEntries = entries.filter((entry) => {
+    if (idSet.has(entry.id)) {
+      const filePath = path.join(SNAPSHOTS_DIR, entry.fileName);
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+        deletedCount++;
+      } catch (err) {
+        console.error(`[Snapshots] Failed to delete file ${entry.fileName}:`, err);
+      }
+      return false; // exclude from new index
+    }
+    return true; // keep
+  });
+
+  if (deletedCount > 0) {
+    saveSnapshotsIndex(remainingEntries);
+  }
+
+  return { success: true, deletedCount };
+}

@@ -42,6 +42,15 @@ export interface HistoryEvent {
   };
 }
 
+export interface StorageSnapshot {
+  id: string;
+  timestamp: number;
+  login: string;
+  placeId: number;
+  deviceId: number;
+  fileName: string;
+}
+
 export interface GuestPin {
   id: number;
   code: string;
