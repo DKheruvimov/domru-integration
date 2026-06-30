@@ -274,17 +274,17 @@ export default function SettingsView({
                 </div>
               </div>
 
-              <button className="w-full sm:w-auto mt-6 py-3.5 px-8 bg-[#E30613] hover:bg-[#c20510] active:scale-98 transition text-white rounded-2xl text-sm font-bold shadow-md shadow-[#E30613]/15 flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer">
-                <CreditCard className="w-5 h-5 shrink-0" />
+              <button className="w-full sm:w-auto mt-6 py-3 px-6 bg-[#E30613] hover:bg-[#c20510] active:scale-98 transition text-white rounded-xl text-[11px] font-extrabold shadow-md shadow-[#E30613]/20 flex items-center justify-center gap-1.5 uppercase cursor-pointer">
+                <CreditCard className="w-4 h-4 shrink-0" />
                 <span>Пополнить баланс</span>
               </button>
             </div>
 
             <button
               onClick={onLogout}
-              className="w-full sm:w-auto px-8 py-3.5 border border-red-500/25 hover:border-red-500/40 text-sm font-bold text-red-500 dark:text-red-400 rounded-2xl hover:bg-red-500/5 transition flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider"
+              className="w-full sm:w-auto px-6 py-3 border border-red-500/25 hover:border-red-500/40 text-[11px] font-extrabold text-red-500 dark:text-red-400 rounded-xl hover:bg-red-500/5 transition flex items-center justify-center gap-1.5 cursor-pointer uppercase"
             >
-              <LogOut className="w-5 h-5 shrink-0" />
+              <LogOut className="w-4 h-4 shrink-0" />
               <span>Выйти из аккаунта</span>
             </button>
           </div>
@@ -320,7 +320,7 @@ export default function SettingsView({
 
                     <button
                       onClick={() => toggleKey(k.id)}
-                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center gap-2 cursor-pointer active:scale-95 border ${
+                      className={`px-3.5 py-2.5 rounded-xl text-[11px] font-extrabold uppercase transition flex items-center gap-1.5 cursor-pointer active:scale-95 border ${
                         k.active
                           ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                           : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700"
@@ -358,9 +358,10 @@ export default function SettingsView({
 
               <button
                 onClick={generateNewCode}
-                className="w-full md:w-auto px-6 py-3.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-black uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 cursor-pointer transition active:scale-98"
+                className="w-full md:w-auto px-6 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-[11px] font-extrabold uppercase rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-98"
               >
-                <RefreshCw className="w-4 h-4" /> Сгенерировать новый код
+                <RefreshCw className="w-4 h-4 shrink-0" /> 
+                <span>Сгенерировать новый код</span>
               </button>
             </div>
           </div>
