@@ -4,9 +4,18 @@ import { defineConfig } from 'vite';
 import { execSync } from 'child_process';
 
 const getGitHash = () => {
+  const envHash = process.env.VERCEL_GIT_COMMIT_SHA || 
+                  process.env.COMMIT_REF || 
+                  process.env.CF_PAGES_COMMIT_SHA || 
+                  process.env.GITHUB_SHA || 
+                  process.env.SOURCE_VERSION || 
+                  process.env.RENDER_GIT_COMMIT;
+  if (envHash) return envHash.substring(0, 7);
+
   try {
     return execSync('git rev-parse --short HEAD').toString().trim();
-  } catch {
+  } catch (e) {
+    console.error("Failed to get git hash:", e);
     return 'unknown';
   }
 };
