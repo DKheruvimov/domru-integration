@@ -485,7 +485,7 @@ export function startSipServer() {
           console.error("Failed to check active schedules", e);
         }
 
-        const handleAutoOpenSequence = (triggerOpenDoor: () => Promise<void>, message: string) => {
+        const handleAutoOpenSequence = (triggerOpenDoor: () => Promise<void>, message: string, delayMs: number) => {
           addSipLog(`[SIP] ${message}. Accepting call...`);
           const ringing = sip.makeResponse(request, 180, "Ringing");
           sip.send(ringing);
@@ -544,15 +544,20 @@ export function startSipServer() {
                 }
               }, 2000);
             }, 1000);
-          }, getSettings().autoOpenDelayMs);
+          }, delayMs);
         };
 
         if (scheduleResult.active && binding) {
+          const delayMs = scheduleResult.person?.role === "resident" 
+            ? getSettings().autoOpenDelayResidentMs 
+            : getSettings().autoOpenDelayGuestMs;
+
           handleAutoOpenSequence(async () => {
             await triggerDoorOpenForLogin(login, binding.placeId, binding.deviceId, `Авто-открытие по расписанию: ${scheduleResult.person?.name || "Гость"}`);
             addSipLog(`[SIP] Door successfully opened for: ${scheduleResult.person?.name}`);
-          }, scheduleResult.message);
+          }, scheduleResult.message, delayMs);
         } else if (task) {
+          const delayMs = getSettings().autoOpenDelayGuestMs;
           handleAutoOpenSequence(async () => {
             await task.onOpenDoor();
             addSipLog(`[SIP] Door opened for ${login}.`);
@@ -568,7 +573,7 @@ export function startSipServer() {
               activeTasks.delete(login);
               saveActiveTasks();
             }
-          }, `Auto-open active for ${login}`);
+          }, `Auto-open active for ${login}`, delayMs);
         } else {
           // MANUAL MODE INTERCEPTION: Just send Ringing and hold the request for 60 seconds
           if (permanentBindings.has(login)) {
