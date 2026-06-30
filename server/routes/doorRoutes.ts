@@ -182,7 +182,18 @@ router.post("/sip/auto-open", requireDomruAuth, async (req, res) => {
 });
 
 // API Route: Serves SIP snapshots stored in the data directory
-router.get("/snapshots/:fileName", (req, res) => {
+router.get("/snapshots/:fileName", async (req, res) => {
+  if (isDemo(req)) {
+    try {
+      const dummyResponse = await fetch("https://picsum.photos/640/360");
+      const buffer = await dummyResponse.arrayBuffer();
+      res.setHeader("Content-Type", "image/jpeg");
+      return res.send(Buffer.from(buffer));
+    } catch {
+      return res.status(500).send("Demo image error");
+    }
+  }
+
   const { fileName } = req.params;
   const filePath = getSnapshotPath(fileName);
   

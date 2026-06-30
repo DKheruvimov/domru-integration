@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { Trash2, CheckSquare, Square, Check, RefreshCw, ArchiveX } from "lucide-react";
-import type { StorageSnapshot } from "../../types";
+import type { StorageSnapshot, AppCredentials } from "../../types";
 
-export default function StorageView() {
+export default function StorageView({ credentials }: { credentials?: AppCredentials }) {
   const [snapshots, setSnapshots] = useState<StorageSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -12,7 +12,14 @@ export default function StorageView() {
   const loadSnapshots = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/domru/snapshots/history");
+      const headers: HeadersInit = {};
+      if (credentials) {
+        headers["x-domru-login"] = credentials.login;
+        headers["x-domru-password"] = credentials.password;
+        if (credentials.token) headers["x-domru-token"] = credentials.token;
+      }
+      
+      const res = await fetch("/api/domru/snapshots/history", { headers });
       const data = await res.json();
       if (Array.isArray(data)) {
         setSnapshots(data);
@@ -54,9 +61,16 @@ export default function StorageView() {
 
     setDeleting(true);
     try {
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (credentials) {
+        headers["x-domru-login"] = credentials.login;
+        headers["x-domru-password"] = credentials.password;
+        if (credentials.token) headers["x-domru-token"] = credentials.token;
+      }
+
       await fetch("/api/domru/snapshots/delete", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ ids: Array.from(selectedIds) })
       });
       setSelectedIds(new Set());
@@ -196,7 +210,7 @@ export default function StorageView() {
                         }}
                       >
                         <img 
-                          src={`/api/domru/snapshots/${snapshot.fileName}`}
+                          src={`/api/domru/snapshots/${snapshot.fileName}?login=${credentials?.login || ''}`}
                           className={`w-full h-full object-cover transition-opacity ${deleting && isSelected ? 'opacity-50' : 'opacity-100'}`}
                           alt="Snapshot"
                           loading="lazy"

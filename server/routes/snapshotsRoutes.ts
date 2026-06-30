@@ -1,5 +1,6 @@
 import express from "express";
 import { loadSnapshotsIndex, deleteSnapshots } from "../snapshots-manager.js";
+import { isDemo } from "../domruClientHelper.js";
 
 const router = express.Router();
 
@@ -9,6 +10,31 @@ const router = express.Router();
  */
 router.get("/history", async (req, res) => {
   try {
+    if (isDemo(req)) {
+      const now = Date.now();
+      const dayMs = 24 * 60 * 60 * 1000;
+      const timestamps = [
+        now - 1000 * 60 * 5,
+        now - 1000 * 60 * 60 * 2,
+        now - dayMs - 1000 * 60 * 60,
+        now - dayMs * 2,
+        now - dayMs * 4,
+        now - dayMs * 10,
+        now - dayMs * 15,
+        now - dayMs * 35,
+        now - dayMs * 40,
+      ];
+      const mockEntries = timestamps.map((ts, i) => ({
+        id: `demo-snap-${i}`,
+        timestamp: ts,
+        login: "demo",
+        placeId: 1001,
+        deviceId: 2001,
+        fileName: `demo-${i}.jpg`
+      }));
+      return res.json(mockEntries);
+    }
+
     const entries = loadSnapshotsIndex();
     // Sort by timestamp DESC
     entries.sort((a, b) => b.timestamp - a.timestamp);
@@ -29,6 +55,10 @@ router.post("/delete", async (req, res) => {
     if (!ids || !Array.isArray(ids)) {
       return res.status(400).json({ error: "ids must be an array of strings" });
     }
+    if (isDemo(req)) {
+      return res.json({ success: true, deletedCount: ids.length });
+    }
+
     const result = deleteSnapshots(ids);
     res.json(result);
   } catch (error) {

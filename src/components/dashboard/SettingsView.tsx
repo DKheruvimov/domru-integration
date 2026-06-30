@@ -309,7 +309,7 @@ export default function SettingsView({
           </div>
         )}
 
-        {settingsTab === "storage" && <StorageView />}
+        {settingsTab === "storage" && <StorageView credentials={credentials} />}
 
         {settingsTab === "keys" && (
           <div className="space-y-6 animate-fade-in">
