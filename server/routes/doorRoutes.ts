@@ -61,7 +61,7 @@ router.post("/open", requireDomruAuth, async (req, res) => {
   const { placeId, deviceId } = req.body;
   if (isDemo(req)) {
     const { recordDoorOpening } = await import("../openings-manager.js");
-    recordDoorOpening(Number(deviceId || 2001), "manual", "Вручную (без звонка)");
+    recordDoorOpening(Number(placeId || 1001), Number(deviceId || 2001), "manual", "Вручную (без звонка)");
     return res.json({
       status: "SUCCESS",
       message: "Дверь успешно открыта",
@@ -165,7 +165,7 @@ router.post("/sip/auto-open", requireDomruAuth, async (req, res) => {
         onOpenDoor: async () => {
           await client.openDoor(Number(placeId), Number(deviceId));
           const { recordDoorOpening } = await import("../openings-manager.js");
-          recordDoorOpening(Number(deviceId), "auto", `Временное авто-открытие SIP (${credentials.login})`);
+          recordDoorOpening(Number(placeId), Number(deviceId), "auto", `Временное авто-открытие SIP (${credentials.login})`);
         }
       });
       res.json({ status: "SUCCESS", message: "SIP Auto-open enabled", login: credentials.login, expiresAt });

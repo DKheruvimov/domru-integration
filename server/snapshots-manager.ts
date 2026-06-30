@@ -145,18 +145,20 @@ export async function cleanupOldSnapshots(): Promise<void> {
   saveSnapshotsIndex(validEntries);
 }
 
-export function findSnapshotForEvent(eventTimeMs: number): SipSnapshotEntry | null {
+export function findSnapshotForEvent(placeId: number, eventTimeMs: number): SipSnapshotEntry | null {
   const entries = loadSnapshotsIndex();
-  const maxDiffMs = 5 * 60 * 1000; // 5 minutes tolerance (call duration and event delivery delay)
+  const maxDiffMs = 5 * 60 * 1000; // 5 minutes tolerance
 
   let bestMatch: SipSnapshotEntry | null = null;
   let smallestDiff = Infinity;
 
   for (const entry of entries) {
-    const diff = Math.abs(entry.timestamp - eventTimeMs);
-    if (diff <= maxDiffMs && diff < smallestDiff) {
-      smallestDiff = diff;
-      bestMatch = entry;
+    if (!entry.placeId || entry.placeId === placeId) {
+      const diff = Math.abs(entry.timestamp - eventTimeMs);
+      if (diff <= maxDiffMs && diff < smallestDiff) {
+        smallestDiff = diff;
+        bestMatch = entry;
+      }
     }
   }
 

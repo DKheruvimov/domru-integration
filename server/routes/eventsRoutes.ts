@@ -79,12 +79,12 @@ router.post("/events", async (req, res) => {
         }
           
         if (eventTimeMs) {
-          const snapshot = findSnapshotForEvent(eventTimeMs);
+          const snapshot = findSnapshotForEvent(Number(e.placeId), eventTimeMs);
           if (snapshot) {
             resEvent.sipSnapshotUrl = `/api/domru/snapshots/${snapshot.fileName}`;
           }
 
-          const opening = getOpeningByOurService(eventTimeMs);
+          const opening = getOpeningByOurService(Number(e.placeId), eventTimeMs);
           if (opening) {
             resEvent.openedByOurService = {
               type: opening.type,

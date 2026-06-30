@@ -21,7 +21,7 @@ export async function triggerDoorOpenForLogin(login: string, placeId: number, de
   if (creds.isDemo) {
     addSipLog(`[DEMO] Door opened via schedule for place ${placeId}, device ${deviceId}`);
     const { recordDoorOpening } = await import("./openings-manager.js");
-    recordDoorOpening(Number(deviceId), "auto", details || "Авто-открытие SIP (Демо)");
+    recordDoorOpening(Number(placeId), Number(deviceId), "auto", details || "Авто-открытие SIP (Демо)");
     return;
   }
 
@@ -41,7 +41,7 @@ export async function triggerDoorOpenForLogin(login: string, placeId: number, de
 
   await client.openDoor(Number(placeId), Number(deviceId));
   const { recordDoorOpening } = await import("./openings-manager.js");
-  recordDoorOpening(Number(deviceId), "auto", details || "Авто-открытие SIP");
+  recordDoorOpening(Number(placeId), Number(deviceId), "auto", details || "Авто-открытие SIP");
 }
 
 function getLocalIp(): string {
@@ -216,7 +216,7 @@ export function loadAndResumeActiveTasks() {
             }
             await client.openDoor(Number(taskData.placeId), Number(taskData.deviceId));
             const { recordDoorOpening } = await import("./openings-manager.js");
-            recordDoorOpening(Number(taskData.deviceId), "auto", `Временное авто-открытие SIP (${taskData.credentials?.login})`);
+            recordDoorOpening(Number(taskData.placeId), Number(taskData.deviceId), "auto", `Временное авто-открытие SIP (${taskData.credentials?.login})`);
           } else {
             addSipLog(`[SIP] No Domru credentials to open door for ${taskData.credentials?.login}`, "error");
           }
@@ -665,7 +665,7 @@ export async function handleManualOpen(placeId: number, deviceId: number, client
       await client.openDoor(placeId, deviceId);
       addSipLog(`[SIP] Door opened via manual interception for ${login}.`);
       const { recordDoorOpening } = await import("./openings-manager.js");
-      recordDoorOpening(Number(deviceId), "manual", "Вручную (перехват вызова)");
+      recordDoorOpening(Number(placeId), Number(deviceId), "manual", "Вручную (перехват вызова)");
     } catch (err: any) {
       addSipLog(`[SIP] Failed to open door for ${login}: ${err.message || err}`, "error");
     }
@@ -705,7 +705,7 @@ export async function handleManualOpen(placeId: number, deviceId: number, client
     addSipLog(`[SIP] Manual open requested for place ${placeId}, device ${deviceId}, but no ringing call. Calling API directly.`);
     await client.openDoor(placeId, deviceId);
     const { recordDoorOpening } = await import("./openings-manager.js");
-    recordDoorOpening(Number(deviceId), "manual", "Вручную (без звонка)");
+    recordDoorOpening(Number(placeId), Number(deviceId), "manual", "Вручную (без звонка)");
   }
 }
 
