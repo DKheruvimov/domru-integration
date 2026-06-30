@@ -8,6 +8,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [previewSnapshot, setPreviewSnapshot] = useState<StorageSnapshot | null>(null);
 
   const loadSnapshots = async () => {
     setLoading(true);
@@ -203,9 +204,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
                           if (selectionMode) {
                             toggleSelection(snapshot.id);
                           } else {
-                            // Expand preview (omitted for brevity, could be added later)
-                            setSelectionMode(true);
-                            toggleSelection(snapshot.id);
+                            setPreviewSnapshot(snapshot);
                           }
                         }}
                       >
@@ -242,6 +241,26 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
               </div>
             );
           })}
+        </div>
+      )}
+      {/* Preview Modal */}
+      {previewSnapshot && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm cursor-zoom-out"
+          onClick={() => setPreviewSnapshot(null)}
+        >
+          <img 
+            src={`/api/domru/snapshots/${previewSnapshot.fileName}?login=${encodeURIComponent(credentials?.login || '')}`}
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-default"
+            alt="Preview"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button 
+            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors cursor-pointer"
+            onClick={() => setPreviewSnapshot(null)}
+          >
+            <ArchiveX className="w-6 h-6 text-white" />
+          </button>
         </div>
       )}
     </div>

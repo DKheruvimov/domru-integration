@@ -74,7 +74,9 @@ export function getOpeningByOurService(placeId: number, eventTimeMs: number): Do
   let smallestDiff = Infinity;
 
   for (const entry of entries) {
-    if (!entry.placeId || entry.placeId === placeId) {
+    const matchesPlace = !entry.placeId || isNaN(placeId) || !placeId || entry.placeId === placeId;
+    
+    if (matchesPlace) {
       const diff = Math.abs(entry.timestamp - eventTimeMs);
       if (diff <= maxDiffMs && diff < smallestDiff) {
         smallestDiff = diff;

@@ -153,7 +153,10 @@ export function findSnapshotForEvent(placeId: number, eventTimeMs: number): SipS
   let smallestDiff = Infinity;
 
   for (const entry of entries) {
-    if (!entry.placeId || entry.placeId === placeId) {
+    // If the event didn't provide a valid placeId (e.g. missing in Dom.ru API), or it matches exactly
+    const matchesPlace = !entry.placeId || isNaN(placeId) || !placeId || entry.placeId === placeId;
+    
+    if (matchesPlace) {
       const diff = Math.abs(entry.timestamp - eventTimeMs);
       if (diff <= maxDiffMs && diff < smallestDiff) {
         smallestDiff = diff;
