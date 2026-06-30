@@ -151,7 +151,7 @@ export async function cleanupOldSnapshots(): Promise<void> {
  */
 export function findSnapshotForEvent(deviceId: number, eventTimeMs: number): SipSnapshotEntry | null {
   const entries = loadSnapshotsIndex();
-  const maxDiffMs = 45 * 1000; // 45 seconds tolerance
+  const maxDiffMs = 5 * 60 * 1000; // 5 minutes tolerance (call duration and event delivery delay)
 
   let bestMatch: SipSnapshotEntry | null = null;
   let smallestDiff = Infinity;

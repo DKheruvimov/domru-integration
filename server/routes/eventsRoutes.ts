@@ -57,18 +57,34 @@ router.post("/events", async (req, res) => {
     // Inject local SIP snapshot URLs and local door opening information
     const enhancedEvents = events.map((e: any) => {
       let resEvent = { ...e };
-      if (e.source?.id) {
-        const eventTimeMs = e.occurredAt 
-          ? new Date(e.occurredAt).getTime() 
-          : (e.timestamp ? new Date(e.timestamp).getTime() : null);
+      const sourceId = e.source?.id || e.device?.id;
+      
+      if (sourceId) {
+        let eventTimeMs = null;
+        const rawTime = e.occurredAt || e.timestamp;
+        
+        if (rawTime) {
+          if (typeof rawTime === "number") {
+            eventTimeMs = rawTime;
+          } else {
+            let cleaned = String(rawTime).trim();
+            if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(cleaned)) {
+              cleaned = cleaned.replace(" ", "T");
+            }
+            const d = new Date(cleaned);
+            if (!isNaN(d.getTime())) {
+              eventTimeMs = d.getTime();
+            }
+          }
+        }
           
         if (eventTimeMs) {
-          const snapshot = findSnapshotForEvent(Number(e.source.id), eventTimeMs);
+          const snapshot = findSnapshotForEvent(Number(sourceId), eventTimeMs);
           if (snapshot) {
             resEvent.sipSnapshotUrl = `/api/domru/snapshots/${snapshot.fileName}`;
           }
 
-          const opening = getOpeningByOurService(Number(e.source.id), eventTimeMs);
+          const opening = getOpeningByOurService(Number(sourceId), eventTimeMs);
           if (opening) {
             resEvent.openedByOurService = {
               type: opening.type,

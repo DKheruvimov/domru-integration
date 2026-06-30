@@ -60,6 +60,8 @@ router.get("/snapshot/:placeId/:deviceId", requireDomruAuth, async (req, res) =>
 router.post("/open", requireDomruAuth, async (req, res) => {
   const { placeId, deviceId } = req.body;
   if (isDemo(req)) {
+    const { recordDoorOpening } = await import("../openings-manager.js");
+    recordDoorOpening(Number(deviceId || 2001), "manual", "Вручную (без звонка)");
     return res.json({
       status: "SUCCESS",
       message: "Дверь успешно открыта",

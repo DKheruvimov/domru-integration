@@ -69,7 +69,7 @@ export function recordDoorOpening(deviceId: number, type: "manual" | "auto", det
  */
 export function getOpeningByOurService(deviceId: number, eventTimeMs: number): DoorOpeningRecord | null {
   const entries = loadOpenings();
-  const maxDiffMs = 30 * 1000; // 30 seconds tolerance
+  const maxDiffMs = 5 * 60 * 1000; // 5 minutes tolerance
 
   let bestMatch: DoorOpeningRecord | null = null;
   let smallestDiff = Infinity;
