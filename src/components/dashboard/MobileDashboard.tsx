@@ -40,8 +40,6 @@ interface MobileDashboardProps {
   groupedEvents: Record<string, HistoryEvent[]>;
   onLogout: () => void;
   loadData: () => void;
-  isCabinetOpen: boolean;
-  setIsCabinetOpen: (open: boolean) => void;
   isDevModeEnabled: boolean;
   setIsDevModeEnabled: (enabled: boolean) => void;
   useWebRTC: boolean;
@@ -86,8 +84,6 @@ export default function MobileDashboard({
   groupedEvents,
   onLogout,
   loadData,
-  isCabinetOpen,
-  setIsCabinetOpen,
   isDevModeEnabled,
   setIsDevModeEnabled,
   useWebRTC,

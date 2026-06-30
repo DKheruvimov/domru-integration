@@ -1,6 +1,6 @@
 import React from "react";
 import { SmartPlace, SmartDevice, SmartCamera, GuestPin, HistoryEvent, AppCredentials } from "../../types";
-import { Home, Bell, Users, Sliders, RefreshCw, Car } from "lucide-react";
+import { Home, Bell, Users, Settings, RefreshCw, Car } from "lucide-react";
 import MyHomeView from "./MyHomeView";
 import EventsView from "./EventsView";
 import PeopleView from "./PeopleView";
@@ -40,8 +40,6 @@ interface DesktopDashboardProps {
   groupedEvents: Record<string, HistoryEvent[]>;
   onLogout: () => void;
   loadData: () => void;
-  isCabinetOpen: boolean;
-  setIsCabinetOpen: (open: boolean) => void;
   isDevModeEnabled: boolean;
   setIsDevModeEnabled: (enabled: boolean) => void;
   useWebRTC: boolean;
@@ -86,8 +84,6 @@ export default function DesktopDashboard({
   groupedEvents,
   onLogout,
   loadData,
-  isCabinetOpen,
-  setIsCabinetOpen,
   isDevModeEnabled,
   setIsDevModeEnabled,
   useWebRTC,
@@ -98,14 +94,6 @@ export default function DesktopDashboard({
   setTimezone,
   proxyHeaders,
 }: DesktopDashboardProps) {
-  const [activeSubScreen, setActiveSubScreen] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!isCabinetOpen) {
-      setActiveSubScreen(null);
-    }
-  }, [isCabinetOpen]);
-
   return (
     <div className="space-y-6" id="desktop_dashboard">
       {/* Top Address & Action Bar */}
