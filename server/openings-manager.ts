@@ -64,10 +64,7 @@ export function recordDoorOpening(deviceId: number, type: "manual" | "auto", det
   console.log(`[Openings] Recorded door open: Device ${deviceId}, type: ${type}, details: ${details}`);
 }
 
-/**
- * Checks if our service opened this door within +/- 30 seconds of the event time
- */
-export function getOpeningByOurService(deviceId: number, eventTimeMs: number): DoorOpeningRecord | null {
+export function getOpeningByOurService(eventTimeMs: number): DoorOpeningRecord | null {
   const entries = loadOpenings();
   const maxDiffMs = 5 * 60 * 1000; // 5 minutes tolerance
 
@@ -75,12 +72,10 @@ export function getOpeningByOurService(deviceId: number, eventTimeMs: number): D
   let smallestDiff = Infinity;
 
   for (const entry of entries) {
-    if (entry.deviceId === deviceId) {
-      const diff = Math.abs(entry.timestamp - eventTimeMs);
-      if (diff <= maxDiffMs && diff < smallestDiff) {
-        smallestDiff = diff;
-        bestMatch = entry;
-      }
+    const diff = Math.abs(entry.timestamp - eventTimeMs);
+    if (diff <= maxDiffMs && diff < smallestDiff) {
+      smallestDiff = diff;
+      bestMatch = entry;
     }
   }
 

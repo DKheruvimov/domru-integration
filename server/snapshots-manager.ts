@@ -145,11 +145,7 @@ export async function cleanupOldSnapshots(): Promise<void> {
   saveSnapshotsIndex(validEntries);
 }
 
-/**
- * Finds the closest snapshot for a given deviceId and event timestamp.
- * Max allowed difference: 45 seconds.
- */
-export function findSnapshotForEvent(deviceId: number, eventTimeMs: number): SipSnapshotEntry | null {
+export function findSnapshotForEvent(eventTimeMs: number): SipSnapshotEntry | null {
   const entries = loadSnapshotsIndex();
   const maxDiffMs = 5 * 60 * 1000; // 5 minutes tolerance (call duration and event delivery delay)
 
@@ -157,12 +153,10 @@ export function findSnapshotForEvent(deviceId: number, eventTimeMs: number): Sip
   let smallestDiff = Infinity;
 
   for (const entry of entries) {
-    if (entry.deviceId === deviceId) {
-      const diff = Math.abs(entry.timestamp - eventTimeMs);
-      if (diff <= maxDiffMs && diff < smallestDiff) {
-        smallestDiff = diff;
-        bestMatch = entry;
-      }
+    const diff = Math.abs(entry.timestamp - eventTimeMs);
+    if (diff <= maxDiffMs && diff < smallestDiff) {
+      smallestDiff = diff;
+      bestMatch = entry;
     }
   }
 
