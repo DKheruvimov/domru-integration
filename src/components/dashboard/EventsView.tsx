@@ -115,13 +115,6 @@ export default function EventsView({ groupedEvents, isMobile = false }: EventsVi
                             minute: "2-digit",
                           })}
                         </span>
-                        {/* Debug Info */}
-                        {(event as any).debug_closestSnapshotDiffMs !== undefined && (
-                          <span className="text-[8px] text-red-500">Diff: {Math.round((event as any).debug_closestSnapshotDiffMs / 60000)}m</span>
-                        )}
-                        {(event as any).debug_error && (
-                          <span className="text-[8px] text-red-500">{(event as any).debug_error}</span>
-                        )}
                       </div>
                     </div>
                   );

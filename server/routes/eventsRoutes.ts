@@ -93,19 +93,9 @@ router.post("/events", async (req, res) => {
       }
         
       if (eventTimeMs) {
-        resEvent.debug_eventTimeMs = eventTimeMs;
         const snapshot = findSnapshotForEvent(Number(e.placeId), eventTimeMs);
         if (snapshot) {
           resEvent.sipSnapshotUrl = `/api/domru/snapshots/${snapshot.fileName}`;
-        } else {
-          // Find the closest snapshot just to debug
-          const entries = loadSnapshotsIndex();
-          let closestDiff = Infinity;
-          for (const entry of entries) {
-            const diff = Math.abs(entry.timestamp - eventTimeMs);
-            if (diff < closestDiff) closestDiff = diff;
-          }
-          resEvent.debug_closestSnapshotDiffMs = closestDiff;
         }
 
         const opening = getOpeningByOurService(Number(e.placeId), eventTimeMs);
@@ -115,8 +105,6 @@ router.post("/events", async (req, res) => {
             details: opening.details
           };
         }
-      } else {
-        resEvent.debug_error = "Could not parse eventTimeMs from rawTime: " + rawTime;
       }
       return resEvent;
     });
