@@ -629,9 +629,14 @@ export default function SettingsView({
 
               <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-2xl flex items-start gap-3">
                 <ShieldAlert className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                <p className="text-sm text-red-600 dark:text-red-500/90 font-semibold leading-relaxed">
-                  Приложение использует закрытое API «Дом.ru», полученное методом обратной разработки (reverse engineering). Авторы не несут ответственности за возможные блокировки аккаунта со стороны провайдера.
-                </p>
+                <div className="space-y-2">
+                  <p className="text-sm text-red-600 dark:text-red-500/90 font-semibold leading-relaxed">
+                    Приложение использует закрытое API «Дом.ru», полученное методом обратной разработки. Авторы не несут ответственности за возможные блокировки аккаунта со стороны провайдера.
+                  </p>
+                  <p className="text-sm text-red-600 dark:text-red-500/90 font-semibold leading-relaxed">
+                    Клиент рассчитан исключительно на <strong>личное использование</strong> и не спроектирован для безопасной работы множества пользователей (multi-user). Несмотря на механизмы работы с токенами, автор не несёт ответственности за сохранность и перехват ваших авторизационных данных.
+                  </p>
+                </div>
               </div>
               
               <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800/80 text-center">
