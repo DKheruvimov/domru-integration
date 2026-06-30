@@ -25,6 +25,8 @@ import {
   ShieldAlert,
 } from "lucide-react";
 
+declare const __APP_VERSION__: string;
+
 interface SettingsViewProps {
   selectedPlace: SmartPlace | null;
   onLogout: () => void;
@@ -448,7 +450,7 @@ export default function SettingsView({
                 <span>О приложении</span>
               </div>
               <div className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500">
-                <span className="font-semibold text-zinc-450">v1.2.4</span>
+                <span className="font-semibold text-zinc-450">v{__APP_VERSION__}</span>
               </div>
             </button>
           </div>
@@ -607,7 +609,7 @@ export default function SettingsView({
                 </div>
                 <div className="text-center">
                   <h2 className="text-xl font-extrabold text-zinc-900 dark:text-white">Умный Дом Дом.ru</h2>
-                  <span className="text-sm font-bold text-zinc-500">Версия 1.2.4</span>
+                  <span className="text-sm font-bold text-zinc-500">Версия {__APP_VERSION__}</span>
                 </div>
               </div>
 
