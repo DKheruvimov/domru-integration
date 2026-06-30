@@ -1,8 +1,6 @@
 import path from "path";
 
-// Bypass Russian Trusted CA / invalid / expired self-signed certificates for video streaming subdomains
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
+// Global TLS bypass removed for security, now handled per-request
 export const DATA_DIR = path.join(process.cwd(), "data");
 export const TOKENS_FILE = path.join(DATA_DIR, "tokens.json");
 

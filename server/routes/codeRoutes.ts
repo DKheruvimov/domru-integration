@@ -28,10 +28,22 @@ router.get("/list", (req, res) => {
 
 router.get("/read", (req, res) => {
   const filePath = req.query.path as string;
-  if (!filePath || (!filePath.startsWith("src/domru-js/") && !filePath.startsWith("examples/") && !filePath.startsWith("tests/"))) {
+  if (!filePath) {
+    return res.status(400).json({ error: "Missing path parameter" });
+  }
+  
+  // Normalize path to prevent directory traversal (e.g. "src/domru-js/../../server/tokenStore.ts")
+  const normalized = path.normalize(filePath).replace(/\\/g, "/");
+  if (!normalized.startsWith("src/domru-js/") && !normalized.startsWith("examples/") && !normalized.startsWith("tests/")) {
     return res.status(403).json({ error: "Access denied" });
   }
-  const absolutePath = path.join(process.cwd(), filePath);
+  
+  const absolutePath = path.resolve(process.cwd(), normalized);
+  // Ensure the resolved path doesn't escape the project root
+  if (!absolutePath.startsWith(process.cwd())) {
+    return res.status(403).json({ error: "Access denied" });
+  }
+  
   if (!fs.existsSync(absolutePath)) {
     return res.status(404).json({ error: "File not found" });
   }

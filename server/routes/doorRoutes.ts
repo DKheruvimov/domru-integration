@@ -27,8 +27,8 @@ import fs from "fs";
 
 const router = express.Router();
 
-// API Route: Authenticate
-router.get("/snapshot/:placeId/:deviceId", async (req, res) => {
+// API Route: Camera Snapshot
+router.get("/snapshot/:placeId/:deviceId", requireDomruAuth, async (req, res) => {
   const { placeId, deviceId } = req.params;
   if (isDemo(req)) {
     try {
@@ -57,7 +57,7 @@ router.get("/snapshot/:placeId/:deviceId", async (req, res) => {
 });
 
 // API Route: Open Intercom Door/Gate
-router.post("/open", async (req, res) => {
+router.post("/open", requireDomruAuth, async (req, res) => {
   const { placeId, deviceId } = req.body;
   if (isDemo(req)) {
     return res.json({

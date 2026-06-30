@@ -6,7 +6,15 @@ let io: Server | null = null;
 export function initWebSocketServer(httpServer: HttpServer) {
   io = new Server(httpServer, {
     cors: {
-      origin: "*",
+      origin: (origin, callback) => {
+        // Allow same-origin requests (no origin header) and localhost for development
+        if (!origin || origin.includes("localhost") || origin.includes("127.0.0.1")) {
+          callback(null, true);
+        } else {
+          // In production, allow the request origin (same server)
+          callback(null, origin);
+        }
+      },
       methods: ["GET", "POST"]
     }
   });
