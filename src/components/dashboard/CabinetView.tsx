@@ -73,8 +73,8 @@ export default function CabinetView({
   credentials,
   onSubScreenChange,
 }: CabinetViewProps) {
-  const [activeSubScreen, setActiveSubScreenInternal] = useState<null | "keys" | "theme" | "dev" | "timezone">(null);
-  const [devTab, setDevTab] = useState<"diagnostics" | "integrations" | "inspector">("diagnostics");
+  const [activeSubScreen, setActiveSubScreenInternal] = useState<null | "keys" | "settings">(null);
+  const [settingsTab, setSettingsTab] = useState<"general" | "notifications" | "developer" | "integrations" | "inspector">("general");
   const [autoOpenDelayResidentMs, setAutoOpenDelayResidentMs] = useState<number>(0);
   const [autoOpenDelayGuestMs, setAutoOpenDelayGuestMs] = useState<number>(3000);
 
@@ -103,7 +103,7 @@ export default function CabinetView({
     }).catch(err => console.error("Failed to save settings", err));
   };
 
-  const setActiveSubScreen = (screen: null | "keys" | "theme" | "dev" | "timezone") => {
+  const setActiveSubScreen = (screen: null | "keys" | "settings") => {
     setActiveSubScreenInternal(screen);
     if (onSubScreenChange) {
       onSubScreenChange(screen);
@@ -170,9 +170,7 @@ export default function CabinetView({
           <div>
             <h3 className="text-base font-extrabold tracking-tight">
               {activeSubScreen === "keys" && "Мои ключи"}
-              {activeSubScreen === "theme" && "Тема оформления"}
-              {activeSubScreen === "dev" && "Режим разработчика"}
-              {activeSubScreen === "timezone" && "Часовой пояс"}
+              {activeSubScreen === "settings" && "Настройки"}
             </h3>
             <span className="text-[10px] text-[#e30613] font-bold uppercase tracking-wider block">
               Личный кабинет • Настройки
@@ -258,179 +256,98 @@ export default function CabinetView({
           </div>
         )}
 
-        {/* 2. THEME SELECTOR SUB-SCREEN */}
-        {activeSubScreen === "theme" && (
-          <div className="space-y-3.5 animate-scale-up">
-            <div className="grid grid-cols-1 gap-3">
-              <button
-                onClick={() => setTheme("light")}
-                className={`p-4 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer active:scale-[0.99] ${
-                  theme === "light"
-                    ? "bg-[#e30613]/5 dark:bg-[#e30613]/10 border-[#e30613]/35 text-[#e30613] shadow-xs"
-                    : "bg-white dark:bg-[#161b22] border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300"
-                }`}
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="p-2.5 bg-amber-500/10 text-amber-500 rounded-xl">
-                    <Sun className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-extrabold block">Светлая тема</span>
-                    <span className="text-[10px] text-zinc-400 font-semibold block mt-0.5">
-                      Стандартный светлый режим
-                    </span>
-                  </div>
-                </div>
-                {theme === "light" && <div className="w-2.5 h-2.5 bg-[#e30613] rounded-full" />}
-              </button>
-
-              <button
-                onClick={() => setTheme("dark")}
-                className={`p-4 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer active:scale-[0.99] ${
-                  theme === "dark"
-                    ? "bg-[#e30613]/5 dark:bg-[#e30613]/10 border-[#e30613]/35 text-[#e30613] shadow-xs"
-                    : "bg-white dark:bg-[#161b22] border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300"
-                }`}
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl">
-                    <Moon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-extrabold block">Тёмная тема</span>
-                    <span className="text-[10px] text-zinc-400 font-semibold block mt-0.5">
-                      Защита глаз в тёмное время суток
-                    </span>
-                  </div>
-                </div>
-                {theme === "dark" && <div className="w-2.5 h-2.5 bg-[#e30613] rounded-full" />}
-              </button>
-
-              <button
-                onClick={() => setTheme("system")}
-                className={`p-4 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer active:scale-[0.99] ${
-                  theme === "system"
-                    ? "bg-[#e30613]/5 dark:bg-[#e30613]/10 border-[#e30613]/35 text-[#e30613] shadow-xs"
-                    : "bg-white dark:bg-[#161b22] border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300"
-                }`}
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl">
-                    <Monitor className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-extrabold block">Системная тема</span>
-                    <span className="text-[10px] text-zinc-400 font-semibold block mt-0.5">
-                      Синхронизация с настройками ОС
-                    </span>
-                  </div>
-                </div>
-                {theme === "system" && <div className="w-2.5 h-2.5 bg-[#e30613] rounded-full" />}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 3. TIMEZONE SELECTOR SUB-SCREEN */}
-        {activeSubScreen === "timezone" && (
-          <div className="space-y-4 animate-scale-up">
-            {/* Live Clock display */}
-            <div className="bg-zinc-900/90 text-white p-5 rounded-[2rem] text-center border border-zinc-800 space-y-1.5 shadow-xl">
-              <span className="text-[9px] text-[#b5f314] font-black uppercase tracking-widest">
-                Местное время выбранного пояса
-              </span>
-              <div className="text-4xl font-black font-mono leading-none tracking-wider text-[#b5f314]">
-                {liveTime || "—"}
-              </div>
-              <span className="text-[10px] text-zinc-400 font-bold block">
-                {timezones.find((t) => t.id === timezone)?.name || timezone}
-              </span>
-            </div>
-
-            {/* Selection list */}
-            <div className="space-y-2.5 max-h-[40vh] overflow-y-auto pr-1">
-              {timezones.map((tz) => (
-                <button
-                  key={tz.id}
-                  onClick={() => setTimezone(tz.id)}
-                  className={`w-full p-4.5 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer active:scale-99 ${
-                    timezone === tz.id
-                      ? "bg-[#e30613]/5 dark:bg-[#e30613]/10 border-[#e30613]/35 text-[#e30613] shadow-xs"
-                      : "bg-white dark:bg-[#161b22] border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/20"
-                  }`}
-                >
-                  <div>
-                    <span className="text-xs font-extrabold block">{tz.name}</span>
-                    <span className="text-[10px] text-zinc-400 font-semibold block mt-0.5">
-                      {tz.city}
-                    </span>
-                  </div>
-                  <Globe className={`w-4 h-4 ${timezone === tz.id ? "text-[#e30613]" : "text-zinc-400"}`} />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 4. DEVELOPER MODE SUB-SCREEN */}
-        {activeSubScreen === "dev" && (
+        {/* 2. SETTINGS SUB-SCREEN */}
+        {activeSubScreen === "settings" && (
           <div className={`animate-fade-in ${isMobile ? "space-y-4" : "flex gap-6 items-start min-h-[550px]"}`}>
             {/* If Mobile, top tab swapper. If Desktop, left menu sidebar */}
             {isMobile ? (
-              <div className="flex bg-zinc-100 dark:bg-zinc-800/80 p-0.5 rounded-xl gap-0.5 border border-zinc-200/40 dark:border-zinc-800/60 overflow-x-auto select-none">
+              <div className="flex bg-zinc-100 dark:bg-zinc-800/80 p-0.5 rounded-xl gap-0.5 border border-zinc-200/40 dark:border-zinc-800/60 overflow-x-auto select-none no-scrollbar">
                 <button
-                  onClick={() => setDevTab("diagnostics")}
-                  className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap px-3 text-center ${
-                    devTab === "diagnostics"
+                  onClick={() => setSettingsTab("general")}
+                  className={`py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap text-center shrink-0 ${
+                    settingsTab === "general"
                       ? "bg-white dark:bg-zinc-750 text-[#e30613] shadow-xs"
                       : "text-zinc-650 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
                   }`}
                 >
-                  Диагностика
+                  Общие
                 </button>
                 <button
-                  onClick={() => setDevTab("integrations")}
-                  className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap px-3 text-center ${
-                    devTab === "integrations"
+                  onClick={() => setSettingsTab("notifications")}
+                  className={`py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap text-center shrink-0 ${
+                    settingsTab === "notifications"
                       ? "bg-white dark:bg-zinc-750 text-[#e30613] shadow-xs"
                       : "text-zinc-650 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
                   }`}
                 >
-                  Интеграции Алиса
+                  Уведомления
                 </button>
                 <button
-                  onClick={() => setDevTab("inspector")}
-                  className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap px-3 text-center ${
-                    devTab === "inspector"
+                  onClick={() => setSettingsTab("integrations")}
+                  className={`py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap text-center shrink-0 ${
+                    settingsTab === "integrations"
                       ? "bg-white dark:bg-zinc-750 text-[#e30613] shadow-xs"
                       : "text-zinc-650 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
                   }`}
                 >
-                  Инспектор SDK
+                  Интеграции
                 </button>
+                <button
+                  onClick={() => setSettingsTab("developer")}
+                  className={`py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap text-center shrink-0 ${
+                    settingsTab === "developer"
+                      ? "bg-white dark:bg-zinc-750 text-[#e30613] shadow-xs"
+                      : "text-zinc-650 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
+                  }`}
+                >
+                  Разработчик
+                </button>
+                {isDevModeEnabled && (
+                  <button
+                    onClick={() => setSettingsTab("inspector")}
+                    className={`py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap text-center shrink-0 ${
+                      settingsTab === "inspector"
+                        ? "bg-white dark:bg-zinc-750 text-[#e30613] shadow-xs"
+                        : "text-zinc-650 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
+                    }`}
+                  >
+                    Инспектор
+                  </button>
+                )}
               </div>
             ) : (
               /* Desktop: Beautiful Left Side Navigation Panel */
               <div className="w-[200px] shrink-0 space-y-4 bg-zinc-100/60 dark:bg-zinc-900/40 border border-zinc-200/40 dark:border-zinc-800/60 p-4 rounded-2xl flex flex-col justify-between self-stretch">
                 <div className="space-y-1">
                   <span className="text-[9px] font-black text-zinc-450 uppercase tracking-widest block mb-2.5 px-1 leading-none">
-                    Меню отладки
+                    Разделы
                   </span>
                   <button
-                    onClick={() => setDevTab("diagnostics")}
+                    onClick={() => setSettingsTab("general")}
                     className={`w-full text-left py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                      devTab === "diagnostics"
+                      settingsTab === "general"
                         ? "bg-white dark:bg-zinc-800 text-[#e30613] shadow-xs border border-zinc-200/50 dark:border-zinc-700/50"
                         : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
                     }`}
                   >
-                    <Activity className="w-3.5 h-3.5 shrink-0" />
-                    <span>Диагностика</span>
+                    <Settings className="w-3.5 h-3.5 shrink-0" />
+                    <span>Общие</span>
                   </button>
                   <button
-                    onClick={() => setDevTab("integrations")}
+                    onClick={() => setSettingsTab("notifications")}
                     className={`w-full text-left py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                      devTab === "integrations"
+                      settingsTab === "notifications"
+                        ? "bg-white dark:bg-zinc-800 text-[#e30613] shadow-xs border border-zinc-200/50 dark:border-zinc-700/50"
+                        : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
+                    }`}
+                  >
+                    <Bell className="w-3.5 h-3.5 shrink-0" />
+                    <span>Уведомления</span>
+                  </button>
+                  <button
+                    onClick={() => setSettingsTab("integrations")}
+                    className={`w-full text-left py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                      settingsTab === "integrations"
                         ? "bg-white dark:bg-zinc-800 text-[#e30613] shadow-xs border border-zinc-200/50 dark:border-zinc-700/50"
                         : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
                     }`}
@@ -438,36 +355,177 @@ export default function CabinetView({
                     <Blocks className="w-3.5 h-3.5 shrink-0" />
                     <span>Интеграции</span>
                   </button>
+                  
+                  <span className="text-[9px] font-black text-zinc-450 uppercase tracking-widest block mt-4 mb-2.5 px-1 leading-none">
+                    Отладка
+                  </span>
                   <button
-                    onClick={() => setDevTab("inspector")}
+                    onClick={() => setSettingsTab("developer")}
                     className={`w-full text-left py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                      devTab === "inspector"
+                      settingsTab === "developer"
                         ? "bg-white dark:bg-zinc-800 text-[#e30613] shadow-xs border border-zinc-200/50 dark:border-zinc-700/50"
                         : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
                     }`}
                   >
-                    <FolderCode className="w-3.5 h-3.5 shrink-0" />
-                    <span>Инспектор SDK</span>
+                    <Cpu className="w-3.5 h-3.5 shrink-0" />
+                    <span>Разработчик</span>
                   </button>
-                </div>
-
-                {/* Tech specifications tag */}
-                <div className="pt-4 border-t border-zinc-200/40 dark:border-zinc-800/60 font-mono text-[9px] text-zinc-400 space-y-2 leading-tight">
-                  <div>
-                    <span className="block font-black uppercase text-[8px] text-zinc-500">Версия SDK</span>
-                    <span className="text-zinc-800 dark:text-zinc-300">domru-js @2.0.1</span>
-                  </div>
-                  <div>
-                    <span className="block font-black uppercase text-[8px] text-zinc-500">Запросы</span>
-                    <span className="text-zinc-800 dark:text-zinc-300 font-sans">JSON/WebRTC</span>
-                  </div>
+                  {isDevModeEnabled && (
+                    <button
+                      onClick={() => setSettingsTab("inspector")}
+                      className={`w-full text-left py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                        settingsTab === "inspector"
+                          ? "bg-white dark:bg-zinc-800 text-[#e30613] shadow-xs border border-zinc-200/50 dark:border-zinc-700/50"
+                          : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
+                      }`}
+                    >
+                      <FolderCode className="w-3.5 h-3.5 shrink-0" />
+                      <span>Инспектор SDK</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
 
             {/* Active Sub-tab Content Panel */}
             <div className={`flex-1 ${isMobile ? "" : "h-full overflow-y-auto pr-1"}`}>
-              {devTab === "diagnostics" && (
+              
+              {settingsTab === "general" && (
+                <div className="space-y-6 animate-fade-in">
+                  <div className="space-y-3">
+                    <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest block px-1">
+                      Тема оформления
+                    </span>
+                    <div className="grid grid-cols-1 gap-2">
+                      <button
+                        onClick={() => setTheme("light")}
+                        className={`p-3 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer active:scale-[0.99] ${
+                          theme === "light"
+                            ? "bg-[#e30613]/5 dark:bg-[#e30613]/10 border-[#e30613]/35 text-[#e30613]"
+                            : "bg-white dark:bg-[#161b22] border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Sun className="w-4.5 h-4.5" />
+                          <span className="text-xs font-bold">Светлая тема</span>
+                        </div>
+                        {theme === "light" && <div className="w-2.5 h-2.5 bg-[#e30613] rounded-full" />}
+                      </button>
+
+                      <button
+                        onClick={() => setTheme("dark")}
+                        className={`p-3 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer active:scale-[0.99] ${
+                          theme === "dark"
+                            ? "bg-[#e30613]/5 dark:bg-[#e30613]/10 border-[#e30613]/35 text-[#e30613]"
+                            : "bg-white dark:bg-[#161b22] border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Moon className="w-4.5 h-4.5" />
+                          <span className="text-xs font-bold">Тёмная тема</span>
+                        </div>
+                        {theme === "dark" && <div className="w-2.5 h-2.5 bg-[#e30613] rounded-full" />}
+                      </button>
+
+                      <button
+                        onClick={() => setTheme("system")}
+                        className={`p-3 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer active:scale-[0.99] ${
+                          theme === "system"
+                            ? "bg-[#e30613]/5 dark:bg-[#e30613]/10 border-[#e30613]/35 text-[#e30613]"
+                            : "bg-white dark:bg-[#161b22] border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Monitor className="w-4.5 h-4.5" />
+                          <span className="text-xs font-bold">Системная тема</span>
+                        </div>
+                        {theme === "system" && <div className="w-2.5 h-2.5 bg-[#e30613] rounded-full" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest block px-1">
+                      Часовой пояс
+                    </span>
+                    <div className="space-y-2 max-h-[25vh] overflow-y-auto pr-1">
+                      {timezones.map((tz) => (
+                        <button
+                          key={tz.id}
+                          onClick={() => setTimezone(tz.id)}
+                          className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer active:scale-99 ${
+                            timezone === tz.id
+                              ? "bg-[#e30613]/5 dark:bg-[#e30613]/10 border-[#e30613]/35 text-[#e30613]"
+                              : "bg-white dark:bg-[#161b22] border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/20"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Globe className="w-4 h-4 shrink-0 opacity-50" />
+                            <div>
+                              <span className="text-[11px] font-bold block">{tz.name}</span>
+                            </div>
+                          </div>
+                          {timezone === tz.id && <div className="w-2.5 h-2.5 shrink-0 bg-[#e30613] rounded-full" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {settingsTab === "notifications" && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="p-4 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl space-y-4 shadow-xs">
+                    <div className="space-y-1 mb-4">
+                      <span className="text-xs font-extrabold text-zinc-800 dark:text-white block">
+                        Задержка перед автооткрытием (Жильцы)
+                      </span>
+                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
+                        Время ожидания для жильцов. Можно поставить 0, чтобы открывало моментально.
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 mb-4">
+                      <input
+                        type="range"
+                        min="0"
+                        max="15"
+                        step="1"
+                        value={autoOpenDelayResidentMs / 1000}
+                        onChange={(e) => saveSettings(Number(e.target.value) * 1000, autoOpenDelayGuestMs)}
+                        className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#e30613]"
+                      />
+                      <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 w-8 text-right shrink-0">
+                        {autoOpenDelayResidentMs / 1000} с
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-1 mb-4 mt-6 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                      <span className="text-xs font-extrabold text-zinc-800 dark:text-white block">
+                        Задержка перед автооткрытием (Гости/Курьеры)
+                      </span>
+                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
+                        Время ожидания для гостей и курьеров. Домашние успеют услышать звонок в домофон перед автоматическим открытием.
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min="0"
+                        max="15"
+                        step="1"
+                        value={autoOpenDelayGuestMs / 1000}
+                        onChange={(e) => saveSettings(autoOpenDelayResidentMs, Number(e.target.value) * 1000)}
+                        className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#e30613]"
+                      />
+                      <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 w-8 text-right shrink-0">
+                        {autoOpenDelayGuestMs / 1000} с
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {settingsTab === "developer" && (
                 <div className="space-y-4 animate-fade-in">
                   <div className="p-4 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl space-y-4 shadow-xs">
                     <div className="flex items-center justify-between gap-4">
@@ -476,11 +534,10 @@ export default function CabinetView({
                           Режим разработчика
                         </span>
                         <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
-                          Включает технические логи, средства диагностики и дополнительные настройки под видео-трансляцией.
+                          Включает технические логи, средства диагностики и дополнительные вкладки в меню.
                         </span>
                       </div>
                       
-                      {/* Custom Toggle Switch */}
                       <button
                         onClick={() => setIsDevModeEnabled(!isDevModeEnabled)}
                         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
@@ -497,117 +554,59 @@ export default function CabinetView({
                   </div>
 
                   {isDevModeEnabled && (
-                    <div className="p-4 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl space-y-4 shadow-xs animate-fade-in">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <span className="text-xs font-extrabold text-zinc-800 dark:text-white block">
-                            Использовать WebRTC (UDP)
-                          </span>
-                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
-                            Трансляция без задержек. Использование UDP может привести к блокировке IP-адреса строгими брандмауэрами или Anti-DDoS защитой на стороне хостинга.
-                          </span>
-                        </div>
-                        
-                        {/* WebRTC Toggle Switch */}
-                        <button
-                          onClick={() => setUseWebRTC(!useWebRTC)}
-                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            useWebRTC ? "bg-[#e30613]" : "bg-zinc-200 dark:bg-zinc-700"
-                          }`}
-                        >
-                          <span
-                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                              useWebRTC ? "translate-x-5" : "translate-x-0"
+                    <>
+                      <div className="p-4 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl space-y-4 shadow-xs animate-fade-in">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <span className="text-xs font-extrabold text-zinc-800 dark:text-white block">
+                              Использовать WebRTC (UDP)
+                            </span>
+                            <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
+                              Трансляция без задержек. Использование UDP может привести к блокировке IP-адреса строгими брандмауэрами.
+                            </span>
+                          </div>
+                          
+                          <button
+                            onClick={() => setUseWebRTC(!useWebRTC)}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              useWebRTC ? "bg-[#e30613]" : "bg-zinc-200 dark:bg-zinc-700"
                             }`}
-                          />
-                        </button>
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                                useWebRTC ? "translate-x-5" : "translate-x-0"
+                              }`}
+                            />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
 
-                  {isDevModeEnabled && (
-                    <div className="p-4 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl space-y-4 shadow-xs animate-fade-in">
-                      <div className="space-y-1 mb-4">
-                        <span className="text-xs font-extrabold text-zinc-800 dark:text-white block">
-                          Задержка перед автооткрытием (Жильцы)
-                        </span>
-                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
-                          Время ожидания для жильцов. Можно поставить 0, чтобы открывало моментально.
-                        </span>
+                      <div className="bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl overflow-hidden divide-y divide-zinc-150 dark:divide-zinc-800/50 shadow-xs animate-fade-in">
+                        <div className="p-3 px-4 flex items-center justify-between text-xs font-semibold">
+                          <span className="text-zinc-500 dark:text-zinc-400">Модель SDK</span>
+                          <span className="font-mono text-zinc-800 dark:text-zinc-200 font-black">domru-js v2.0.1</span>
+                        </div>
+                        <div className="p-3 px-4 flex items-center justify-between text-xs font-semibold">
+                          <span className="text-zinc-500 dark:text-zinc-400">Формат потока</span>
+                          <span className="font-mono text-zinc-800 dark:text-zinc-200 font-black">{useWebRTC ? "WebRTC" : "HLS"}</span>
+                        </div>
+                        <div className="p-3 px-4 flex items-center justify-between text-xs font-semibold">
+                          <span className="text-zinc-500 dark:text-zinc-400">Устройство</span>
+                          <span className="font-mono text-zinc-800 dark:text-zinc-200 font-black">{isMobile ? "Mobile UI" : "Desktop UI"}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 mb-4">
-                        <input
-                          type="range"
-                          min="0"
-                          max="15"
-                          step="1"
-                          value={autoOpenDelayResidentMs / 1000}
-                          onChange={(e) => saveSettings(Number(e.target.value) * 1000, autoOpenDelayGuestMs)}
-                          className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#e30613]"
-                        />
-                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 w-8 text-right shrink-0">
-                          {autoOpenDelayResidentMs / 1000} с
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-1 mb-4 mt-6">
-                        <span className="text-xs font-extrabold text-zinc-800 dark:text-white block">
-                          Задержка перед автооткрытием (Гости/Курьеры)
-                        </span>
-                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block leading-normal">
-                          Время ожидания для гостей и курьеров. Домашние успеют услышать звонок в домофон перед автоматическим открытием.
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="range"
-                          min="0"
-                          max="15"
-                          step="1"
-                          value={autoOpenDelayGuestMs / 1000}
-                          onChange={(e) => saveSettings(autoOpenDelayResidentMs, Number(e.target.value) * 1000)}
-                          className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#e30613]"
-                        />
-                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 w-8 text-right shrink-0">
-                          {autoOpenDelayGuestMs / 1000} с
-                        </span>
-                      </div>
-                    </div>
+                    </>
                   )}
-
-                  {/* Diagnostics system table */}
-                  <div className="bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl overflow-hidden divide-y divide-zinc-150 dark:divide-zinc-800/50 shadow-xs">
-                    <div className="p-3 px-4 flex items-center justify-between text-xs font-semibold">
-                      <span className="text-zinc-500 dark:text-zinc-400">Модель SDK</span>
-                      <span className="font-mono text-zinc-800 dark:text-zinc-200 font-black">domru-js v2.0.1</span>
-                    </div>
-                    <div className="p-3 px-4 flex items-center justify-between text-xs font-semibold">
-                      <span className="text-zinc-500 dark:text-zinc-400">Прокси-урл</span>
-                      <span className="font-mono text-zinc-800 dark:text-zinc-200 font-black">/api/domru-proxy</span>
-                    </div>
-                    <div className="p-3 px-4 flex items-center justify-between text-xs font-semibold">
-                      <span className="text-zinc-500 dark:text-zinc-400">Формат потока</span>
-                      <span className="font-mono text-zinc-800 dark:text-zinc-200 font-black">{useWebRTC ? "WebRTC" : "HLS"}</span>
-                    </div>
-                    <div className="p-3 px-4 flex items-center justify-between text-xs font-semibold">
-                      <span className="text-zinc-500 dark:text-zinc-400">Ping до камер</span>
-                      <span className="font-mono text-emerald-500 font-black">~18 ms</span>
-                    </div>
-                    <div className="p-3 px-4 flex items-center justify-between text-xs font-semibold">
-                      <span className="text-zinc-500 dark:text-zinc-400">Устройство</span>
-                      <span className="font-mono text-zinc-800 dark:text-zinc-200 font-black">{isMobile ? "Mobile Client UI" : "Desktop Dashboard UI"}</span>
-                    </div>
-                  </div>
                 </div>
               )}
 
-              {devTab === "integrations" && (
+              {settingsTab === "integrations" && (
                 <div className={`animate-fade-in ${isMobile ? "max-h-[60vh]" : "max-h-[75vh]"} overflow-y-auto pr-1`}>
                   <Integrations credentials={credentials || { login: "demo", isDemo: true }} />
                 </div>
               )}
 
-              {devTab === "inspector" && (
+              {settingsTab === "inspector" && isDevModeEnabled && (
                 <div className={`animate-fade-in ${isMobile ? "max-h-[60vh]" : "max-h-[75vh]"} overflow-y-auto pr-1`}>
                   <CodeBrowser />
                 </div>
@@ -685,70 +684,14 @@ export default function CabinetView({
             </div>
           </div>
 
-          {/* Theme Settings */}
+          {/* Settings */}
           <div
-            onClick={() => setActiveSubScreen("theme")}
+            onClick={() => setActiveSubScreen("settings")}
             className="p-4.5 flex items-center justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition"
           >
             <div className="flex items-center gap-3">
-              {theme === "light" ? (
-                <Sun className="w-4.5 h-4.5 text-[#e30613] dark:text-zinc-400" />
-              ) : theme === "dark" ? (
-                <Moon className="w-4.5 h-4.5 text-[#e30613] dark:text-zinc-400" />
-              ) : (
-                <Monitor className="w-4.5 h-4.5 text-[#e30613] dark:text-zinc-400" />
-              )}
-              <span>Тема оформления</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500">
-              <span className="text-[10px] font-semibold text-zinc-450 uppercase">
-                {theme === "light" && "Светлая"}
-                {theme === "dark" && "Тёмная"}
-                {theme === "system" && "Системная"}
-              </span>
-              <ChevronRight className="w-4 h-4" />
-            </div>
-          </div>
-
-          {/* Timezone Settings */}
-          <div
-            onClick={() => setActiveSubScreen("timezone")}
-            className="p-4.5 flex items-center justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition"
-          >
-            <div className="flex items-center gap-3">
-              <Globe className="w-4.5 h-4.5 text-[#e30613] dark:text-zinc-400" />
-              <span>Часовой пояс (Время)</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500">
-              <span className="text-[10px] font-semibold text-zinc-450 truncate max-w-[120px]">
-                {timezones.find((t) => t.id === timezone)?.name.split(" ")[0] || timezone}
-              </span>
-              <ChevronRight className="w-4 h-4" />
-            </div>
-          </div>
-
-          {/* Developer Mode */}
-          <div
-            onClick={() => setActiveSubScreen("dev")}
-            className="p-4.5 flex items-center justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition"
-          >
-            <div className="flex items-center gap-3">
-              <Cpu className="w-4.5 h-4.5 text-[#e30613] dark:text-zinc-400" />
-              <span>Режим разработчика</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500">
-              <span className="text-[10px] font-semibold text-zinc-450">
-                {isDevModeEnabled ? "Включен" : "Выключен"}
-              </span>
-              <ChevronRight className="w-4 h-4" />
-            </div>
-          </div>
-
-          {/* Notifications */}
-          <div className="p-4.5 flex items-center justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition">
-            <div className="flex items-center gap-3">
-              <Bell className="w-4.5 h-4.5 text-[#e30613] dark:text-zinc-400" />
-              <span>Уведомления</span>
+              <Settings className="w-4.5 h-4.5 text-[#e30613] dark:text-zinc-400" />
+              <span>Настройки</span>
             </div>
             <ChevronRight className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
           </div>
@@ -848,70 +791,14 @@ export default function CabinetView({
           </div>
         </div>
 
-        {/* Theme Settings */}
+        {/* Settings */}
         <div
-          onClick={() => setActiveSubScreen("theme")}
+          onClick={() => setActiveSubScreen("settings")}
           className="p-4.5 flex items-center justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/25 transition"
         >
           <div className="flex items-center gap-3">
-            {theme === "light" ? (
-              <Sun className="w-4.5 h-4.5 text-[#E30613]" />
-            ) : theme === "dark" ? (
-              <Moon className="w-4.5 h-4.5 text-[#E30613]" />
-            ) : (
-              <Monitor className="w-4.5 h-4.5 text-[#E30613]" />
-            )}
-            <span>Тема оформления</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500">
-            <span className="text-[10px] font-semibold uppercase text-zinc-400">
-              {theme === "light" && "Светлая"}
-              {theme === "dark" && "Тёмная"}
-              {theme === "system" && "Системная"}
-            </span>
-            <ChevronRight className="w-4 h-4" />
-          </div>
-        </div>
-
-        {/* Timezone Settings */}
-        <div
-          onClick={() => setActiveSubScreen("timezone")}
-          className="p-4.5 flex items-center justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/25 transition"
-        >
-          <div className="flex items-center gap-3">
-            <Globe className="w-4.5 h-4.5 text-[#E30613]" />
-            <span>Часовой пояс (Время)</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500">
-            <span className="text-[10px] font-semibold text-zinc-400">
-              {timezones.find((t) => t.id === timezone)?.name.split(" ")[0] || timezone}
-            </span>
-            <ChevronRight className="w-4 h-4" />
-          </div>
-        </div>
-
-        {/* Developer Mode */}
-        <div
-          onClick={() => setActiveSubScreen("dev")}
-          className="p-4.5 flex items-center justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/25 transition"
-        >
-          <div className="flex items-center gap-3">
-            <Cpu className="w-4.5 h-4.5 text-[#E30613]" />
-            <span>Режим разработчика</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500">
-            <span className="text-[10px] font-semibold text-zinc-400">
-              {isDevModeEnabled ? "Включен" : "Выключен"}
-            </span>
-            <ChevronRight className="w-4 h-4" />
-          </div>
-        </div>
-
-        {/* Notifications */}
-        <div className="p-4.5 flex items-center justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/25 transition">
-          <div className="flex items-center gap-3">
-            <Bell className="w-4.5 h-4.5 text-[#E30613]" />
-            <span>Уведомления</span>
+            <Settings className="w-4.5 h-4.5 text-[#E30613]" />
+            <span>Настройки</span>
           </div>
           <ChevronRight className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
         </div>
