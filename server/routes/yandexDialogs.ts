@@ -140,13 +140,14 @@ async function activateAutoOpen(client: any, isDemoMode: boolean, mockReq: any, 
   } else {
     places = await client.getSubscriberPlaces();
     if (places.length > 0) {
-      devicesByPlace[places[0].id] = await client.getDevices(places[0].id);
+      const targetPlaceId = places[0].place?.id || places[0].id;
+      devicesByPlace[targetPlaceId] = await client.getDevices(targetPlaceId);
     }
   }
 
   if (places.length === 0) return;
 
-  const placeId = places[0].id;
+  const placeId = places[0].place?.id || places[0].id;
   const devices = devicesByPlace[placeId] || [];
   
   // Find first intercom that can open door
