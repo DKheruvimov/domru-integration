@@ -705,7 +705,7 @@ export async function handleManualOpen(placeId: number, deviceId: number, client
     addSipLog(`[SIP] Manual open requested for place ${placeId}, device ${deviceId}, but no ringing call. Calling API directly.`);
     await client.openDoor(placeId, deviceId);
     const { recordDoorOpening } = await import("./openings-manager.js");
-    recordDoorOpening(Number(deviceId), "manual", "Вручную (без звонка)");
+    recordDoorOpening(Number(deviceId), "manual", "Вручную (Web / Алиса)");
   }
 }
 
