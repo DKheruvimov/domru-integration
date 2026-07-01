@@ -150,8 +150,8 @@ async function activateAutoOpen(client: any, isDemoMode: boolean, mockReq: any, 
   const placeId = places[0].place?.id || places[0].id;
   const devices = devicesByPlace[placeId] || [];
   
-  // Find first intercom that can open door
-  const intercom = devices.find((d: any) => d.type === "intercom" && d.allowOpen);
+  // Find first device that can open door
+  const intercom = devices.find((d: any) => d.allowOpen);
   if (!intercom) return;
 
   const deviceId = intercom.id;
