@@ -145,24 +145,20 @@ export async function cleanupOldSnapshots(): Promise<void> {
   saveSnapshotsIndex(validEntries);
 }
 
-/**
- * Finds the closest snapshot for a given deviceId and event timestamp.
- * Max allowed difference: 45 seconds.
- */
-export function findSnapshotForEvent(deviceId: number, eventTimeMs: number): SipSnapshotEntry | null {
+export function findSnapshotForEvent(placeId: number, eventTimeMs: number): SipSnapshotEntry | null {
   const entries = loadSnapshotsIndex();
-  const maxDiffMs = 45 * 1000; // 45 seconds tolerance
+  // Increase tolerance to 15 minutes just in case Dom.ru events are heavily delayed
+  const maxDiffMs = 15 * 60 * 1000; 
 
   let bestMatch: SipSnapshotEntry | null = null;
   let smallestDiff = Infinity;
 
   for (const entry of entries) {
-    if (entry.deviceId === deviceId) {
-      const diff = Math.abs(entry.timestamp - eventTimeMs);
-      if (diff <= maxDiffMs && diff < smallestDiff) {
-        smallestDiff = diff;
-        bestMatch = entry;
-      }
+    const diff = Math.abs(entry.timestamp - eventTimeMs);
+    
+    if (diff <= maxDiffMs && diff < smallestDiff) {
+      smallestDiff = diff;
+      bestMatch = entry;
     }
   }
 
@@ -173,4 +169,33 @@ export function getSnapshotPath(fileName: string): string {
   // Prevent directory traversal attacks
   const cleanFileName = path.basename(fileName);
   return path.join(SNAPSHOTS_DIR, cleanFileName);
+}
+
+export function deleteSnapshots(ids: string[]): { success: boolean; deletedCount: number } {
+  ensureSnapshotsDir();
+  const entries = loadSnapshotsIndex();
+  
+  const idSet = new Set(ids);
+  let deletedCount = 0;
+  const remainingEntries = entries.filter((entry) => {
+    if (idSet.has(entry.id)) {
+      const filePath = path.join(SNAPSHOTS_DIR, entry.fileName);
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+        deletedCount++;
+      } catch (err) {
+        console.error(`[Snapshots] Failed to delete file ${entry.fileName}:`, err);
+      }
+      return false; // exclude from new index
+    }
+    return true; // keep
+  });
+
+  if (deletedCount > 0) {
+    saveSnapshotsIndex(remainingEntries);
+  }
+
+  return { success: true, deletedCount };
 }

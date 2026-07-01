@@ -6,6 +6,7 @@ import codeRoutes from "./server/routes/codeRoutes.js";
 import domruRoutes from "./server/routes/domruRoutes.js";
 import yandexRoutes from "./server/routes/yandexRoutes.js";
 import yandexDialogs from "./server/routes/yandexDialogs.js";
+import settingsRoutes from "./server/routes/settingsRoutes.js";
 import { loadAndResumeActiveTasks } from "./server/sip-manager.js";
 import { initPermanentSipBindings } from "./server/sip-init.js";
 import { startGo2Rtc, handleWsProxy } from "./server/go2rtc-manager.js";
@@ -30,6 +31,7 @@ async function startServer() {
   // Mount modular route controllers
   app.use("/api/code", codeRoutes);
   app.use("/api/domru", domruRoutes);
+  app.use("/api/settings", settingsRoutes);
   app.use("/api/yandex/dialogs", yandexDialogs);
   app.use("/", yandexRoutes);
 
@@ -42,8 +44,19 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        }
+      }
+    }));
     app.get("*", (req, res) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

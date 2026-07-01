@@ -5,6 +5,7 @@ import { DATA_DIR } from "./config.js";
 export interface DoorOpeningRecord {
   id: string;
   timestamp: number;
+  placeId?: number; // Optional for backward compatibility with old records
   deviceId: number;
   type: "manual" | "auto";
   details: string; // e.g. "По расписанию: Курьер", "Вручную из приложения"
@@ -41,7 +42,7 @@ export function saveOpenings(entries: DoorOpeningRecord[]) {
   }
 }
 
-export function recordDoorOpening(deviceId: number, type: "manual" | "auto", details: string) {
+export function recordDoorOpening(placeId: number, deviceId: number, type: "manual" | "auto", details: string) {
   const entries = loadOpenings();
   const timestamp = Date.now();
   const id = `${timestamp}_${Math.random().toString(36).substring(2, 6)}`;
@@ -49,6 +50,7 @@ export function recordDoorOpening(deviceId: number, type: "manual" | "auto", det
   const newEntry: DoorOpeningRecord = {
     id,
     timestamp,
+    placeId,
     deviceId,
     type,
     details,
@@ -64,18 +66,17 @@ export function recordDoorOpening(deviceId: number, type: "manual" | "auto", det
   console.log(`[Openings] Recorded door open: Device ${deviceId}, type: ${type}, details: ${details}`);
 }
 
-/**
- * Checks if our service opened this door within +/- 30 seconds of the event time
- */
-export function getOpeningByOurService(deviceId: number, eventTimeMs: number): DoorOpeningRecord | null {
+export function getOpeningByOurService(placeId: number, eventTimeMs: number): DoorOpeningRecord | null {
   const entries = loadOpenings();
-  const maxDiffMs = 30 * 1000; // 30 seconds tolerance
+  const maxDiffMs = 15 * 60 * 1000; // 15 minutes tolerance
 
   let bestMatch: DoorOpeningRecord | null = null;
   let smallestDiff = Infinity;
 
   for (const entry of entries) {
-    if (entry.deviceId === deviceId) {
+    const matchesPlace = !entry.placeId || isNaN(placeId) || !placeId || entry.placeId === placeId;
+    
+    if (matchesPlace) {
       const diff = Math.abs(entry.timestamp - eventTimeMs);
       if (diff <= maxDiffMs && diff < smallestDiff) {
         smallestDiff = diff;

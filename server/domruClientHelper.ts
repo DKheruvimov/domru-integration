@@ -313,8 +313,8 @@ export const getDomruInstanceFromToken = (req: express.Request) => {
       cleanToken = token.substring(3);
     }
 
-    console.log(`[TOKEN_DEBUG] Raw token (first 60): ${token.substring(0, 60)}`);
-    console.log(`[TOKEN_DEBUG] Clean token: ${cleanToken}`);
+    console.log(`[TOKEN_DEBUG] Raw token (first 8 + last 4): ${token.substring(0, 8)}...${token.length > 12 ? token.substring(token.length - 4) : "***"}`);
+    console.log(`[TOKEN_DEBUG] Clean token length: ${cleanToken.length}`);
 
     let creds = getCredentials(cleanToken);
     console.log(`[TOKEN_DEBUG] getCredentials result: ${creds ? "FOUND" : "NOT_FOUND"}`);

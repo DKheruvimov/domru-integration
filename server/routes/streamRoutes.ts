@@ -1,6 +1,7 @@
 import express from "express";
 import axios from "axios";
 import http from "http";
+import https from "https";
 import { spawn, execSync } from "child_process";
 import { getAccountsByPhone, requestSmsCode, confirmSmsCode } from "../../src/domru-js/index.js";
 import { tokenCache } from "../config.js";
@@ -67,6 +68,7 @@ router.get("/debug-codec/:cameraId", async (req, res) => {
       try {
         const playListRes = await axios.get(originalUrl, {
           timeout: 5000,
+          httpsAgent: new https.Agent({ rejectUnauthorized: false }),
           headers: {
             "User-Agent": "Mozilla/5.0",
             "Authorization": client.token ? `Bearer ${client.token}` : "",
@@ -82,6 +84,7 @@ router.get("/debug-codec/:cameraId", async (req, res) => {
           const tsRes = await axios.get(originalFirstSegmentUrl, {
             responseType: "arraybuffer",
             timeout: 8000,
+            httpsAgent: new https.Agent({ rejectUnauthorized: false }),
             headers: {
               "User-Agent": "Mozilla/5.0",
               "Range": "bytes=0-150000",
@@ -404,6 +407,7 @@ router.get("/stream-proxy*", async (req, res) => {
         validateStatus: () => true,
         signal: abortController.signal,
         timeout: 10000,
+        httpsAgent: isDomruDomain ? new https.Agent({ rejectUnauthorized: false }) : undefined,
       });
 
       console.log(`[STREAM_PROXY] Remote Response Status: ${axiosResponse.status} ${axiosResponse.statusText}`);
@@ -428,7 +432,7 @@ router.get("/stream-proxy*", async (req, res) => {
                 expiresAt: Date.now() + 50 * 60 * 1000, // 50 minutes cache
               });
             }
-            console.log(`[STREAM_PROXY] Token refreshed successfully: ${currentToken}`);
+            console.log(`[STREAM_PROXY] Token refreshed successfully (length: ${currentToken.length})`);
             attempts++;
             continue;
           }

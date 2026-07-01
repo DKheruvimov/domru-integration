@@ -194,7 +194,7 @@ async function activateAutoOpen(client: any, isDemoMode: boolean, mockReq: any, 
         console.log(`[DEMO] Door opened via Yandex Dialogs for place ${placeId}, device ${deviceId}`);
       }
       const { recordDoorOpening } = await import("../openings-manager.js");
-      recordDoorOpening(Number(deviceId), "auto", "Голосовой ассистент Алиса");
+      recordDoorOpening(Number(placeId), Number(deviceId), "auto", "Голосовой ассистент Алиса");
     }
   });
 }

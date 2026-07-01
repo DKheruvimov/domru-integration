@@ -1,15 +1,15 @@
 import React from "react";
 import { SmartPlace, SmartDevice, SmartCamera, GuestPin, HistoryEvent, AppCredentials } from "../../types";
-import { Home, Bell, Users, Sliders, RefreshCw, Car } from "lucide-react";
+import { Home, Bell, Users, Settings, RefreshCw, Car } from "lucide-react";
 import MyHomeView from "./MyHomeView";
 import EventsView from "./EventsView";
 import PeopleView from "./PeopleView";
-import CabinetView from "./CabinetView";
+import SettingsView from "./SettingsView";
 import CctvPlayer from "./CctvPlayer";
 
 interface DesktopDashboardProps {
-  activeTab: "myhome" | "events" | "people" | "cabinet";
-  setActiveTab: (tab: "myhome" | "events" | "people" | "cabinet") => void;
+  activeTab: "myhome" | "events" | "people" | "settings";
+  setActiveTab: (tab: "myhome" | "events" | "people" | "settings") => void;
   places: SmartPlace[];
   selectedPlace: SmartPlace | null;
   setSelectedPlace: (p: SmartPlace) => void;
@@ -40,8 +40,6 @@ interface DesktopDashboardProps {
   groupedEvents: Record<string, HistoryEvent[]>;
   onLogout: () => void;
   loadData: () => void;
-  isCabinetOpen: boolean;
-  setIsCabinetOpen: (open: boolean) => void;
   isDevModeEnabled: boolean;
   setIsDevModeEnabled: (enabled: boolean) => void;
   useWebRTC: boolean;
@@ -86,8 +84,6 @@ export default function DesktopDashboard({
   groupedEvents,
   onLogout,
   loadData,
-  isCabinetOpen,
-  setIsCabinetOpen,
   isDevModeEnabled,
   setIsDevModeEnabled,
   useWebRTC,
@@ -98,14 +94,6 @@ export default function DesktopDashboard({
   setTimezone,
   proxyHeaders,
 }: DesktopDashboardProps) {
-  const [activeSubScreen, setActiveSubScreen] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!isCabinetOpen) {
-      setActiveSubScreen(null);
-    }
-  }, [isCabinetOpen]);
-
   return (
     <div className="space-y-6" id="desktop_dashboard">
       {/* Top Address & Action Bar */}
@@ -157,7 +145,7 @@ export default function DesktopDashboard({
       </div>
 
       {/* Tabs Navigation Bar (Centered) */}
-      <div className="grid grid-cols-3 gap-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 p-1 rounded-2xl shadow-lg max-w-xl mx-auto">
+      <div className="grid grid-cols-4 gap-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 p-1 rounded-2xl shadow-lg max-w-xl mx-auto">
         <button
           onClick={() => setActiveTab("myhome")}
           className={`py-3 text-[11px] font-extrabold rounded-xl flex flex-row items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
@@ -190,6 +178,17 @@ export default function DesktopDashboard({
         >
           <Users className="w-4 h-4" />
           <span>Люди</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("settings")}
+          className={`py-3 text-[11px] font-extrabold rounded-xl flex flex-row items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
+            activeTab === "settings"
+              ? "bg-[#E30613] text-white shadow-md shadow-[#E30613]/20"
+              : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
+          }`}
+        >
+          <Settings className="w-4 h-4" />
+          <span>Настройки</span>
         </button>
       </div>
 
@@ -243,11 +242,26 @@ export default function DesktopDashboard({
             )}
             {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
             {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} proxyHeaders={proxyHeaders} />}
+            {activeTab === "settings" && (
+              <SettingsView 
+                selectedPlace={selectedPlace} 
+                onLogout={onLogout} 
+                theme={theme}
+                setTheme={setTheme}
+                isDevModeEnabled={isDevModeEnabled}
+                setIsDevModeEnabled={setIsDevModeEnabled}
+                useWebRTC={useWebRTC}
+                setUseWebRTC={setUseWebRTC}
+                timezone={timezone}
+                setTimezone={setTimezone}
+                credentials={credentials}
+              />
+            )}
           </div>
         </div>
       ) : (
         /* Normal Centered Single Column view when no camera active */
-        <div className="max-w-4xl mx-auto w-full">
+        <div className={activeTab === "settings" ? "w-full" : "max-w-4xl mx-auto w-full"}>
           {activeTab === "myhome" && (
             <MyHomeView
               devices={devices}
@@ -262,64 +276,24 @@ export default function DesktopDashboard({
           )}
           {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
           {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} proxyHeaders={proxyHeaders} />}
+          {activeTab === "settings" && (
+            <SettingsView 
+              selectedPlace={selectedPlace} 
+              onLogout={onLogout} 
+              theme={theme}
+              setTheme={setTheme}
+              isDevModeEnabled={isDevModeEnabled}
+              setIsDevModeEnabled={setIsDevModeEnabled}
+              useWebRTC={useWebRTC}
+              setUseWebRTC={setUseWebRTC}
+              timezone={timezone}
+              setTimezone={setTimezone}
+              credentials={credentials}
+            />
+          )}
         </div>
       )}
 
-      {/* Cabinet Drawer Overlay (Option B: Slide-out Panel) */}
-      {isCabinetOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 dark:bg-black/65 backdrop-blur-xs flex justify-end animate-fade-in">
-          {/* Backdrop closer */}
-          <div 
-            className="absolute inset-0 cursor-pointer" 
-            onClick={() => setIsCabinetOpen(false)}
-          />
-          
-          {/* Drawer Body with dynamic width transition */}
-          <div 
-            className={`relative h-full bg-zinc-50 dark:bg-[#101418] border-l border-zinc-200 dark:border-zinc-800 shadow-2xl flex flex-col z-10 transition-all duration-300 ease-in-out animate-slide-in-right ${
-              activeSubScreen === "dev"
-                ? "w-full md:w-[750px] lg:w-[950px] xl:w-[1100px]"
-                : "w-full md:w-[480px]"
-            }`}
-          >
-            {/* Header */}
-            <div className="flex justify-between items-center px-6 py-5 bg-white dark:bg-[#101418] border-b border-zinc-200 dark:border-zinc-800 shrink-0">
-              <div>
-                <h3 className="font-extrabold text-lg tracking-tight text-zinc-900 dark:text-white">Личный кабинет</h3>
-                {activeSubScreen === "dev" && (
-                  <p className="text-[10px] font-black text-[#e30613] uppercase tracking-wider mt-0.5 animate-fade-in">
-                    Инструменты разработчика
-                  </p>
-                )}
-              </div>
-              <button 
-                onClick={() => setIsCabinetOpen(false)}
-                className="w-8 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-white rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition cursor-pointer text-xs"
-              >
-                ✕
-              </button>
-            </div>
-            
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-6" id="cabinet_drawer_scrollable">
-              <CabinetView 
-                selectedPlace={selectedPlace} 
-                onLogout={onLogout} 
-                theme={theme}
-                setTheme={setTheme}
-                isDevModeEnabled={isDevModeEnabled}
-                setIsDevModeEnabled={setIsDevModeEnabled}
-                useWebRTC={useWebRTC}
-                setUseWebRTC={setUseWebRTC}
-                timezone={timezone}
-                setTimezone={setTimezone}
-                credentials={credentials}
-                onSubScreenChange={setActiveSubScreen}
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

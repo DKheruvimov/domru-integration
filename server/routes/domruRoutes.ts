@@ -5,6 +5,7 @@ import streamRoutes from "./streamRoutes.js";
 import doorRoutes from "./doorRoutes.js";
 import eventsRoutes from "./eventsRoutes.js";
 import peopleRoutes from "./peopleRoutes.js";
+import snapshotsRoutes from "./snapshotsRoutes.js";
 
 const router = express.Router();
 
@@ -14,5 +15,6 @@ router.use("/", streamRoutes);
 router.use("/", doorRoutes);
 router.use("/", eventsRoutes);
 router.use("/", peopleRoutes);
+router.use("/snapshots", snapshotsRoutes);
 
 export default router;

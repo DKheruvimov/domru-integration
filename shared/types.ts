@@ -22,5 +22,6 @@ export interface Person {
   schedules: ScheduleRule[];
   maxOpens?: number | null;
   opensRemaining?: number | null;
+  lastOpenedDate?: string | null; // e.g. "YYYY-MM-DD" in MSK
   expiresAt?: number | null; // Stored in UTC milliseconds
 }

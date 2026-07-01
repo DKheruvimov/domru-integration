@@ -108,12 +108,14 @@ export default function EventsView({ groupedEvents, isMobile = false }: EventsVi
                         </div>
                       </div>
 
-                      <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 ml-3">
-                        {formatTimeInTimezone(event.timestamp, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 ml-3">
+                          {formatTimeInTimezone(event.timestamp, {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
                     </div>
                   );
                 })}

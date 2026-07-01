@@ -4,12 +4,12 @@ import { Home, Bell, Users, Sliders, RefreshCw, Car, MoreHorizontal } from "luci
 import MyHomeView from "./MyHomeView";
 import EventsView from "./EventsView";
 import PeopleView from "./PeopleView";
-import CabinetView from "./CabinetView";
+import SettingsView from "./SettingsView";
 import CctvPlayer from "./CctvPlayer";
 
 interface MobileDashboardProps {
-  activeTab: "myhome" | "events" | "people" | "cabinet";
-  setActiveTab: (tab: "myhome" | "events" | "people" | "cabinet") => void;
+  activeTab: "myhome" | "events" | "people" | "settings";
+  setActiveTab: (tab: "myhome" | "events" | "people" | "settings") => void;
   places: SmartPlace[];
   selectedPlace: SmartPlace | null;
   setSelectedPlace: (p: SmartPlace) => void;
@@ -40,8 +40,6 @@ interface MobileDashboardProps {
   groupedEvents: Record<string, HistoryEvent[]>;
   onLogout: () => void;
   loadData: () => void;
-  isCabinetOpen: boolean;
-  setIsCabinetOpen: (open: boolean) => void;
   isDevModeEnabled: boolean;
   setIsDevModeEnabled: (enabled: boolean) => void;
   useWebRTC: boolean;
@@ -86,8 +84,6 @@ export default function MobileDashboard({
   groupedEvents,
   onLogout,
   loadData,
-  isCabinetOpen,
-  setIsCabinetOpen,
   isDevModeEnabled,
   setIsDevModeEnabled,
   useWebRTC,
@@ -196,8 +192,8 @@ export default function MobileDashboard({
         )}
         {activeTab === "events" && <EventsView groupedEvents={groupedEvents} isMobile={true} />}
         {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} proxyHeaders={proxyHeaders} />}
-        {activeTab === "cabinet" && (
-          <CabinetView 
+        {activeTab === "settings" && (
+          <SettingsView 
             selectedPlace={selectedPlace} 
             onLogout={onLogout} 
             isMobile={true} 
@@ -250,15 +246,15 @@ export default function MobileDashboard({
           <span className="leading-none">Люди</span>
         </button>
         <button
-          onClick={() => setActiveTab("cabinet")}
+          onClick={() => setActiveTab("settings")}
           className={`py-2 px-3 text-[10px] font-black flex flex-col items-center justify-center gap-1 transition-all duration-300 flex-1 max-w-[85px] cursor-pointer ${
-            activeTab === "cabinet"
+            activeTab === "settings"
               ? "bg-[#252c36] text-[#b5f314] rounded-2xl scale-[1.03] shadow-xs"
               : "text-zinc-400 hover:text-zinc-200"
           }`}
         >
-          <MoreHorizontal className="w-5 h-5 shrink-0" />
-          <span className="leading-none">Кабинет</span>
+          <Sliders className="w-5 h-5 shrink-0" />
+          <span className="leading-none">Настройки</span>
         </button>
       </div>
     </div>

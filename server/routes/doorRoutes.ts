@@ -27,8 +27,8 @@ import fs from "fs";
 
 const router = express.Router();
 
-// API Route: Authenticate
-router.get("/snapshot/:placeId/:deviceId", async (req, res) => {
+// API Route: Camera Snapshot
+router.get("/snapshot/:placeId/:deviceId", requireDomruAuth, async (req, res) => {
   const { placeId, deviceId } = req.params;
   if (isDemo(req)) {
     try {
@@ -57,9 +57,11 @@ router.get("/snapshot/:placeId/:deviceId", async (req, res) => {
 });
 
 // API Route: Open Intercom Door/Gate
-router.post("/open", async (req, res) => {
+router.post("/open", requireDomruAuth, async (req, res) => {
   const { placeId, deviceId } = req.body;
   if (isDemo(req)) {
+    const { recordDoorOpening } = await import("../openings-manager.js");
+    recordDoorOpening(Number(placeId || 1001), Number(deviceId || 2001), "manual", "Вручную (без звонка)");
     return res.json({
       status: "SUCCESS",
       message: "Дверь успешно открыта",
@@ -163,7 +165,7 @@ router.post("/sip/auto-open", requireDomruAuth, async (req, res) => {
         onOpenDoor: async () => {
           await client.openDoor(Number(placeId), Number(deviceId));
           const { recordDoorOpening } = await import("../openings-manager.js");
-          recordDoorOpening(Number(deviceId), "auto", `Временное авто-открытие SIP (${credentials.login})`);
+          recordDoorOpening(Number(placeId), Number(deviceId), "auto", `Временное авто-открытие SIP (${credentials.login})`);
         }
       });
       res.json({ status: "SUCCESS", message: "SIP Auto-open enabled", login: credentials.login, expiresAt });
@@ -177,20 +179,6 @@ router.post("/sip/auto-open", requireDomruAuth, async (req, res) => {
     import("../sip-manager.js").then(m => m.addSipLog(`[SIP] API Error: ${err.message || err}`, "error")).catch(() => {});
     handleClientError(err, res);
   }
-});
-
-// API Route: Serves SIP snapshots stored in the data directory
-router.get("/snapshots/:fileName", (req, res) => {
-  const { fileName } = req.params;
-  const filePath = getSnapshotPath(fileName);
-  
-  if (fs.existsSync(filePath)) {
-    res.setHeader("Content-Type", "image/jpeg");
-    res.setHeader("Cache-Control", "public, max-age=2592000"); // cache for 30 days
-    return res.sendFile(filePath);
-  }
-  
-  res.status(404).json({ error: "Snapshot not found" });
 });
 
 // API Route: Historical Events

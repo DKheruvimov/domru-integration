@@ -57,24 +57,53 @@ router.post("/events", async (req, res) => {
     // Inject local SIP snapshot URLs and local door opening information
     const enhancedEvents = events.map((e: any) => {
       let resEvent = { ...e };
-      if (e.source?.id) {
-        const eventTimeMs = e.occurredAt 
-          ? new Date(e.occurredAt).getTime() 
-          : (e.timestamp ? new Date(e.timestamp).getTime() : null);
+      const sourceId = e.source?.id || e.device?.id;
+      
+      let eventTimeMs = null;
+      const rawTime = e.occurredAt || e.timestamp;
+      
+      if (rawTime) {
+        if (typeof rawTime === "number") {
+          eventTimeMs = rawTime < 100000000000 ? rawTime * 1000 : rawTime;
+        } else if (typeof rawTime === "string") {
+          let cleaned = rawTime.trim();
           
-        if (eventTimeMs) {
-          const snapshot = findSnapshotForEvent(Number(e.source.id), eventTimeMs);
-          if (snapshot) {
-            resEvent.sipSnapshotUrl = `/api/domru/snapshots/${snapshot.fileName}`;
+          if (/^\d+$/.test(cleaned)) {
+            const num = parseInt(cleaned, 10);
+            eventTimeMs = num < 100000000000 ? num * 1000 : num;
+          } else {
+            // Handle DD.MM.YYYY HH:mm:ss or DD-MM-YYYY HH:mm:ss
+            const ruDateMatch = cleaned.match(/^(\d{2})[.-](\d{2})[.-](\d{4})(?:\s+(.*))?$/);
+            if (ruDateMatch) {
+              const [_, dd, mm, yyyy, timePart] = ruDateMatch;
+              cleaned = `${yyyy}-${mm}-${dd}${timePart ? 'T' + timePart : ''}`;
+            }
+            
+            if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(cleaned)) {
+              cleaned = cleaned.replace(" ", "T");
+            }
+            const d = new Date(cleaned);
+            if (!isNaN(d.getTime())) {
+              eventTimeMs = d.getTime();
+            } else {
+              console.error(`[Events] Failed to parse timestamp: ${rawTime}`);
+            }
           }
+        }
+      }
+        
+      if (eventTimeMs) {
+        const snapshot = findSnapshotForEvent(Number(e.placeId), eventTimeMs);
+        if (snapshot) {
+          resEvent.sipSnapshotUrl = `/api/domru/snapshots/${snapshot.fileName}`;
+        }
 
-          const opening = getOpeningByOurService(Number(e.source.id), eventTimeMs);
-          if (opening) {
-            resEvent.openedByOurService = {
-              type: opening.type,
-              details: opening.details
-            };
-          }
+        const opening = getOpeningByOurService(Number(e.placeId), eventTimeMs);
+        if (opening) {
+          resEvent.openedByOurService = {
+            type: opening.type,
+            details: opening.details
+          };
         }
       }
       return resEvent;

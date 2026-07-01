@@ -28,6 +28,9 @@
     "examples",
     "src/domru-js/tests",
     "src/domru-js/examples",
-    "scratch"
+    "scratch",
+    "test*.ts",
+    "test*.cjs",
+    "test*.js"
   ]
 }

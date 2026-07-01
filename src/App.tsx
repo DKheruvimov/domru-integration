@@ -16,7 +16,6 @@ export default function App() {
     }
     return null;
   });
-  const [isCabinetOpen, setIsCabinetOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
     return (saved as "light" | "dark" | "system") || "system";
@@ -153,14 +152,6 @@ export default function App() {
 
                 {/* Header Controls */}
                 <div className="flex items-center gap-3">
-                  {/* Status Badge / Cabinet Trigger Button */}
-                  <button
-                    onClick={() => setIsCabinetOpen(true)}
-                    className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/85 text-zinc-700 dark:text-zinc-200 text-xs font-semibold rounded-xl transition-all shadow-2xs cursor-pointer border border-zinc-200/30"
-                  >
-                    <Database className="w-3.5 h-3.5 text-[#E30613]" />
-                    <span>Личный кабинет</span>
-                  </button>
                 </div>
               </div>
             </div>
@@ -171,8 +162,6 @@ export default function App() {
             <Dashboard 
               credentials={credentials} 
               onLogout={handleLogout} 
-              isCabinetOpen={isCabinetOpen}
-              setIsCabinetOpen={setIsCabinetOpen}
               isDevModeEnabled={isDevModeEnabled}
               setIsDevModeEnabled={setIsDevModeEnabled}
               useWebRTC={useWebRTC}

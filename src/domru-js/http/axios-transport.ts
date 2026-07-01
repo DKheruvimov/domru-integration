@@ -1,4 +1,5 @@
 import axios, { type AxiosResponse } from "axios";
+import https from "https";
 import type { HttpTransport, RequestOptions } from "./transport.js";
 import type { DomruLogger } from "../types.js";
 
@@ -16,6 +17,7 @@ export class AxiosTransport implements HttpTransport {
 			timeout,
 			maxRedirects: 5,
 			validateStatus: () => true,
+			httpsAgent: new https.Agent({ rejectUnauthorized: false }),
 		});
 	}
 
