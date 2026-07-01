@@ -70,7 +70,7 @@ router.post("/open", requireDomruAuth, async (req, res) => {
 
   try {
     const client = getDomruInstance(req);
-    await handleManualOpen(Number(placeId), Number(deviceId), client);
+    await handleManualOpen(Number(placeId), Number(deviceId), client, "Web");
     res.json({ status: "SUCCESS", message: "Дверь открыта (SIP interception applied if ringing)" });
   } catch (err: any) {
     handleClientError(err, res);

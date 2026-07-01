@@ -353,7 +353,7 @@ router.post("/v1.0/user/devices/action", async (req, res) => {
 
               if (!isDemoMode) {
                 try {
-                  await handleManualOpen(placeId, deviceId, client);
+                  await handleManualOpen(placeId, deviceId, client, "Alice");
                   console.log(`[Yandex Alice] Open door handled for place ${placeId}, device ${deviceId}`);
                 } catch (errByDomru) {
                   console.error(`[Yandex Alice] Open door failed for place ${placeId}, device ${deviceId}:`, errByDomru);

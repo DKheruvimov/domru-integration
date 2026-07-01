@@ -630,7 +630,7 @@ export function startSipServer() {
  * If there is an active ringing call, we answer it, open door, wait 2s, and hang up.
  * If there is no active ringing call, we just execute the openDoor API as fallback.
  */
-export async function handleManualOpen(placeId: number, deviceId: number, client: DomruClient): Promise<void> {
+export async function handleManualOpen(placeId: number, deviceId: number, client: DomruClient, source: "Web" | "Alice" = "Web"): Promise<void> {
   let matchedLogin: string | null = null;
   let matchedBinding: SipDeviceBinding | null = null;
   for (const [login, binding] of permanentBindings.entries()) {
@@ -671,7 +671,7 @@ export async function handleManualOpen(placeId: number, deviceId: number, client
       await client.openDoor(placeId, deviceId);
       addSipLog(`[SIP] Door opened via manual interception for ${login}.`);
       const { recordDoorOpening } = await import("./openings-manager.js");
-      recordDoorOpening(Number(placeId), Number(deviceId), "manual", "Вручную (перехват вызова)");
+      recordDoorOpening(Number(placeId), Number(deviceId), "manual", `Вручную (${source}, перехват)`);
     } catch (err: any) {
       addSipLog(`[SIP] Failed to open door for ${login}: ${err.message || err}`, "error");
     }
@@ -711,7 +711,7 @@ export async function handleManualOpen(placeId: number, deviceId: number, client
     addSipLog(`[SIP] Manual open requested for place ${placeId}, device ${deviceId}, but no ringing call. Calling API directly.`);
     await client.openDoor(placeId, deviceId);
     const { recordDoorOpening } = await import("./openings-manager.js");
-    recordDoorOpening(Number(placeId), Number(deviceId), "manual", "Вручную (Web / Алиса)");
+    recordDoorOpening(Number(placeId), Number(deviceId), "manual", `Вручную (${source})`);
   }
 }
 
