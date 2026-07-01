@@ -198,6 +198,9 @@ async function activateAutoOpen(client: any, isDemoMode: boolean, mockReq: any, 
       recordDoorOpening(Number(placeId), Number(deviceId), "auto", "Голосовой ассистент Алиса");
     }
   });
+
+  const { addTemporaryAutoOpenPerson } = await import("../people-manager.js");
+  addTemporaryAutoOpenPerson(Number(deviceId), maxOpens, durationMinutes);
 }
 
 export default router;
