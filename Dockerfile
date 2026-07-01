@@ -32,6 +32,7 @@ COPY --from=builder /app/dist ./dist
 # Copy folders required by code browser at runtime
 COPY --from=builder /app/src/domru-js ./src/domru-js
 COPY --from=builder /app/examples ./examples
+COPY --from=builder /app/server/views ./server/views
 
 EXPOSE 3000
 
