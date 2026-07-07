@@ -453,6 +453,12 @@ export function startSipServer() {
     async (request: any) => {
       // Handle incoming SIP requests
       if (request.method === "INVITE") {
+        const callId = request.headers["call-id"];
+        if (activeDialogs.has(callId)) {
+          // This is a retransmission, ignore it so we don't trigger multiple snapshots/answers
+          return;
+        }
+
         const toUri = request.headers.to.uri;
         let login = "";
         if (typeof toUri === "object") {
@@ -460,6 +466,14 @@ export function startSipServer() {
         } else {
           login = toUri.match(/sip:(.*)@/)?.[1] || "";
         }
+
+        activeDialogs.set(callId, {
+          login,
+          callId,
+          from: request.headers.from,
+          to: request.headers.to,
+          cseq: request.headers.cseq.seq
+        });
 
         addSipLog(`[SIP] Received INVITE for ${login}`);
         broadcastIncomingCall(login, "Incoming SIP INVITE");
