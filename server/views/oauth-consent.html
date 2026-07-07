@@ -416,12 +416,12 @@
       toggleSpinner("spinner-password-login", true);
       
       try {
+        const authPayload = btoa(encodeURIComponent(JSON.stringify({ login: loginValRaw, password: passwordValRaw })));
         const res = await fetch("/api/domru/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-domru-login": loginValRaw,
-            "x-domru-password": passwordValRaw
+            "Authorization": `Bearer ${authPayload}`
           }
         });
         

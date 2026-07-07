@@ -336,7 +336,7 @@ export const getDomruInstanceFromToken = (req: express.Request) => {
     if (!creds) {
       try {
         const decodedStr = Buffer.from(cleanToken, "base64").toString("utf-8");
-        creds = JSON.parse(decodedStr);
+        creds = JSON.parse(decodeURIComponent(decodedStr));
       } catch (decodeErr) {
         console.error("[TOKEN_DECODE] Failed to decode token as UUID or Base64:", decodeErr);
         throw new Error("Invalid or expired token");
