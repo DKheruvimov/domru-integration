@@ -108,7 +108,7 @@ export default function Dashboard({
       setError("");
 
       // Fetch Places
-      const placesRes = await fetch("/api/domru/places", { headers: proxyHeaders });
+      const placesRes = await fetch("/api/domru/places/all", { headers: proxyHeaders });
       if (!placesRes.ok) throw new Error("Не удалось загрузить объекты абонента");
       const placesRaw = await placesRes.json();
 

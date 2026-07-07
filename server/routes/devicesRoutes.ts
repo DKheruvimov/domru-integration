@@ -27,7 +27,7 @@ import fs from "fs";
 const router = express.Router();
 
 // API Route: Authenticate
-router.get("/places", async (req, res) => {
+router.get("/places/all", async (req, res) => {
   if (isDemo(req)) {
     return res.json(MOCK_PLACES);
   }
