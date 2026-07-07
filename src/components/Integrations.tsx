@@ -358,25 +358,43 @@ export default function Integrations({ credentials }: IntegrationsProps) {
           </div>
 
           {/* Scenarios configuration help */}
-          <div className="p-4 bg-purple-500/5 dark:bg-purple-500/10 border border-purple-500/10 dark:border-purple-500/20 rounded-2xl space-y-2">
+          <div className="p-4 bg-purple-500/5 dark:bg-purple-500/10 border border-purple-500/10 dark:border-purple-500/20 rounded-2xl space-y-3">
             <h5 className="font-extrabold text-[10px] text-purple-750 dark:text-purple-400 uppercase tracking-widest flex items-center gap-1.5">
-              🚀 Настройка сценариев в приложении «Дом с Алисой»
+              🚀 Как настроить короткие команды (через Сценарии)
             </h5>
             <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed font-semibold">
-              Чтобы не диктовать длинные фразы, свяжите навык со сценариями умного дома:
+              Чтобы не произносить длинные фразы (например, <em>«Алиса, попроси умный домофон ждать курьера»</em>), можно создать сценарий в приложении Умного дома:
             </p>
-            <div className="space-y-3.5 pt-1.5 font-medium">
-              <div className="bg-white/55 dark:bg-zinc-900/45 p-3 rounded-xl border border-zinc-200/40 dark:border-zinc-800/40 text-xs text-zinc-650 dark:text-zinc-350 space-y-1">
-                <div className="font-bold text-zinc-800 dark:text-zinc-200">Сценарий «Жду курьера»:</div>
-                <div>• <span className="font-bold text-[#e30613]">Если:</span> Вы говорите колонке: <em>«Алиса, я жду курьера»</em></div>
-                <div>• <span className="font-bold text-emerald-500">Тогда:</span> Действие колонки: <em>«Попроси мой домофон ждать курьера на 15 минут»</em></div>
+            
+            <div className="space-y-3 pl-1">
+              <div className="flex items-start gap-2.5">
+                <span className="text-xs font-black text-purple-500 shrink-0 mt-0.5">1.</span>
+                <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-350 leading-relaxed">
+                  В приложении <strong>«Умный дом с Алисой»</strong> нажмите плюсик (+) и выберите <strong>«Сценарий»</strong>.
+                </p>
               </div>
+              <div className="flex items-start gap-2.5">
+                <span className="text-xs font-black text-purple-500 shrink-0 mt-0.5">2.</span>
+                <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-350 leading-relaxed">
+                  Условие <strong>«Если»</strong> → <strong>Фраза</strong>. Напишите короткую команду, например: <em className="bg-white dark:bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700">Жду курьера</em>
+                </p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="text-xs font-black text-purple-500 shrink-0 mt-0.5">3.</span>
+                <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-350 leading-relaxed">
+                  Действие <strong>«Тогда»</strong> → Выберите колонку → <strong>Выполнить команду</strong>.
+                </p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="text-xs font-black text-purple-500 shrink-0 mt-0.5">4.</span>
+                <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-350 leading-relaxed">
+                  Напишите полную команду запуска: <em className="bg-white dark:bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 text-purple-600 dark:text-purple-400">Попроси [Имя навыка] ждать курьера</em>. Сохраните.
+                </p>
+              </div>
+            </div>
 
-              <div className="bg-white/55 dark:bg-zinc-900/45 p-3 rounded-xl border border-zinc-200/40 dark:border-zinc-800/40 text-xs text-zinc-650 dark:text-zinc-350 space-y-1">
-                <div className="font-bold text-zinc-800 dark:text-zinc-200">Сценарий «Жду гостей»:</div>
-                <div>• <span className="font-bold text-[#e30613]">Если:</span> Вы говорите колонке: <em>«Алиса, к нам гости»</em></div>
-                <div>• <span className="font-bold text-emerald-500">Тогда:</span> Действие колонки: <em>«Попроси мой домофон ждать гостей на 1 час»</em></div>
-              </div>
+            <div className="mt-2 bg-white/55 dark:bg-zinc-900/45 p-3 rounded-xl border border-zinc-200/40 dark:border-zinc-800/40 text-[11px] text-zinc-650 dark:text-zinc-350">
+              <span className="font-bold text-zinc-800 dark:text-zinc-200">Как это работает:</span> Когда вы скажете <em>«Алиса, жду курьера»</em>, сработает сценарий и Алиса "про себя" выполнит длинную команду, вызвав ваш навык.
             </div>
           </div>
 
