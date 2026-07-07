@@ -33,6 +33,9 @@ router.get("/oauth/authorize", (req, res) => {
   }
 
   const htmlContent = require('fs').readFileSync(require('path').join(process.cwd(), 'server', 'views', 'oauth-consent.html'), 'utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.send(htmlContent);
 });
 
