@@ -70,34 +70,26 @@ router.post("/", async (req, res) => {
       return res.json(createResponse("Хорошо, включила ожидание курьера на 2 часа.", true));
     }
 
-    if (command.includes("гост") && !command.includes("один") && currentStep === "INIT") {
-      return res.json(createResponse("Сколько гостей вы ожидаете?", false, { step: "WAITING_GUESTS_COUNT" }));
-    }
+    const wordToNumber: Record<string, number> = {
+      "одного": 1, "один": 1, "одна": 1, "одну": 1,
+      "двух": 2, "два": 2, "двое": 2, "две": 2,
+      "трех": 3, "три": 3, "троих": 3, "трое": 3,
+      "четырех": 4, "четыре": 4, "четверых": 4, "четверо": 4,
+      "пяти": 5, "пять": 5, "пятерых": 5, "пятеро": 5,
+      "шести": 6, "шесть": 6, "шестерых": 6, "шестеро": 6,
+      "семи": 7, "семь": 7, "семерых": 7, "семеро": 7,
+      "восьми": 8, "восемь": 8, "восьмерых": 8, "восьмеро": 8,
+      "девяти": 9, "девять": 9, "девятерых": 9, "девятеро": 9,
+      "десяти": 10, "десять": 10, "десятерых": 10, "десятеро": 10,
+    };
 
-    if ((command.includes("один") && command.includes("гост")) || (command === "гость" || command === "гостя")) {
-      await activateAutoOpen(client, isDemoMode, mockReq, 1, 180);
-      return res.json(createResponse("Поняла, ожидаю одного гостя в течение 3 часов.", true));
-    }
+    const isGuestIntent = command.includes("гост") || currentStep === "WAITING_GUESTS_COUNT";
+    const isJustNumber = /^\d+$/.test(command) || Object.keys(wordToNumber).includes(command);
 
-    // State machine processing
-    if (currentStep === "WAITING_GUESTS_COUNT") {
-      // Extract number from command
+    if (isGuestIntent || isJustNumber) {
       const match = command.match(/\d+/);
       let count = 0;
       
-      const wordToNumber: Record<string, number> = {
-        "одного": 1, "один": 1, "одна": 1, "одну": 1,
-        "двух": 2, "два": 2, "двое": 2, "две": 2,
-        "трех": 3, "три": 3, "троих": 3, "трое": 3,
-        "четырех": 4, "четыре": 4, "четверых": 4, "четверо": 4,
-        "пяти": 5, "пять": 5, "пятерых": 5, "пятеро": 5,
-        "шести": 6, "шесть": 6, "шестерых": 6, "шестеро": 6,
-        "семи": 7, "семь": 7, "семерых": 7, "семеро": 7,
-        "восьми": 8, "восемь": 8, "восьмерых": 8, "восьмеро": 8,
-        "девяти": 9, "девять": 9, "девятерых": 9, "девятеро": 9,
-        "десяти": 10, "десять": 10, "десятерых": 10, "десятеро": 10,
-      };
-
       if (match) {
         count = parseInt(match[0], 10);
       } else {
@@ -109,14 +101,17 @@ router.post("/", async (req, res) => {
         }
       }
 
-      if (count > 0) {
+      if (count === 1) {
+        await activateAutoOpen(client, isDemoMode, mockReq, 1, 180);
+        return res.json(createResponse("Поняла, ожидаю одного гостя в течение 3 часов.", true));
+      } else if (count > 0) {
         await activateAutoOpen(client, isDemoMode, mockReq, count, 180);
         return res.json(createResponse(`Отлично. Включила ожидание для ${count} гостей на 3 часа.`, true));
       } else if (command.includes("безлимит") || command.includes("много")) {
         await activateAutoOpen(client, isDemoMode, mockReq, null, 180);
         return res.json(createResponse(`Хорошо. Включила безлимитное открытие дверей на 3 часа.`, true));
       } else {
-        return res.json(createResponse("Не совсем поняла, сколько именно гостей? Назовите количество.", false, { step: "WAITING_GUESTS_COUNT" }));
+        return res.json(createResponse("Сколько гостей вы ожидаете?", false, { step: "WAITING_GUESTS_COUNT" }));
       }
     }
 
