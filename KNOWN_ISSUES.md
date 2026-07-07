@@ -70,10 +70,12 @@
 - Доступные события: `auto_open_status_changed`, `sip_log_added`, `sip_incoming_call`, `door_opened`.
 - Подробная таблица — в `AI_WORKFLOW.md`.
 
-## 9. Развертывание за прокси (Cloud.ru, TurboFlare)
+## 9. Развертывание за прокси (Cloud.ru, TurboFlare) и WAF
 
 - Рекомендуется прятать сервер за Reverse Proxy (TurboFlare, Cloudflare). Express настроен с `app.set("trust proxy", true)`.
-- **Ограничение**: Reverse proxy маскирует только входящий трафик. Если Дом.ru забанит IP сервера, потребуется Forward Proxy/VPN на уровне ОС.
+- **WAF и кастомные заголовки**: Многие Web Application Firewalls (например, Turboflare) автоматически блокируют HTTP-запросы, содержащие слово `password` в названиях заголовков (например, `x-domru-password`), возвращая 403 Forbidden. 
+- **Решение**: Передача кредов между фронтендом и нашим бэкендом осуществляется **только** через стандартный заголовок `Authorization: Bearer <base64_json>`. Кастомные заголовки `x-domru-*` поддерживаются на бэкенде только для обратной совместимости, но фронтенд обязан использовать `Authorization`.
+- **Ограничение IP**: Reverse proxy маскирует только входящий трафик. Если Дом.ru забанит IP сервера, потребуется Forward Proxy/VPN на уровне ОС.
 
 ## 10. Журнал открытий и привязка к событиям
 
