@@ -101,6 +101,11 @@ router.post("/", async (req, res) => {
         }
       }
 
+      // If they explicitly said "гостя" (singular) without a number, assume 1.
+      if (count === 0 && command.includes("гостя")) {
+        count = 1;
+      }
+
       if (count === 1) {
         await activateAutoOpen(client, isDemoMode, mockReq, 1, 180, "guest");
         return res.json(createResponse("Поняла, ожидаю одного гостя в течение 3 часов.", true));
