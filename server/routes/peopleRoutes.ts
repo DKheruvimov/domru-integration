@@ -55,6 +55,21 @@ router.post("/people", requireDomruAuth, (req, res) => {
         }
       }
 
+      // Sync updated expiresAt to activeTasks for temp cards
+      const activeTasks = getActiveTasks();
+      for (const p of people) {
+        if (p.id.startsWith("temp-") && p.expiresAt) {
+          const match = p.id.match(/^temp-(\d+)$/);
+          if (match) {
+            const deviceId = Number(match[1]);
+            const task = activeTasks.find(t => t.deviceId === deviceId);
+            if (task && task.expiresAt !== p.expiresAt) {
+              task.expiresAt = p.expiresAt;
+            }
+          }
+        }
+      }
+
       res.json({ status: "SUCCESS", people });
     } else {
       res.status(400).json({ error: "people must be an array" });

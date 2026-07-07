@@ -18,6 +18,7 @@ import {
   ToggleRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { getSocket } from "../../socket";
 
 interface PeopleViewProps {
   pins: GuestPin[];
@@ -75,6 +76,13 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleV
 
   useEffect(() => {
     fetchPeople();
+    
+    const socket = getSocket();
+    socket.on("auto_open_status_changed", fetchPeople);
+    
+    return () => {
+      socket.off("auto_open_status_changed", fetchPeople);
+    };
   }, []);
 
   // Save full list
@@ -199,8 +207,32 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleV
       maxOpens: role !== "resident" && maxOpens !== "" ? Number(maxOpens) : null,
       opensRemaining: editingPerson
         ? (editingPerson.opensRemaining !== undefined ? editingPerson.opensRemaining : (role !== "resident" && maxOpens !== "" ? Number(maxOpens) : null))
-        : (role !== "resident" && maxOpens !== "" ? Number(maxOpens) : null)
+        : (role !== "resident" && maxOpens !== "" ? Number(maxOpens) : null),
+      expiresAt: editingPerson ? editingPerson.expiresAt : undefined,
+      lastOpenedDate: editingPerson ? editingPerson.lastOpenedDate : undefined,
     };
+
+    // If it's a temporary event and was edited, update its expiresAt based on the latest endTime
+    if (newPerson.id.startsWith("temp-") && newPerson.schedules.length > 0) {
+      const now = new Date();
+      // Find the latest endTime in minutes
+      let maxMinutes = 0;
+      for (const rule of newPerson.schedules) {
+         const [h, m] = rule.endTime.split(":").map(Number);
+         const mins = h * 60 + m;
+         if (mins > maxMinutes) maxMinutes = mins;
+      }
+      
+      const newExpiresAtDate = new Date(now);
+      newExpiresAtDate.setHours(Math.floor(maxMinutes / 60), maxMinutes % 60, 0, 0);
+      
+      // If the time already passed today, assume it's for tomorrow (add 24h)
+      if (newExpiresAtDate.getTime() < now.getTime()) {
+         newExpiresAtDate.setDate(newExpiresAtDate.getDate() + 1);
+      }
+      
+      newPerson.expiresAt = newExpiresAtDate.getTime();
+    }
 
     let updatedList: Person[];
     if (editingPerson) {
