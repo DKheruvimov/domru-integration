@@ -240,7 +240,7 @@ function formatTimeHHMM_MSK(date: Date): string {
   return `${hh}:${mm}`;
 }
 
-export function addTemporaryAutoOpenPerson(deviceId: number, maxOpens: number | null, durationMinutes: number) {
+export function addTemporaryAutoOpenPerson(deviceId: number, maxOpens: number | null, durationMinutes: number, explicitRole?: "guest" | "courier") {
   const people = getPeople();
   const tempId = `temp-${deviceId}`;
   const now = Date.now();
@@ -250,10 +250,18 @@ export function addTemporaryAutoOpenPerson(deviceId: number, maxOpens: number | 
   const startStr = formatTimeHHMM_MSK(new Date(now));
   const endStr = formatTimeHHMM_MSK(new Date(now + duration * 60 * 1000));
 
+  const role = explicitRole || (maxOpens === 1 ? "courier" : "guest");
+  let name = "";
+  if (role === "guest") {
+    name = maxOpens === 1 ? "Быстрый доступ (Гость)" : `Быстрый доступ (Гости${maxOpens ? ` x${maxOpens}` : ""})`;
+  } else {
+    name = "Быстрый доступ (Курьер)";
+  }
+
   const tempPerson: Person = {
     id: tempId,
-    name: maxOpens === 1 ? "Быстрый доступ (Курьер)" : `Быстрый доступ (Гости${maxOpens ? ` x${maxOpens}` : ""})`,
-    role: maxOpens === 1 ? "courier" : "guest",
+    name: name,
+    role: role,
     enabled: true,
     maxOpens: maxOpens,
     opensRemaining: maxOpens,

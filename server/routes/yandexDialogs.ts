@@ -66,7 +66,7 @@ router.post("/", async (req, res) => {
 
     // Immediate fast-paths
     if (command.includes("курьер")) {
-      await activateAutoOpen(client, isDemoMode, mockReq, 1, 120);
+      await activateAutoOpen(client, isDemoMode, mockReq, 1, 120, "courier");
       return res.json(createResponse("Хорошо, включила ожидание курьера на 2 часа.", true));
     }
 
@@ -102,13 +102,13 @@ router.post("/", async (req, res) => {
       }
 
       if (count === 1) {
-        await activateAutoOpen(client, isDemoMode, mockReq, 1, 180);
+        await activateAutoOpen(client, isDemoMode, mockReq, 1, 180, "guest");
         return res.json(createResponse("Поняла, ожидаю одного гостя в течение 3 часов.", true));
       } else if (count > 0) {
-        await activateAutoOpen(client, isDemoMode, mockReq, count, 180);
+        await activateAutoOpen(client, isDemoMode, mockReq, count, 180, "guest");
         return res.json(createResponse(`Отлично. Включила ожидание для ${count} гостей на 3 часа.`, true));
       } else if (command.includes("безлимит") || command.includes("много")) {
-        await activateAutoOpen(client, isDemoMode, mockReq, null, 180);
+        await activateAutoOpen(client, isDemoMode, mockReq, null, 180, "guest");
         return res.json(createResponse(`Хорошо. Включила безлимитное открытие дверей на 3 часа.`, true));
       } else {
         return res.json(createResponse("Сколько гостей вы ожидаете?", false, { step: "WAITING_GUESTS_COUNT" }));
@@ -125,7 +125,7 @@ router.post("/", async (req, res) => {
 });
 
 // Helper function to find the first intercom and enable auto-open
-async function activateAutoOpen(client: any, isDemoMode: boolean, mockReq: any, maxOpens: number | null, durationMinutes: number) {
+async function activateAutoOpen(client: any, isDemoMode: boolean, mockReq: any, maxOpens: number | null, durationMinutes: number, explicitRole?: "guest" | "courier") {
   let places = [];
   let devicesByPlace: Record<number, any[]> = {};
 
@@ -195,7 +195,7 @@ async function activateAutoOpen(client: any, isDemoMode: boolean, mockReq: any, 
   });
 
   const { addTemporaryAutoOpenPerson } = await import("../people-manager.js");
-  addTemporaryAutoOpenPerson(Number(deviceId), maxOpens, durationMinutes);
+  addTemporaryAutoOpenPerson(Number(deviceId), maxOpens, durationMinutes, explicitRole);
 }
 
 export default router;
