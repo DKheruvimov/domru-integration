@@ -326,11 +326,25 @@ router.get("/stream-proxy*", async (req, res) => {
   }
 
   // Extract auth parameters for downstream requests (e.g., segment key decryptions or sub-playlists)
-  const login = (req.query.login as string) || (req.headers["x-domru-login"] as string) || "";
-  const password = (req.query.password as string) || (req.headers["x-domru-password"] as string) || "";
-  const token = (req.query.token as string) || (req.headers["x-domru-token"] as string) || "";
-  const operatorId = (req.query.operatorId as string) || (req.headers["x-domru-operator-id"] as string) || "";
-  const refreshToken = (req.query.refreshToken as string) || (req.headers["x-domru-refresh-token"] as string) || "";
+  let login = (req.query.login as string) || (req.headers["x-domru-login"] as string) || "";
+  let password = (req.query.password as string) || (req.headers["x-domru-password"] as string) || "";
+  let token = (req.query.token as string) || (req.headers["x-domru-token"] as string) || "";
+  let operatorId = (req.query.operatorId as string) || (req.headers["x-domru-operator-id"] as string) || "";
+  let refreshToken = (req.query.refreshToken as string) || (req.headers["x-domru-refresh-token"] as string) || "";
+
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+    try {
+      const b64 = req.headers.authorization.split(" ")[1];
+      const decoded = JSON.parse(decodeURIComponent(atob(b64)));
+      login = decoded.login || login;
+      password = decoded.password || password;
+      token = decoded.token || token;
+      refreshToken = decoded.refreshToken || refreshToken;
+      operatorId = decoded.operatorId || operatorId;
+    } catch (e) {
+      console.error("Failed to decode Authorization header in streamRoutes:", e);
+    }
+  }
 
   // Set explicit CORS headers dynamically to support credentials-based requests and match Yandex specifications
   const origin = req.headers.origin || "https://yastatic.net";

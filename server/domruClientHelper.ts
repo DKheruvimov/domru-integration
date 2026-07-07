@@ -31,11 +31,25 @@ export const getDomruInstance = (req: express.Request) => {
     return isNaN(num) ? undefined : num;
   };
 
-  const login = sanitizeString(req.headers["x-domru-login"] || req.query.login);
-  const password = sanitizeString(req.headers["x-domru-password"] || req.query.password);
-  const token = sanitizeString(req.headers["x-domru-token"] || req.query.token);
-  const refreshToken = sanitizeString(req.headers["x-domru-refresh-token"] || req.query.refreshToken);
-  const operatorId = sanitizeNumber(req.headers["x-domru-operator-id"] || req.query.operatorId);
+  let login = sanitizeString(req.headers["x-domru-login"] || req.query.login);
+  let password = sanitizeString(req.headers["x-domru-password"] || req.query.password);
+  let token = sanitizeString(req.headers["x-domru-token"] || req.query.token);
+  let refreshToken = sanitizeString(req.headers["x-domru-refresh-token"] || req.query.refreshToken);
+  let operatorId = sanitizeNumber(req.headers["x-domru-operator-id"] || req.query.operatorId);
+
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+    try {
+      const b64 = req.headers.authorization.split(" ")[1];
+      const decoded = JSON.parse(decodeURIComponent(atob(b64)));
+      login = decoded.login || login;
+      password = decoded.password || password;
+      token = decoded.token || token;
+      refreshToken = decoded.refreshToken || refreshToken;
+      operatorId = decoded.operatorId || operatorId;
+    } catch (e) {
+      console.error("Failed to decode Authorization header:", e);
+    }
+  }
 
   const client = new DomruClient({
     login,

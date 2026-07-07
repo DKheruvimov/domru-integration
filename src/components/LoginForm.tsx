@@ -75,8 +75,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-domru-login": login,
-          "x-domru-password": password,
+          "Authorization": `Bearer ${btoa(encodeURIComponent(JSON.stringify({ login, password, isDemo: !!isDemo })))}`,
         },
       });
 

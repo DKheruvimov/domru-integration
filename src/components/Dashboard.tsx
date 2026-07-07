@@ -93,13 +93,9 @@ export default function Dashboard({
   const [, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const authPayload = btoa(encodeURIComponent(JSON.stringify(credentials)));
   const proxyHeaders = {
-    "x-domru-login": credentials.login || "",
-    "x-domru-password": credentials.password || "",
-    "x-domru-token": credentials.token || "",
-    "x-domru-operator-id": credentials.operatorId ? String(credentials.operatorId) : "",
-    "x-domru-refresh-token": credentials.refreshToken || "",
-    "x-domru-demo": credentials.isDemo ? "true" : "false",
+    "Authorization": `Bearer ${authPayload}`
   };
 
   const loadData = async () => {
