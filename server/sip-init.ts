@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { loadSavedTokens } from "./tokenStore.js";
-import { DomruClient } from "../src/domru-js/index.js";
+import { DomruClient } from "../src/domru-api/index.js";
 import { addPermanentBinding, addSipLog } from "./sip-manager.js";
 
 export async function initPermanentSipBindings() {

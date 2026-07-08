@@ -1,11 +1,11 @@
-# domru-js
+# domru-api
 
 Неофициальный TypeScript-клиент для API умного дома Dom.ru / Proptech: домофон, камеры, события, финансы и служебные данные.
 
 > [!IMPORTANT]
 > Проект не аффилирован с Dom.ru. Используйте на свой риск и храните учётные данные только в безопасном окружении.
 
-[![npm downloads](https://img.shields.io/npm/dm/domru-js?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/domru-js)
+[![npm downloads](https://img.shields.io/npm/dm/domru-api?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/domru-api)
 
 ## Что умеет клиент
 
@@ -23,17 +23,17 @@
 ## Установка
 
 ```bash
-npm install domru-js
+npm install domru-api
 # или
-bun add domru-js
+bun add domru-api
 # или
-yarn add domru-js
+yarn add domru-api
 ```
 
 ## Быстрый старт
 
 ```ts
-import { DomruClient } from "domru-js";
+import { DomruClient } from "domru-api";
 
 const client = new DomruClient({
 	login: process.env.DOMRU_LOGIN,
@@ -131,7 +131,7 @@ client.on("error", ({ error, context }) => {
 ## Дисклеймер и ответственность
 
 > [!WARNING]
-> Автор и участники проекта **не несут ответственности** за любой прямой или косвенный ущерб, возникший при использовании `domru-js`.
+> Автор и участники проекта **не несут ответственности** за любой прямой или косвенный ущерб, возникший при использовании `domru-api`.
 >
 > Проект создан исключительно для пользователей и команд, которые имеют **законные права и все необходимые разрешения** на доступ к аккаунтам, устройствам и видеопотокам Dom.ru.
 >

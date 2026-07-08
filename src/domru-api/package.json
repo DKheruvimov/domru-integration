@@ -1,15 +1,15 @@
 {
-	"name": "domru-js",
+	"name": "domru-api",
 	"version": "0.1.0",
 	"description": "Неофициальный TypeScript-клиент для API умного дома Dom.ru / Proptech — домофоны, камеры, события и другое.",
 	"author": "S0yora",
-	"homepage": "https://github.com/S0yora/domru-js#readme",
+	"homepage": "https://github.com/S0yora/domru-api#readme",
 	"bugs": {
-		"url": "https://github.com/S0yora/domru-js/issues"
+		"url": "https://github.com/S0yora/domru-api/issues"
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/S0yora/domru-js.git"
+		"url": "git+https://github.com/S0yora/domru-api.git"
 	},
 	"type": "module",
 	"main": "dist/index.js",

@@ -7,7 +7,7 @@ import {
 } from "../modules-manager.js";
 import { handleManualOpen } from "../sip-manager.js";
 import { loadSavedTokens } from "../tokenStore.js";
-import { DomruClient } from "../../src/domru-js/index.js";
+import { DomruClient } from "../../src/domru-api/index.js";
 
 const router = Router();
 

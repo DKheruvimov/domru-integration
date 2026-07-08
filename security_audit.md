@@ -112,16 +112,16 @@ cors: { origin: ["https://yourdomain.ru", "http://localhost:3000"] }
 
 **Проблема:** Валидация пути проверяет только `startsWith`, но не нормализует путь:
 ```typescript
-if (!filePath.startsWith("src/domru-js/") && !filePath.startsWith("examples/") && !filePath.startsWith("tests/")) {
+if (!filePath.startsWith("src/domru-api/") && !filePath.startsWith("examples/") && !filePath.startsWith("tests/")) {
   return res.status(403).json({ error: "Access denied" });
 }
 ```
-Потенциально можно обойти через `src/domru-js/../../server/tokenStore.ts` и прочитать файлы с токенами.
+Потенциально можно обойти через `src/domru-api/../../server/tokenStore.ts` и прочитать файлы с токенами.
 
 **Решение:** Нормализовать путь перед проверкой:
 ```typescript
 const normalized = path.normalize(filePath).replace(/\\/g, "/");
-if (!normalized.startsWith("src/domru-js/") && ...) { ... }
+if (!normalized.startsWith("src/domru-api/") && ...) { ... }
 // + проверить, что resolved-путь не выходит за пределы CWD
 const absolutePath = path.resolve(process.cwd(), normalized);
 if (!absolutePath.startsWith(process.cwd())) { return res.status(403)... }

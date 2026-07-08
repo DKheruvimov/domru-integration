@@ -7,7 +7,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { DATA_DIR } from "./config.js";
-import { DomruClient } from "../src/domru-js/index.js";
+import { DomruClient } from "../src/domru-api/index.js";
 import { loadSavedTokens } from "./tokenStore.js";
 import { getSettings } from "./settings-manager.js";
 import { broadcastAutoOpenStatusChanged, broadcastSipLogAdded, broadcastIncomingCall } from "./ws-manager.js";

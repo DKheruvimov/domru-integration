@@ -2,10 +2,10 @@ import express from "express";
 import axios from "axios";
 import http from "http";
 import { spawn, execSync } from "child_process";
-import { getAccountsByPhone, requestSmsCode, confirmSmsCode } from "../../src/domru-js/index.js";
+import { getAccountsByPhone, requestSmsCode, confirmSmsCode } from "../../src/domru-api/index.js";
 import { tokenCache } from "../config.js";
 import { streamToString, parseMpegTsCodecs } from "../mpegTsParser.js";
-import { DomruClient } from "../../src/domru-js/index.js";
+import { DomruClient } from "../../src/domru-api/index.js";
 import {
   handleClientError,
   getDomruInstance,

@@ -73,7 +73,7 @@ domru-integration/
 │   │       ├── CctvPlayer.tsx        # Видеоплеер камер (HLS/WebRTC через go2rtc)
 │   │       ├── SipLogsViewer.tsx     # Просмотр логов SIP-сессий
 │   │       └── AutoOpenConfigModal.tsx  # Модальное окно настройки авто-открытия
-│   ├── domru-js/                # SDK клиент для API Дом.ru
+│   ├── domru-api/                # SDK клиент для API Дом.ru
 │   │   ├── client.ts            # Главный класс DomruClient
 │   │   ├── index.ts             # Публичный API SDK
 │   │   ├── context.ts           # Контекст сессии (токены, operatorId)
@@ -110,7 +110,7 @@ domru-integration/
 
 ## Ключевые компоненты
 
-### 1. SDK (`src/domru-js/`)
+### 1. SDK (`src/domru-api/`)
 
 Реализует REST-клиент к инфраструктуре Дом.ru (`myhome.proptech.ru`).
 

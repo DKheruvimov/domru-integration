@@ -152,7 +152,7 @@ export default function CodeBrowser() {
 
         <div className="bg-zinc-900 px-6 py-2 border-t border-zinc-950 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
           <span>Спецификация TypeScript (ESNext)</span>
-          <span>S0yora/domru-js</span>
+          <span>S0yora/domru-api</span>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import express from "express";
-import { DomruClient } from "../src/domru-js/index.js";
+import { DomruClient } from "../src/domru-api/index.js";
 import { getCredentials } from "./tokenStore.js";
 
 // Client Helper with Error Handling

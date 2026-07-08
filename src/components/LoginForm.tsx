@@ -620,7 +620,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       </div>
 
       <div className="text-center mt-6 text-xs text-zinc-400 dark:text-zinc-500 flex items-center justify-center gap-1 font-medium">
-        Разработано на базе <span className="font-mono text-[#E30613] dark:text-red-400 font-extrabold text-[11px]">S0yora/domru-js</span>
+        Разработано на базе <span className="font-mono text-[#E30613] dark:text-red-400 font-extrabold text-[11px]">S0yora/domru-api</span>
       </div>
     </div>
   );

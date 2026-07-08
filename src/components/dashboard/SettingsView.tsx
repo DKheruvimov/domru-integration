@@ -597,7 +597,7 @@ export default function SettingsView({
                 <div className="bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-3xl overflow-hidden divide-y divide-zinc-150 dark:divide-zinc-800/50 shadow-sm animate-fade-in">
                   <div className="p-4 px-6 flex items-center justify-between text-sm font-semibold">
                     <span className="text-zinc-500 dark:text-zinc-400">Модель SDK</span>
-                    <span className="font-mono text-zinc-800 dark:text-zinc-200 font-black">domru-js v2.0.1</span>
+                    <span className="font-mono text-zinc-800 dark:text-zinc-200 font-black">domru-api v2.0.1</span>
                   </div>
                   <div className="p-4 px-6 flex items-center justify-between text-sm font-semibold">
                     <span className="text-zinc-500 dark:text-zinc-400">Формат потока</span>
