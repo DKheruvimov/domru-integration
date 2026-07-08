@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { SmartPlace, AppCredentials } from "../../types";
 import Integrations from "../Integrations";
+import ModulesView from "../ModulesView";
 import CodeBrowser from "../CodeBrowser";
 import StorageView from "./StorageView";
 import {
@@ -25,6 +26,7 @@ import {
   Info,
   ShieldAlert,
   HardDrive,
+  Plug,
 } from "lucide-react";
 
 declare const __APP_VERSION__: string;
@@ -214,6 +216,17 @@ export default function SettingsView({
               <span>Интеграции</span>
             </button>
             <button
+              onClick={() => setSettingsTab("modules")}
+              className={`w-full text-left py-2.5 px-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                settingsTab === "modules"
+                  ? "bg-white dark:bg-zinc-800 text-[#e30613] shadow-xs border border-zinc-200/50 dark:border-zinc-700/50"
+                  : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
+              }`}
+            >
+              <Plug className="w-4 h-4 shrink-0" />
+              <span>Внешние модули</span>
+            </button>
+            <button
               onClick={() => setSettingsTab("storage")}
               className={`w-full text-left py-2.5 px-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
                 settingsTab === "storage"
@@ -309,9 +322,15 @@ export default function SettingsView({
           </div>
         )}
 
-        {settingsTab === "storage" && <StorageView credentials={credentials} />}
+        {settingsTab === "integrations" && (
+          <Integrations credentials={credentials!} />
+        )}
 
-        {settingsTab === "keys" && (
+        {settingsTab === "modules" && (
+          <ModulesView />
+        )}
+
+        {settingsTab === "storage" && (
           <div className="space-y-6 animate-fade-in">
             <div className="p-5 bg-zinc-50 dark:bg-zinc-800/30 border border-zinc-200/60 dark:border-zinc-850 rounded-3xl text-sm text-zinc-600 dark:text-zinc-400 font-semibold leading-relaxed">
               Вы можете временно приостановить действие физических ключей от вашего подъезда, а также сгенерировать временный цифровой код гостя.

@@ -476,13 +476,14 @@ export function startSipServer() {
         });
 
         addSipLog(`[SIP] Received INVITE for ${login}`);
-        broadcastIncomingCall(login, "Incoming SIP INVITE");
 
-        // Retrieve placeId and deviceId to take snapshot
+        // Retrieve placeId and deviceId to take snapshot and notify modules
         const binding = permanentBindings.get(login);
         const task = activeTasks.get(login);
         const snapshotPlaceId = binding?.placeId ?? task?.placeId;
         const snapshotDeviceId = binding?.deviceId ?? task?.deviceId;
+
+        broadcastIncomingCall(login, "Incoming SIP INVITE", snapshotPlaceId, snapshotDeviceId);
 
         if (snapshotPlaceId && snapshotDeviceId) {
           triggerSnapshotForLogin(login, snapshotPlaceId, snapshotDeviceId).catch((err) => {
