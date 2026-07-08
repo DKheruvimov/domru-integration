@@ -360,12 +360,12 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                 </div>
                 <CopyableField
                   label="URL авторизации (Authorization URL)"
-                  value={window.location.origin + "/oauth/authorize"}
+                  value={finalOrigin + "/oauth/authorize"}
                   id="dial_auth_url"
                 />
                 <CopyableField
                   label="URL для получения токена (Token URL)"
-                  value={window.location.origin + "/oauth/token"}
+                  value={finalOrigin + "/oauth/token"}
                   id="dial_token_url"
                 />
               </div>
