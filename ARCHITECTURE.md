@@ -27,6 +27,7 @@ domru-integration/
 │   ├── sip-manager.ts           # SIP User-Agent, авто-открытие, перехват звонков
 │   ├── sip-init.ts              # Инициализация постоянных SIP-привязок при старте
 │   ├── people-manager.ts        # Управление людьми, расписаниями, временными пропусками
+│   ├── plugin-manager.ts        # Ядро системы плагинов (хуки, хранилище, роутинг)
 │   ├── openings-manager.ts      # Журнал открытий дверей (manual/auto)
 │   ├── snapshots-manager.ts     # Снапшоты камер при SIP-звонках
 │   ├── settings-manager.ts      # Пользовательские настройки (задержки авто-открытия)
@@ -51,6 +52,8 @@ domru-integration/
 │   │   └── yandexDialogs.ts     # POST /api/yandex/dialogs — голосовые команды Алисы
 │   └── views/
 │       └── oauth-consent.html   # Страница согласия OAuth для Яндекс Smart Home
+├── plugins/                     # Сторонние и внутренние расширения функционала
+│   └── face-id/                 # Плагин распознавания по лицу (2FA)
 ├── src/                         # Фронтенд (React)
 │   ├── App.tsx                  # Главный компонент: роутинг Login → Dashboard
 │   ├── main.tsx                 # Точка входа React
