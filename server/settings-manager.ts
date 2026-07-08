@@ -5,6 +5,7 @@ import { DATA_DIR } from "./config.js";
 export interface AppSettings {
   autoOpenDelayResidentMs: number;
   autoOpenDelayGuestMs: number;
+  customDomain?: string;
 }
 
 const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
@@ -12,6 +13,7 @@ const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
 const defaultSettings: AppSettings = {
   autoOpenDelayResidentMs: 0,
   autoOpenDelayGuestMs: 3000,
+  customDomain: "",
 };
 
 export function getSettings(): AppSettings {

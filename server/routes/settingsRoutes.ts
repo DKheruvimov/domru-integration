@@ -22,6 +22,9 @@ router.post("/", (req, res) => {
   if (typeof newSettings.autoOpenDelayGuestMs === "number") {
     currentSettings.autoOpenDelayGuestMs = newSettings.autoOpenDelayGuestMs;
   }
+  if (typeof newSettings.customDomain === "string") {
+    currentSettings.customDomain = newSettings.customDomain;
+  }
 
   saveSettings(currentSettings);
   res.json(currentSettings);
@@ -46,7 +49,7 @@ router.post("/diagnostics/yandex", async (req, res) => {
   try {
     // 1. Check basic reachability / Authorize endpoint + WAF (with Yandex User-Agent and URL in query)
     try {
-      const authUrl = `${baseUrl}/oauth/authorize?client_id=myhome_app&response_type=code&state=https://social.yandex.net/broker/redirect`;
+      const authUrl = `${baseUrl}/oauth/authorize?client_id=myhome_app&response_type=code&state=https://social.yandex.net/broker/redirect&redirect_uri=https://social.yandex.net/broker/redirect`;
       const authRes = await fetch(authUrl, {
         headers: { "User-Agent": "YandexSmartHome/1.0" },
         signal: AbortSignal.timeout(5000)

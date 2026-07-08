@@ -13,9 +13,33 @@ export default function Integrations({ credentials }: IntegrationsProps) {
   const [isTesting, setIsTesting] = React.useState(false);
   const [testResults, setTestResults] = React.useState<any>(null);
 
+  React.useEffect(() => {
+    fetch("/api/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.customDomain) {
+          setCustomDomain(data.customDomain);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  const saveDomain = async (domain: string) => {
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customDomain: domain })
+      });
+    } catch (e) {
+      console.error("Failed to save domain", e);
+    }
+  };
+
   const handleTestYandex = async () => {
     setIsTesting(true);
     setTestResults(null);
+    await saveDomain(customDomain);
     try {
       const res = await fetch("/api/settings/diagnostics/yandex", {
         method: "POST",
@@ -96,6 +120,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
               type="text"
               value={customDomain}
               onChange={(e) => setCustomDomain(e.target.value.trim().replace(/^https?:\/\//, ''))}
+              onBlur={() => saveDomain(customDomain)}
               placeholder="oauth.yourdomain.ru"
               className="flex-1 bg-transparent border-none text-xs font-mono font-bold text-zinc-800 dark:text-zinc-200 focus:outline-hidden pl-1"
             />
