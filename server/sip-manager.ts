@@ -494,10 +494,10 @@ export function startSipServer() {
         // 1. Check if there is an active person schedule rule (e.g. Я, Девушка, Курьер)
         let scheduleResult: any = { active: false };
         try {
-          const { checkActiveSchedules } = await import("./people-manager.js");
-          scheduleResult = checkActiveSchedules();
+          const { checkAutoOpenRules } = await import("./people-manager.js");
+          scheduleResult = await checkAutoOpenRules(snapshotDeviceId);
         } catch (e) {
-          console.error("Failed to check active schedules", e);
+          console.error("Failed to check auto open rules", e);
         }
 
         const handleAutoOpenSequence = (triggerOpenDoor: () => Promise<void>, message: string, delayMs: number) => {

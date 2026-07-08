@@ -13,6 +13,7 @@ import { initPermanentSipBindings } from "./server/sip-init.js";
 import { startGo2Rtc, handleWsProxy } from "./server/go2rtc-manager.js";
 import { WebSocketServer } from "ws";
 import { initWebSocketServer } from "./server/ws-manager.js";
+import { pluginManager } from "./server/plugin-manager.js";
 
 import { PORT } from "./server/config.js";
 
@@ -44,6 +45,10 @@ async function startServer() {
   app.use("/api/modules", modulesRoutes);
   app.use("/api/yandex/dialogs", yandexDialogs);
   app.use("/", yandexRoutes);
+
+  // Initialize and mount plugins
+  await pluginManager.loadPlugins();
+  app.use("/api/plugins", pluginManager.router);
 
   // Serve static assets / Vite middleware
   if (process.env.NODE_ENV !== "production") {

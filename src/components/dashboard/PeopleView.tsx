@@ -59,7 +59,10 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
   const [role, setRole] = useState<"resident" | "guest" | "courier">("resident");
   const [enabled, setEnabled] = useState(true);
   const [maxOpens, setMaxOpens] = useState<number | "">("");
-  const [facePhotoUrl, setFacePhotoUrl] = useState<string>("");
+  const [useSchedule, setUseSchedule] = useState(true);
+  const [useFaceRec, setUseFaceRec] = useState(false);
+  const [hasFacePhoto, setHasFacePhoto] = useState(false);
+  const [facePhotoBase64, setFacePhotoBase64] = useState<string>("");
   const [schedules, setSchedules] = useState<ScheduleRule[]>([
     { id: "s1", days: [1, 2, 3, 4, 5], startTime: "18:00", endTime: "19:00" }
   ]);
@@ -149,17 +152,23 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       setEnabled(person.enabled);
       setMaxOpens(person.maxOpens !== undefined && person.maxOpens !== null ? person.maxOpens : "");
       setSchedules(person.schedules);
-      setFacePhotoUrl(person.facePhotoUrl || "");
+      setUseSchedule(person.useSchedule !== false);
+      setUseFaceRec(!!person.pluginSettings?.FACE_RECOGNITION);
+      setHasFacePhoto(!!person.hasFacePhoto);
+      setFacePhotoBase64("");
     } else {
       setEditingPerson(null);
       setName("");
       setRole("resident");
       setEnabled(true);
       setMaxOpens("");
-      setFacePhotoUrl("");
       setSchedules([
         { id: Math.random().toString(36).substr(2, 9), days: [1, 2, 3, 4, 5], startTime: "18:00", endTime: "19:00" }
       ]);
+      setUseSchedule(true);
+      setUseFaceRec(false);
+      setHasFacePhoto(false);
+      setFacePhotoBase64("");
     }
     setIsModalOpen(true);
   };
@@ -219,8 +228,25 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
         : (role !== "resident" && maxOpens !== "" ? Number(maxOpens) : null),
       expiresAt: editingPerson ? editingPerson.expiresAt : undefined,
       lastOpenedDate: editingPerson ? editingPerson.lastOpenedDate : undefined,
-      facePhotoUrl: facePhotoUrl || undefined,
+      useSchedule,
+      pluginSettings: { FACE_RECOGNITION: useFaceRec },
+      hasFacePhoto: editingPerson ? editingPerson.hasFacePhoto : false,
     };
+
+    // Upload photo if changed
+    if (facePhotoBase64) {
+      fetch(`/api/plugins/face-id/image/${newPerson.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64Data: facePhotoBase64 })
+      }).catch(console.error);
+      newPerson.hasFacePhoto = true;
+    } else if (!hasFacePhoto && editingPerson?.hasFacePhoto) {
+      fetch(`/api/plugins/face-id/image/${newPerson.id}`, { method: 'DELETE' }).catch(console.error);
+      newPerson.hasFacePhoto = false;
+    } else {
+      newPerson.hasFacePhoto = hasFacePhoto;
+    }
 
     // If it's a temporary event and was edited, update its expiresAt based on the latest endTime
     if (newPerson.id.startsWith("temp-") && newPerson.schedules.length > 0) {
@@ -357,40 +383,63 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
           </div>
 
           {/* Schedule list / Face Recognition */}
-          <div className="space-y-1.5 border-t border-zinc-100 dark:border-zinc-800/50 pt-3">
-            {hasFaceRec && person.role === "resident" ? (
-              <div className="flex items-center gap-3 bg-zinc-50/80 dark:bg-zinc-800/60 p-2 rounded-xl border border-zinc-200/60 dark:border-zinc-700/60">
-                <div className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shrink-0 overflow-hidden border-2 border-white dark:border-zinc-800 shadow-sm">
-                  {person.facePhotoUrl ? (
-                    <img src={person.facePhotoUrl} alt="Face" className="w-full h-full object-cover" />
-                  ) : (
-                    <Camera className="w-4 h-4 text-zinc-400" />
-                  )}
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200">Автооткрытие по лицу</span>
-                  <span className={`text-[10px] font-bold ${person.facePhotoUrl ? "text-emerald-600 dark:text-emerald-400" : "text-amber-500 dark:text-amber-400"}`}>
-                    {person.facePhotoUrl ? "Фото загружено" : "Требуется фото"}
+          <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/50 pt-3">
+            {/* 1. Schedule Block */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Расписание</span>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${person.useSchedule !== false ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"}`}>
+                  {person.useSchedule !== false ? "Вкл" : "Выкл"}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {person.schedules.length > 0 ? (
+                  person.schedules.map((rule) => (
+                    <div
+                      key={rule.id}
+                      className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 flex items-center gap-2"
+                    >
+                      <Calendar className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                      <span className="text-zinc-800 dark:text-zinc-300">
+                        {person.id.startsWith("temp-") ? "Сегодня" : formatDays(rule.days)}
+                      </span>
+                      <span className="text-zinc-400 dark:text-zinc-500 shrink-0">•</span>
+                      <Clock className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                      <span className="font-mono text-zinc-900 dark:text-white bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded-md">
+                        {rule.startTime} – {rule.endTime}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <span className="text-[10px] text-zinc-400">Нет интервалов</span>
+                )}
+              </div>
+            </div>
+
+            {/* 2. Face ID Block (Only if plugin is active) */}
+            {hasFaceRec && person.role === "resident" && (
+              <div className="flex flex-col gap-2 border-t border-zinc-100 dark:border-zinc-800/50 pt-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Face ID</span>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${person.pluginSettings?.FACE_RECOGNITION ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"}`}>
+                    {person.pluginSettings?.FACE_RECOGNITION ? "Вкл" : "Выкл"}
                   </span>
+                </div>
+                <div className="flex items-center gap-3 bg-zinc-50/80 dark:bg-zinc-800/60 p-2 rounded-xl border border-zinc-200/60 dark:border-zinc-700/60">
+                  <div className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shrink-0 overflow-hidden border-2 border-white dark:border-zinc-800 shadow-sm">
+                    {person.hasFacePhoto ? (
+                      <img src={`/api/plugins/face-id/image/${person.id}`} alt="Face" className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera className="w-4 h-4 text-zinc-400" />
+                    )}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className={`text-[10px] font-bold ${person.hasFacePhoto ? "text-emerald-600 dark:text-emerald-400" : "text-amber-500 dark:text-amber-400"}`}>
+                      {person.hasFacePhoto ? "Фото загружено" : "Требуется фото"}
+                    </span>
+                  </div>
                 </div>
               </div>
-            ) : (
-              person.schedules.map((rule) => (
-                <div
-                  key={rule.id}
-                  className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 flex items-center gap-2"
-                >
-                  <Calendar className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
-                  <span className="text-zinc-800 dark:text-zinc-300">
-                    {person.id.startsWith("temp-") ? "Сегодня" : formatDays(rule.days)}
-                  </span>
-                  <span className="text-zinc-400 dark:text-zinc-500 shrink-0">•</span>
-                  <Clock className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
-                  <span className="font-mono text-zinc-900 dark:text-white bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded-md">
-                    {rule.startTime} – {rule.endTime}
-                  </span>
-                </div>
-              ))
             )}
           </div>
         </div>
@@ -703,144 +752,173 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                   </div>
                 )}
 
-                {/* Form Row: Face ID or Schedules */}
-                {hasFaceRec && role === "resident" ? (
-                  <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/80 pt-4">
-                    <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                      Автооткрытие по лицу
-                    </label>
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center shrink-0 overflow-hidden relative group">
-                        {facePhotoUrl ? (
-                          <>
-                            <img src={facePhotoUrl} alt="Face preview" className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                type="button"
-                                onClick={() => setFacePhotoUrl("")}
-                                className="text-white bg-red-500/80 rounded-full p-1 cursor-pointer hover:bg-red-500"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <Camera className="w-6 h-6 text-zinc-400" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          id="face-upload"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (ev) => setFacePhotoUrl(ev.target?.result as string);
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor="face-upload"
-                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-white text-xs font-bold rounded-xl transition cursor-pointer"
-                        >
-                          <ImagePlus className="w-4 h-4" />
-                          <span>Выбрать фото</span>
-                        </label>
-                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
-                          Для корректной работы лицо должно быть хорошо освещено и смотреть прямо в камеру.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
+                {/* Form Row: Schedules ALWAYS */}
                 <div className="space-y-2 border-t border-zinc-100 dark:border-zinc-800/80 pt-4">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                      Временные интервалы
-                    </label>
-                    <button
-                      type="button"
-                      onClick={addScheduleRule}
-                      className="text-[11px] font-bold text-[#E30613] hover:underline cursor-pointer flex items-center gap-0.5"
-                    >
-                      + Добавить интервал
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                        Автооткрытие по расписанию
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setUseSchedule(!useSchedule)}
+                        className={`flex items-center gap-1 text-[11px] font-bold transition-colors cursor-pointer ${useSchedule ? "text-emerald-500" : "text-zinc-400"}`}
+                      >
+                        {useSchedule ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    {useSchedule && (
+                      <button
+                        type="button"
+                        onClick={addScheduleRule}
+                        className="text-[11px] font-bold text-[#E30613] hover:underline cursor-pointer flex items-center gap-0.5"
+                      >
+                        + Добавить интервал
+                      </button>
+                    )}
                   </div>
 
-                  <div className="space-y-3">
-                    {schedules.map((rule, sIdx) => (
-                      <div
-                        key={rule.id}
-                        className="p-4 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-2xl space-y-3 relative"
+                  {useSchedule && (
+                    <div className="space-y-3">
+                      {schedules.map((rule, sIdx) => (
+                        <div
+                          key={rule.id}
+                          className="p-4 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-2xl space-y-3 relative"
+                        >
+                          {/* Remove rule button */}
+                          {schedules.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeScheduleRule(rule.id)}
+                              className="absolute top-3 right-3 text-zinc-400 hover:text-red-500 p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          <div className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                            Интервал #{sIdx + 1}
+                          </div>
+
+                          {/* Weekday circular picker */}
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">Дни недели:</span>
+                            <div className="flex flex-wrap gap-1">
+                              {WEEKDAYS.map((day) => {
+                                const isSelected = rule.days.includes(day.value);
+                                return (
+                                  <button
+                                    key={day.value}
+                                    type="button"
+                                    onClick={() => updateRuleDays(rule.id, day.value)}
+                                    className={`w-8 h-8 rounded-full text-xs font-black transition flex items-center justify-center cursor-pointer ${
+                                      isSelected
+                                        ? "bg-[#E30613] text-white"
+                                        : "bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                    }`}
+                                  >
+                                    {day.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Start and end hours */}
+                          <div className="grid grid-cols-2 gap-3 pt-1">
+                            <div className="space-y-1">
+                              <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">Начало:</span>
+                              <input
+                                type="time"
+                                value={rule.startTime}
+                                onChange={(e) => updateRuleTimes(rule.id, "startTime", e.target.value)}
+                                className="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-mono text-zinc-900 dark:text-white"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">Конец:</span>
+                              <input
+                                type="time"
+                                value={rule.endTime}
+                                onChange={(e) => updateRuleTimes(rule.id, "endTime", e.target.value)}
+                                className="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-mono text-zinc-900 dark:text-white"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Form Row: Face ID (Appended if active) */}
+                {hasFaceRec && role === "resident" && (
+                  <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/80 pt-4">
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                        Автооткрытие по лицу
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setUseFaceRec(!useFaceRec)}
+                        className={`flex items-center gap-1 text-[11px] font-bold transition-colors cursor-pointer ${useFaceRec ? "text-emerald-500" : "text-zinc-400"}`}
                       >
-                        {/* Remove rule button */}
-                        {schedules.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeScheduleRule(rule.id)}
-                            className="absolute top-3 right-3 text-zinc-400 hover:text-red-500 p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-
-                        <div className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-                          Интервал #{sIdx + 1}
-                        </div>
-
-                        {/* Weekday circular picker */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">Дни недели:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {WEEKDAYS.map((day) => {
-                              const isSelected = rule.days.includes(day.value);
-                              return (
+                        {useFaceRec ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    
+                    {useFaceRec && (
+                      <div className="flex items-center gap-4 mt-2">
+                        <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center shrink-0 overflow-hidden relative group">
+                          {facePhotoBase64 || hasFacePhoto ? (
+                            <>
+                              <img src={facePhotoBase64 || (editingPerson ? `/api/plugins/face-id/image/${editingPerson.id}` : '')} alt="Face preview" className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button
-                                  key={day.value}
                                   type="button"
-                                  onClick={() => updateRuleDays(rule.id, day.value)}
-                                  className={`w-8 h-8 rounded-full text-xs font-black transition flex items-center justify-center cursor-pointer ${
-                                    isSelected
-                                      ? "bg-[#E30613] text-white"
-                                      : "bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                                  }`}
+                                  onClick={() => { setFacePhotoBase64(""); setHasFacePhoto(false); }}
+                                  className="text-white bg-red-500/80 rounded-full p-1 cursor-pointer hover:bg-red-500"
                                 >
-                                  {day.label}
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
-                              );
-                            })}
-                          </div>
+                              </div>
+                            </>
+                          ) : (
+                            <Camera className="w-6 h-6 text-zinc-400" />
+                          )}
                         </div>
-
-                        {/* Start and end hours */}
-                        <div className="grid grid-cols-2 gap-3 pt-1">
-                          <div className="space-y-1">
-                            <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">Начало:</span>
-                            <input
-                              type="time"
-                              value={rule.startTime}
-                              onChange={(e) => updateRuleTimes(rule.id, "startTime", e.target.value)}
-                              className="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-mono text-zinc-900 dark:text-white"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">Конец:</span>
-                            <input
-                              type="time"
-                              value={rule.endTime}
-                              onChange={(e) => updateRuleTimes(rule.id, "endTime", e.target.value)}
-                              className="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-mono text-zinc-900 dark:text-white"
-                            />
-                          </div>
+                        <div className="flex-1">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            id="face-upload"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  setFacePhotoBase64(ev.target?.result as string);
+                                  setHasFacePhoto(true);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor="face-upload"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-white text-xs font-bold rounded-xl transition cursor-pointer"
+                          >
+                            <ImagePlus className="w-4 h-4" />
+                            <span>Выбрать фото</span>
+                          </label>
+                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                            Для корректной работы лицо должно быть хорошо освещено и смотреть прямо в камеру.
+                          </p>
                         </div>
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
                 )}
               </div>
 

@@ -24,13 +24,15 @@ import { getPeople, savePeople, addTemporaryAutoOpenPerson, removeTemporaryAutoO
 import { findSnapshotForEvent, getSnapshotPath } from "../snapshots-manager.js";
 import { getOpeningByOurService } from "../openings-manager.js";
 import fs from "fs";
+import { pluginManager } from "../plugin-manager.js";
 
 const router = express.Router();
 
 // API Route: Authenticate
-router.get("/people", requireDomruAuth, (req, res) => {
+router.get("/people", requireDomruAuth, async (req, res) => {
   try {
-    res.json(getPeople());
+    const enrichedPeople = await pluginManager.executePersonLoadHooks(getPeople());
+    res.json(enrichedPeople);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

@@ -194,39 +194,55 @@ export function isScheduleActive(person: Person, now: Date = new Date()): boolea
   return false;
 }
 
+import { pluginManager } from "./plugin-manager.js";
+
 /**
- * Checks if any person has an active schedule right now.
- * Resident schedules are checked first, then guest/courier.
- * If a resident schedule is active, return that resident without decrementing counters.
- * If a guest/courier is active, return that guest/courier and decrement remaining count.
+ * Evaluates all auto-open rules including Schedule and Plugin hooks (2FA logic).
  */
-export function checkActiveSchedules(): { active: boolean; person?: Person; message?: string } {
+export async function checkAutoOpenRules(deviceId?: number): Promise<{ active: boolean; person?: Person; message?: string }> {
   const people = getPeople();
   const now = new Date();
 
-  // 1. Check Residents first
-  const activeResident = people.find(p => p.role === "resident" && isScheduleActive(p, now));
-  if (activeResident) {
-    return {
-      active: true,
-      person: activeResident,
-      message: `Авто-открытие по расписанию резидента: ${activeResident.name}`
-    };
-  }
+  // Sort people so residents are checked before guests/couriers
+  const sortedPeople = [...people].sort((a, b) => (a.role === "resident" ? -1 : 1) - (b.role === "resident" ? -1 : 1));
 
-  // 2. Check Guest/Couriers
-  const activeGuestIndex = people.findIndex(p => p.role !== "resident" && isScheduleActive(p, now));
-  if (activeGuestIndex !== -1) {
-    const activeGuest = people[activeGuestIndex];
-    if (activeGuest.opensRemaining !== undefined && activeGuest.opensRemaining !== null) {
-      activeGuest.opensRemaining = Math.max(0, activeGuest.opensRemaining - 1);
-      activeGuest.lastOpenedDate = getMskDateString(new Date());
+  for (const person of sortedPeople) {
+    if (!person.enabled) continue;
+
+    const requiresSchedule = person.useSchedule !== false;
+    // For now we assume any true value in pluginSettings means it requires plugin validation.
+    // In a real system, you'd iterate over plugins.
+    const requiresPlugin = person.pluginSettings?.FACE_RECOGNITION === true;
+
+    // Fast fail if both are disabled
+    if (!requiresSchedule && !requiresPlugin) {
+      continue; 
     }
-    savePeople(people);
+
+    // 1. Check Schedule
+    if (requiresSchedule && !isScheduleActive(person, now)) {
+      continue; // Time is outside allowed interval
+    }
+
+    // 2. Check Plugins (Face ID)
+    if (requiresPlugin && deviceId) {
+      const pluginResult = await pluginManager.executeAutoOpenHooks(person, deviceId);
+      if (!pluginResult) {
+         continue; // Plugin denied or couldn't recognize
+      }
+    }
+
+    // If we reach here, the person passed all required checks (2FA succeeded)
+    if (person.role !== "resident" && person.opensRemaining !== undefined && person.opensRemaining !== null) {
+      person.opensRemaining = Math.max(0, person.opensRemaining - 1);
+      person.lastOpenedDate = getMskDateString(now);
+      savePeople(people);
+    }
+
     return {
       active: true,
-      person: activeGuest,
-      message: `Авто-открытие по гостевому расписанию: ${activeGuest.name}. Осталось открытий: ${activeGuest.opensRemaining ?? "безлимитно"}`
+      person,
+      message: `Авто-открытие: ${person.name} (${requiresSchedule && requiresPlugin ? 'Расписание + Лицо' : (requiresPlugin ? 'Лицо' : 'Расписание')})`
     };
   }
 

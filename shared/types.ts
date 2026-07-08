@@ -24,5 +24,7 @@ export interface Person {
   opensRemaining?: number | null;
   lastOpenedDate?: string | null; // e.g. "YYYY-MM-DD" in MSK
   expiresAt?: number | null; // Stored in UTC milliseconds
-  facePhotoUrl?: string;
+  useSchedule?: boolean; // Defaults to true
+  pluginSettings?: Record<string, boolean>; // Plugin specific boolean capabilities
+  hasFacePhoto?: boolean; // Ephemeral flag provided by plugin on read
 }
