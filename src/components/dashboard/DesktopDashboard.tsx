@@ -241,7 +241,7 @@ export default function DesktopDashboard({
               />
             )}
             {activeTab === "events" && <EventsView groupedEvents={groupedEvents} />}
-            {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} proxyHeaders={proxyHeaders} />}
+            {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} proxyHeaders={proxyHeaders} isDevModeEnabled={isDevModeEnabled} />}
             {activeTab === "settings" && (
               <SettingsView 
                 selectedPlace={selectedPlace} 

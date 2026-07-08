@@ -191,7 +191,7 @@ export default function MobileDashboard({
           />
         )}
         {activeTab === "events" && <EventsView groupedEvents={groupedEvents} isMobile={true} />}
-        {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} proxyHeaders={proxyHeaders} />}
+        {activeTab === "people" && <PeopleView pins={pins} makeGuestPin={makeGuestPin} proxyHeaders={proxyHeaders} isDevModeEnabled={isDevModeEnabled} />}
         {activeTab === "settings" && (
           <SettingsView 
             selectedPlace={selectedPlace} 

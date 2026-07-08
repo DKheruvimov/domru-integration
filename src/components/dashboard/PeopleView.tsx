@@ -15,7 +15,9 @@ import {
   AlertCircle,
   HelpCircle,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Camera,
+  ImagePlus
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getSocket } from "../../socket";
@@ -24,6 +26,7 @@ interface PeopleViewProps {
   pins: GuestPin[];
   makeGuestPin: () => void;
   proxyHeaders: Record<string, string>;
+  isDevModeEnabled?: boolean;
 }
 
 const WEEKDAYS = [
@@ -36,7 +39,10 @@ const WEEKDAYS = [
   { value: 0, label: "Вс" },
 ];
 
-export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleViewProps) {
+export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevModeEnabled }: PeopleViewProps) {
+  const CAPABILITIES = isDevModeEnabled ? ["FACE_RECOGNITION"] : [];
+  const hasFaceRec = CAPABILITIES.includes("FACE_RECOGNITION");
+
   const [activeSubTab, setActiveSubTab] = useState<"schedules" | "pins">("schedules");
   const [people, setPeople] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,6 +59,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleV
   const [role, setRole] = useState<"resident" | "guest" | "courier">("resident");
   const [enabled, setEnabled] = useState(true);
   const [maxOpens, setMaxOpens] = useState<number | "">("");
+  const [facePhotoUrl, setFacePhotoUrl] = useState<string>("");
   const [schedules, setSchedules] = useState<ScheduleRule[]>([
     { id: "s1", days: [1, 2, 3, 4, 5], startTime: "18:00", endTime: "19:00" }
   ]);
@@ -142,12 +149,14 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleV
       setEnabled(person.enabled);
       setMaxOpens(person.maxOpens !== undefined && person.maxOpens !== null ? person.maxOpens : "");
       setSchedules(person.schedules);
+      setFacePhotoUrl(person.facePhotoUrl || "");
     } else {
       setEditingPerson(null);
       setName("");
       setRole("resident");
       setEnabled(true);
       setMaxOpens("");
+      setFacePhotoUrl("");
       setSchedules([
         { id: Math.random().toString(36).substr(2, 9), days: [1, 2, 3, 4, 5], startTime: "18:00", endTime: "19:00" }
       ]);
@@ -210,6 +219,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleV
         : (role !== "resident" && maxOpens !== "" ? Number(maxOpens) : null),
       expiresAt: editingPerson ? editingPerson.expiresAt : undefined,
       lastOpenedDate: editingPerson ? editingPerson.lastOpenedDate : undefined,
+      facePhotoUrl: facePhotoUrl || undefined,
     };
 
     // If it's a temporary event and was edited, update its expiresAt based on the latest endTime
@@ -346,24 +356,42 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleV
             </div>
           </div>
 
-          {/* Schedule list */}
+          {/* Schedule list / Face Recognition */}
           <div className="space-y-1.5 border-t border-zinc-100 dark:border-zinc-800/50 pt-3">
-            {person.schedules.map((rule) => (
-              <div
-                key={rule.id}
-                className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 flex items-center gap-2"
-              >
-                <Calendar className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
-                <span className="text-zinc-800 dark:text-zinc-300">
-                  {person.id.startsWith("temp-") ? "Сегодня" : formatDays(rule.days)}
-                </span>
-                <span className="text-zinc-400 dark:text-zinc-500 shrink-0">•</span>
-                <Clock className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
-                <span className="font-mono text-zinc-900 dark:text-white bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded-md">
-                  {rule.startTime} – {rule.endTime}
-                </span>
+            {hasFaceRec && person.role === "resident" ? (
+              <div className="flex items-center gap-3 bg-zinc-50/80 dark:bg-zinc-800/60 p-2 rounded-xl border border-zinc-200/60 dark:border-zinc-700/60">
+                <div className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shrink-0 overflow-hidden border-2 border-white dark:border-zinc-800 shadow-sm">
+                  {person.facePhotoUrl ? (
+                    <img src={person.facePhotoUrl} alt="Face" className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera className="w-4 h-4 text-zinc-400" />
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200">Автооткрытие по лицу</span>
+                  <span className={`text-[10px] font-bold ${person.facePhotoUrl ? "text-emerald-600 dark:text-emerald-400" : "text-amber-500 dark:text-amber-400"}`}>
+                    {person.facePhotoUrl ? "Фото загружено" : "Требуется фото"}
+                  </span>
+                </div>
               </div>
-            ))}
+            ) : (
+              person.schedules.map((rule) => (
+                <div
+                  key={rule.id}
+                  className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 flex items-center gap-2"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                  <span className="text-zinc-800 dark:text-zinc-300">
+                    {person.id.startsWith("temp-") ? "Сегодня" : formatDays(rule.days)}
+                  </span>
+                  <span className="text-zinc-400 dark:text-zinc-500 shrink-0">•</span>
+                  <Clock className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                  <span className="font-mono text-zinc-900 dark:text-white bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded-md">
+                    {rule.startTime} – {rule.endTime}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -675,7 +703,60 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleV
                   </div>
                 )}
 
-                {/* Form Row: Schedules list */}
+                {/* Form Row: Face ID or Schedules */}
+                {hasFaceRec && role === "resident" ? (
+                  <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/80 pt-4">
+                    <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      Автооткрытие по лицу
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center shrink-0 overflow-hidden relative group">
+                        {facePhotoUrl ? (
+                          <>
+                            <img src={facePhotoUrl} alt="Face preview" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => setFacePhotoUrl("")}
+                                className="text-white bg-red-500/80 rounded-full p-1 cursor-pointer hover:bg-red-500"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <Camera className="w-6 h-6 text-zinc-400" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          id="face-upload"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => setFacePhotoUrl(ev.target?.result as string);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor="face-upload"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-white text-xs font-bold rounded-xl transition cursor-pointer"
+                        >
+                          <ImagePlus className="w-4 h-4" />
+                          <span>Выбрать фото</span>
+                        </label>
+                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                          Для корректной работы лицо должно быть хорошо освещено и смотреть прямо в камеру.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
                 <div className="space-y-2 border-t border-zinc-100 dark:border-zinc-800/80 pt-4">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
@@ -760,6 +841,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders }: PeopleV
                     ))}
                   </div>
                 </div>
+                )}
               </div>
 
               {/* Modal Footer */}
