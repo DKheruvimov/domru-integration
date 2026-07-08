@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Plug, Plus, Trash2, KeyRound, Clock, Activity, CheckCircle2, XCircle } from "lucide-react";
 
 import { getSocket } from "../socket";

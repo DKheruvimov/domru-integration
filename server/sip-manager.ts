@@ -645,7 +645,7 @@ export function startSipServer() {
  * If there is an active ringing call, we answer it, open door, wait 2s, and hang up.
  * If there is no active ringing call, we just execute the openDoor API as fallback.
  */
-export async function handleManualOpen(placeId: number, deviceId: number, client: DomruClient, source: "Web" | "Alice" = "Web"): Promise<void> {
+export async function handleManualOpen(placeId: number, deviceId: number, client: DomruClient, source: string = "Web"): Promise<void> {
   let matchedLogin: string | null = null;
   let matchedBinding: SipDeviceBinding | null = null;
   for (const [login, binding] of permanentBindings.entries()) {
