@@ -1,5 +1,5 @@
 import React from "react";
-import { Blocks, MessageSquare, Copy, CheckCircle2, ExternalLink, HelpCircle } from "lucide-react";
+import { Blocks, MessageSquare, Copy, CheckCircle2, ExternalLink, HelpCircle, XCircle, Loader2, Activity } from "lucide-react";
 import { AppCredentials } from "../types";
 
 interface IntegrationsProps {
@@ -10,6 +10,26 @@ export default function Integrations({ credentials }: IntegrationsProps) {
   const [activeTab, setActiveTab] = React.useState<"smarthome" | "dialogs">("smarthome");
   const [copiedField, setCopiedField] = React.useState<string | null>(null);
   const [customDomain, setCustomDomain] = React.useState(window.location.host);
+  const [isTesting, setIsTesting] = React.useState(false);
+  const [testResults, setTestResults] = React.useState<any>(null);
+
+  const handleTestYandex = async () => {
+    setIsTesting(true);
+    setTestResults(null);
+    try {
+      const res = await fetch("/api/settings/diagnostics/yandex", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customDomain })
+      });
+      const data = await res.json();
+      setTestResults(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsTesting(false);
+    }
+  };
 
   const handleCopy = (text: string, fieldId: string) => {
     navigator.clipboard.writeText(text);
@@ -80,8 +100,42 @@ export default function Integrations({ credentials }: IntegrationsProps) {
               className="flex-1 bg-transparent border-none text-xs font-mono font-bold text-zinc-800 dark:text-zinc-200 focus:outline-hidden pl-1"
             />
           </div>
+          </div>
         </div>
-      </div>
+
+        {/* Diagnostics Button & Results */}
+        <div className="pt-2">
+          <button
+            onClick={handleTestYandex}
+            disabled={isTesting || !customDomain}
+            className="px-4 py-2 bg-amber-500/10 dark:bg-amber-500/20 text-amber-800 dark:text-amber-400 text-xs font-bold rounded-lg hover:bg-amber-500/20 dark:hover:bg-amber-500/30 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Activity className="w-3.5 h-3.5" />}
+            {isTesting ? "Диагностика..." : "Проверить доступность для Яндекса"}
+          </button>
+
+          {testResults && (
+            <div className="mt-4 bg-white dark:bg-zinc-900/80 rounded-xl p-4 border border-zinc-200/60 dark:border-zinc-800/80 text-xs space-y-3 shadow-sm animate-fade-in">
+              <div className="font-bold text-zinc-900 dark:text-white flex items-center gap-2 pb-2 border-b border-zinc-100 dark:border-zinc-800/50">
+                <Activity className="w-4 h-4 text-emerald-500" />
+                Результаты диагностики
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {Object.entries(testResults).map(([key, result]: any) => (
+                  <div key={key} className="flex items-start gap-2.5 p-2.5 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border border-zinc-200/50 dark:border-zinc-800/50">
+                    <div className="mt-0.5">
+                      {result.status === "success" ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : result.status === "error" ? <XCircle className="w-4 h-4 text-red-500" /> : <Loader2 className="w-4 h-4 text-zinc-400 animate-spin" />}
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-black text-[9px] text-zinc-400 dark:text-zinc-500 uppercase tracking-widest leading-none">{key}</span>
+                      <span className={result.status === "success" ? "text-emerald-700 dark:text-emerald-400 font-semibold text-xs leading-tight" : "text-red-700 dark:text-red-400 font-semibold text-xs leading-tight"}>{result.message}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
       {/* Internal Tabs - Styled EXACTLY like the main dev-tools tabs */}
       <div className="flex bg-zinc-150/80 dark:bg-zinc-800/80 p-0.5 rounded-xl gap-0.5 border border-zinc-200/40 dark:border-zinc-800/60 max-w-md select-none">
