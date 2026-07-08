@@ -9,6 +9,7 @@ interface IntegrationsProps {
 export default function Integrations({ credentials }: IntegrationsProps) {
   const [activeTab, setActiveTab] = React.useState<"smarthome" | "dialogs">("smarthome");
   const [copiedField, setCopiedField] = React.useState<string | null>(null);
+  const [customDomain, setCustomDomain] = React.useState(window.location.host);
 
   const handleCopy = (text: string, fieldId: string) => {
     navigator.clipboard.writeText(text);
@@ -47,6 +48,8 @@ export default function Integrations({ credentials }: IntegrationsProps) {
     </div>
   );
 
+  const finalOrigin = "https://" + customDomain;
+
   return (
     <div className="space-y-6 pb-6 animate-fade-in" id="integrations_panel">
       
@@ -55,6 +58,29 @@ export default function Integrations({ credentials }: IntegrationsProps) {
         <p className="text-xs text-zinc-600 dark:text-zinc-400 font-semibold leading-relaxed">
           Интеграция с сервисами Яндекса позволяет управлять домофоном голосом через умные колонки с Алисой, добавлять его в сценарии умного дома или настраивать автоматическое открытие двери для гостей и курьеров.
         </p>
+      </div>
+
+      {/* Domain Configuration */}
+      <div className="p-4 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/10 dark:border-amber-500/20 rounded-2xl space-y-3">
+        <h5 className="font-extrabold text-[10px] text-amber-700 dark:text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+          🌐 Настройка домена для интеграций
+        </h5>
+        <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed font-semibold">
+          Если ваш сервер работает за прокси-защитой (например, TurboFlare / Cloudflare), укажите здесь ваш бесшовный субдомен (например, <code>oauth.kheruvimov.ru</code>), созданный в обход прокси, чтобы избежать блокировок WAF со стороны Яндекса.
+        </p>
+        <div className="flex items-center gap-3 pt-1">
+          <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 shrink-0">Внешний адрес:</span>
+          <div className="flex-1 flex items-center bg-zinc-55 dark:bg-zinc-900/65 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl px-3.5 py-1.5">
+            <span className="text-xs font-mono font-bold text-zinc-400 dark:text-zinc-600 shrink-0 select-none">https://</span>
+            <input
+              type="text"
+              value={customDomain}
+              onChange={(e) => setCustomDomain(e.target.value.trim().replace(/^https?:\/\//, ''))}
+              placeholder="oauth.yourdomain.ru"
+              className="flex-1 bg-transparent border-none text-xs font-mono font-bold text-zinc-800 dark:text-zinc-200 focus:outline-hidden pl-1"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Internal Tabs - Styled EXACTLY like the main dev-tools tabs */}
@@ -144,7 +170,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
               <div className="pl-8">
                 <CopyableField 
                   label="Endpoint URL" 
-                  value={window.location.origin + "/api/yandex/smart-home"} 
+                  value={finalOrigin} 
                   id="sh_endpoint" 
                 />
               </div>
@@ -167,17 +193,17 @@ export default function Integrations({ credentials }: IntegrationsProps) {
                 </div>
                 <CopyableField
                   label="URL авторизации (Authorization URL)"
-                  value={window.location.origin + "/oauth/authorize"}
+                  value={finalOrigin + "/oauth/authorize"}
                   id="sh_auth_url"
                 />
                 <CopyableField
                   label="URL для получения токена (Token URL)"
-                  value={window.location.origin + "/oauth/token"}
+                  value={finalOrigin + "/oauth/token"}
                   id="sh_token_url"
                 />
                 <CopyableField
                   label="URL для обновления токена (Refresh URL)"
-                  value={window.location.origin + "/oauth/token"}
+                  value={finalOrigin + "/oauth/token"}
                   id="sh_refresh_url"
                 />
               </div>
@@ -311,7 +337,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
               <div className="pl-8">
                 <CopyableField 
                   label="Webhook URL" 
-                  value={window.location.origin + "/api/yandex/dialogs"} 
+                  value={finalOrigin + "/api/yandex/dialogs"} 
                   id="dial_webhook" 
                 />
               </div>

@@ -209,6 +209,7 @@ domru-integration/
 - **Docker**: Multi-stage build (builder → runtime с Alpine + FFmpeg). Порт `3000` внутри контейнера, маппится на `3100` на хосте.
 - **Nginx**: Reverse proxy с поддержкой WebSocket (`Upgrade`), таймаутами для видеопотоков (86400s). Конфигурация в `nginx-domru.conf`.
 - **Reverse Proxy** (Cloudflare/TurboFlare): `app.set("trust proxy", true)` для корректного определения IP клиентов.
+- **Обход WAF для Яндекса**: При использовании защищенных CDN/WAF-прокси (например, TurboFlare) все запросы Яндекса (OAuth, Webhooks, Discovery) должны маршрутизироваться через отдельный субдомен (например, `oauth.yourdomain.ru`), настроенный в DNS напрямую на IP-адрес сервера (в обход WAF-защиты), чтобы избежать ложных срабатываний Open Redirect и User-Agent блокировок. Nginx на сервере конфигурируется для прослушивания обоих доменных имен.
 - **Ограничение**: Reverse proxy защищает только входящий трафик. Исходящий трафик к API Дом.ru идёт с реального IP сервера.
 
 ### 11. Общие типы (`shared/types.ts`)
