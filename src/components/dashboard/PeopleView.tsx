@@ -40,8 +40,17 @@ const WEEKDAYS = [
 ];
 
 export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevModeEnabled }: PeopleViewProps) {
-  const CAPABILITIES = isDevModeEnabled ? ["FACE_RECOGNITION"] : [];
-  const hasFaceRec = CAPABILITIES.includes("FACE_RECOGNITION");
+  const [capabilities, setCapabilities] = useState<Record<string, any>>({});
+  const hasFaceRec = isDevModeEnabled && !!capabilities["FACE_RECOGNITION"];
+
+  const isRoleSupportedByFaceRec = (r: string) => {
+    if (!hasFaceRec) return false;
+    const config = capabilities["FACE_RECOGNITION"];
+    if (config && config.supportedRoles) {
+      return config.supportedRoles.includes(r);
+    }
+    return true;
+  };
 
   const [activeSubTab, setActiveSubTab] = useState<"schedules" | "pins">("schedules");
   const [people, setPeople] = useState<Person[]>([]);
@@ -90,6 +99,14 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
     const socket = getSocket();
     socket.on("auto_open_status_changed", fetchPeople);
     
+    const loadCaps = async () => {
+      try {
+        const res = await fetch("/api/plugins/capabilities", { headers: { ...proxyHeaders } });
+        if (res.ok) setCapabilities(await res.json());
+      } catch (e) {}
+    };
+    loadCaps();
+
     return () => {
       socket.off("auto_open_status_changed", fetchPeople);
     };
@@ -320,7 +337,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       return false;
     }
 
-    const effectiveUseSchedule = hasFaceRec ? (person.useSchedule !== false) : true;
+    const effectiveUseSchedule = isRoleSupportedByFaceRec(person.role) ? (person.useSchedule !== false) : true;
     if (!effectiveUseSchedule) return false;
 
     const now = new Date();
@@ -346,7 +363,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
 
   const renderPersonCard = (person: Person) => {
     const isActive = isCurrentlyActive(person);
-    const effectiveUseSchedule = hasFaceRec ? (person.useSchedule !== false) : true;
+    const effectiveUseSchedule = isRoleSupportedByFaceRec(person.role) ? (person.useSchedule !== false) : true;
 
     return (
       <div
@@ -404,7 +421,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
           </div>
 
           {/* Schedule list / Face Recognition */}
-          {(effectiveUseSchedule || (hasFaceRec && person.pluginSettings?.FACE_RECOGNITION)) && (
+          {(effectiveUseSchedule || (isRoleSupportedByFaceRec(person.role) && person.pluginSettings?.FACE_RECOGNITION)) && (
             <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/50 pt-3">
               {/* 1. Schedule Block */}
               {effectiveUseSchedule && (
@@ -441,7 +458,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
               )}
 
               {/* 2. Face ID Block (Only if plugin is active) */}
-              {hasFaceRec && person.pluginSettings?.FACE_RECOGNITION && (
+              {isRoleSupportedByFaceRec(person.role) && person.pluginSettings?.FACE_RECOGNITION && (
                 <div className={`flex flex-col gap-2 ${effectiveUseSchedule ? "border-t border-zinc-100 dark:border-zinc-800/50 pt-3" : ""}`}>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Face ID</span>
@@ -784,7 +801,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                       <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                         Автооткрытие по расписанию
                       </label>
-                      {hasFaceRec && (
+                      {isRoleSupportedByFaceRec(role) && (
                         <button
                           type="button"
                           onClick={() => setUseSchedule(!useSchedule)}
@@ -879,7 +896,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                 </div>
 
                 {/* Form Row: Face ID (Appended if active) */}
-                {hasFaceRec && (
+                {isRoleSupportedByFaceRec(role) && (
                   <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/80 pt-4">
                     <div className="flex items-center gap-3">
                       <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">

@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import express, { Router } from "express";
 import { DATA_DIR } from "./config.js";
+import type { CapabilityConfig } from "../shared/types.js";
 
 // Ensure plugins data directory exists
 const PLUGINS_DATA_DIR = path.join(DATA_DIR, "plugins");
@@ -21,7 +22,7 @@ export interface PluginAPI {
   pluginId: string;
   storage: PluginStorage;
   router: Router;
-  registerCapability: (capabilityName: string) => void;
+  registerCapability: (capabilityName: string, config?: CapabilityConfig) => void;
   // Hooks
   onPersonLoad: (callback: (people: any[]) => Promise<any[]>) => void;
   onEvaluateAutoOpen: (callback: (person: any, deviceId: number) => Promise<boolean | undefined>) => void;
@@ -29,14 +30,19 @@ export interface PluginAPI {
 
 export class PluginManager {
   public router: Router;
-  public capabilities: Set<string>;
+  public capabilities: Record<string, CapabilityConfig>;
   
   private personLoadHooks: Array<(people: any[]) => Promise<any[]>> = [];
   private autoOpenHooks: Array<(person: any, deviceId: number) => Promise<boolean | undefined>> = [];
 
   constructor() {
     this.router = express.Router();
-    this.capabilities = new Set();
+    this.capabilities = {};
+
+    // Expose capabilities to frontend
+    this.router.get("/capabilities", (req, res) => {
+      res.json(this.capabilities);
+    });
   }
 
   public async loadPlugins() {
@@ -95,9 +101,9 @@ export class PluginManager {
       pluginId,
       storage,
       router: pluginRouter,
-      registerCapability: (capabilityName: string) => {
-        this.capabilities.add(capabilityName);
-        console.log(`[PluginManager] Capability registered: ${capabilityName} (by ${pluginId})`);
+      registerCapability: (capabilityName: string, config: CapabilityConfig = {}) => {
+        this.capabilities[capabilityName] = config;
+        console.log(`[PluginManager] Capability registered: ${capabilityName} (by ${pluginId}) with config`, config);
       },
       onPersonLoad: (callback) => {
         this.personLoadHooks.push(callback);

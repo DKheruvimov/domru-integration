@@ -28,3 +28,7 @@ export interface Person {
   pluginSettings?: Record<string, boolean>; // Plugin specific boolean capabilities
   hasFacePhoto?: boolean; // Ephemeral flag provided by plugin on read
 }
+
+export interface CapabilityConfig {
+  supportedRoles?: ("resident" | "guest" | "courier")[];
+}
