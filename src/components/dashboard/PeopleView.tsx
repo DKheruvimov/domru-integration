@@ -200,7 +200,6 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       setPluginSettingsForm(ps);
       setMediaFilesExisting(me);
       setMediaFilesStaged({});
-      setFacePhotoBase64(""); // kept for now, removed in next step
     } else {
       setEditingPerson(null);
       setName("");
@@ -216,7 +215,6 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       setPluginSettingsForm(ps);
       setMediaFilesExisting({});
       setMediaFilesStaged({});
-      setFacePhotoBase64("");
     }
     setIsModalOpen(true);
   };
@@ -419,7 +417,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                 ? "bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/20"
                 : "bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900/20"
             }`}>
-              {person.uiExtensions?.avatarUrl ? (
+              {isDevModeEnabled && person.uiExtensions?.avatarUrl ? (
                 <img src={person.uiExtensions.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 person.role === "resident" ? <UserCheck className="w-5 h-5" /> : person.role === "courier" ? <Truck className="w-5 h-5" /> : <User className="w-5 h-5" />
@@ -439,7 +437,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                 }`}>
                   {person.role === "resident" ? "Жилец" : person.role === "courier" ? "Курьер" : "Гость"}
                 </span>
-                {person.uiExtensions?.badges?.map((badge, idx) => (
+                {isDevModeEnabled && person.uiExtensions?.badges?.map((badge, idx) => (
                   <span key={idx} className={`text-[9px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border ${
                     badge.color === "success" 
                       ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30"
@@ -465,7 +463,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
           </div>
 
           {/* Schedule list and custom plugin blocks */}
-          {(effectiveUseSchedule || (person.uiExtensions?.customBlocks && person.uiExtensions.customBlocks.length > 0)) && (
+          {(effectiveUseSchedule || (isDevModeEnabled && person.uiExtensions?.customBlocks && person.uiExtensions.customBlocks.length > 0)) && (
             <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/50 pt-3">
               {/* 1. Schedule Block */}
               {effectiveUseSchedule && (
@@ -502,7 +500,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
               )}
 
               {/* 2. Custom Plugin Blocks */}
-              {person.uiExtensions?.customBlocks?.map((block, idx) => (
+              {isDevModeEnabled && person.uiExtensions?.customBlocks?.map((block, idx) => (
                 <div key={idx} className={`flex flex-col gap-2 ${effectiveUseSchedule && idx === 0 ? "border-t border-zinc-100 dark:border-zinc-800/50 pt-3" : ""}`}>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">{block.title}</span>
