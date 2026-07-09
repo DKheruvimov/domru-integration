@@ -8,6 +8,8 @@ import {
 import { handleManualOpen } from "../sip-manager.js";
 import { loadSavedTokens } from "../tokenStore.js";
 import { DomruClient } from "../../src/domru-api/index.js";
+import { PORT } from "../config.js";
+import { registerStream } from "../go2rtc-manager.js";
 
 const router = Router();
 
@@ -95,6 +97,105 @@ router.post("/actions/open", async (req, res) => {
   } catch (error: any) {
     console.error("Module Open Error:", error);
     res.status(500).json({ error: error.message || "Failed to open door" });
+  }
+});
+
+// Helper function to get an authenticated DomruClient
+function getModuleDomruClient(): DomruClient | null {
+  const tokens = loadSavedTokens();
+  const accounts = Object.values(tokens);
+  if (accounts.length === 0) return null;
+  
+  const creds = accounts[0];
+  return new DomruClient({
+    login: creds.login,
+    password: creds.password,
+    refreshToken: creds.refreshToken,
+    operatorId: creds.operatorId || 41
+  });
+}
+
+// External Module Endpoint: Action Snapshot
+router.get("/actions/snapshot/:placeId/:deviceId", async (req, res) => {
+  const token = String(req.query.token || "").trim();
+  const module = validateModuleToken(token);
+  
+  if (!module) {
+    return res.status(403).json({ error: "Invalid or missing module token" });
+  }
+
+  const { placeId, deviceId } = req.params;
+  
+  try {
+    const client = getModuleDomruClient();
+    if (!client) {
+      return res.status(500).json({ error: "No configured Dom.ru accounts found on server" });
+    }
+
+    const snapshotBuffer = await client.getSnapshot(Number(placeId), Number(deviceId));
+    if (!snapshotBuffer || snapshotBuffer.length === 0) {
+      return res.status(404).send("Failed to retrieve snapshot");
+    }
+
+    res.set("Content-Type", "image/jpeg");
+    res.set("Cache-Control", "no-store");
+    res.send(snapshotBuffer);
+  } catch (error: any) {
+    console.error("Module Snapshot Error:", error);
+    res.status(500).json({ error: error.message || "Failed to get snapshot" });
+  }
+});
+
+// External Module Endpoint: Action Stream
+router.get("/actions/stream/:deviceId", async (req, res) => {
+  const token = String(req.query.token || "").trim();
+  const module = validateModuleToken(token);
+  
+  if (!module) {
+    return res.status(403).json({ error: "Invalid or missing module token" });
+  }
+
+  const { deviceId } = req.params;
+  
+  try {
+    const client = getModuleDomruClient();
+    if (!client) {
+      return res.status(500).json({ error: "No configured Dom.ru accounts found on server" });
+    }
+
+    // Attempting to auto-authenticate to ensure valid token for stream URL
+    if (!client.token) {
+      await client.authenticate();
+    }
+
+    const stream = await client.getStreamUrl(deviceId);
+    if (!stream || !stream.url) {
+      return res.status(404).json({ error: "No stream found for camera" });
+    }
+
+    const originalUrl = stream.url;
+    const proxiedLoopbackUrl = `http://127.0.0.1:${PORT}/api/domru/stream-proxy/index.m3u8?url=${encodeURIComponent(originalUrl)}&token=${encodeURIComponent(client.token || "")}&operatorId=${encodeURIComponent(String(client.refreshData.operatorId || ""))}&transcode=false`;
+    const go2rtcSource = `ffmpeg:${proxiedLoopbackUrl}#video=copy#audio=opus#input=hls_re`;
+    
+    const success = await registerStream(deviceId, go2rtcSource);
+    
+    const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+    const wsProtocol = protocol === "https" ? "wss" : "ws";
+    const hostHeader = req.headers.host || `localhost:${PORT}`;
+
+    res.json({
+      success,
+      deviceId,
+      webrtcUrl: `${wsProtocol}://${hostHeader}/api/go2rtc/ws?src=${deviceId}`,
+      mseUrl: `${wsProtocol}://${hostHeader}/api/go2rtc/ws?src=${deviceId}&media=mse`,
+      hlsUrl: `${protocol}://${hostHeader}/api/domru/go2rtc-proxy/api/hls.m3u8?src=${deviceId}`,
+      mjpegUrl: `${protocol}://${hostHeader}/api/domru/go2rtc-proxy/api/frame.mp4?src=${deviceId}`,
+      originalUrl: originalUrl
+    });
+
+  } catch (error: any) {
+    console.error("Module Stream Error:", error);
+    res.status(500).json({ error: error.message || "Failed to get stream" });
   }
 });
 

@@ -89,8 +89,7 @@ export function broadcastIncomingCall(login: string, details?: string, placeId?:
       io.of("/modules").emit("incoming_call", {
         login,
         placeId,
-        deviceId,
-        snapshotUrl: `/api/domru/snapshot/${placeId}/${deviceId}?t=${Date.now()}`
+        deviceId
       });
     }
   }
