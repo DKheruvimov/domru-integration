@@ -41,16 +41,19 @@ const WEEKDAYS = [
 
 export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevModeEnabled }: PeopleViewProps) {
   const [capabilities, setCapabilities] = useState<Record<string, any>>({});
-  const hasFaceRec = isDevModeEnabled && !!capabilities["FACE_RECOGNITION"];
 
-  const isRoleSupportedByFaceRec = (r: string) => {
-    if (!hasFaceRec) return false;
-    const config = capabilities["FACE_RECOGNITION"];
-    if (config && config.supportedRoles) {
-      return config.supportedRoles.includes(r);
-    }
+  /** Returns true if at least one capability supports the given role */
+  const isCapabilitySupportedForRole = (capName: string, r: string): boolean => {
+    if (!isDevModeEnabled) return false;
+    const config = capabilities[capName];
+    if (!config) return false;
+    if (config.supportedRoles) return config.supportedRoles.includes(r);
     return true;
   };
+
+  /** Returns list of capabilities that apply to the given role */
+  const capabilitiesForRole = (r: string) =>
+    Object.entries(capabilities).filter(([name]) => isCapabilitySupportedForRole(name, r));
 
   const [activeSubTab, setActiveSubTab] = useState<"schedules" | "pins">("schedules");
   const [people, setPeople] = useState<Person[]>([]);
@@ -69,9 +72,11 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
   const [enabled, setEnabled] = useState(true);
   const [maxOpens, setMaxOpens] = useState<number | "">("");
   const [useSchedule, setUseSchedule] = useState(true);
-  const [useFaceRec, setUseFaceRec] = useState(false);
-  const [hasFacePhoto, setHasFacePhoto] = useState(false);
-  const [facePhotoBase64, setFacePhotoBase64] = useState<string>("");
+  // Form Fields — plugin capability toggles (dynamic, keyed by capabilityName)
+  const [pluginSettingsForm, setPluginSettingsForm] = useState<Record<string, boolean>>({});
+  // Media state per capability: base64 staged upload and server-side presence flag
+  const [mediaFilesStaged, setMediaFilesStaged] = useState<Record<string, string>>({}); // capName -> base64
+  const [mediaFilesExisting, setMediaFilesExisting] = useState<Record<string, boolean>>({}); // capName -> has file on server
   const [schedules, setSchedules] = useState<ScheduleRule[]>([
     { id: "s1", days: [1, 2, 3, 4, 5], startTime: "18:00", endTime: "19:00" }
   ]);
@@ -136,7 +141,9 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
     const newEnabled = !currentEnabled;
     const updatedPerson = { ...target, enabled: newEnabled };
 
-    if (newEnabled && updatedPerson.useSchedule === false && !updatedPerson.pluginSettings?.FACE_RECOGNITION) {
+    // If no plugin capability is enabled and schedule is off — keep enabled consistent
+    const hasAnyPlugin = Object.values(updatedPerson.pluginSettings ?? {}).some(Boolean);
+    if (newEnabled && updatedPerson.useSchedule === false && !hasAnyPlugin) {
       updatedPerson.useSchedule = true;
     }
 
@@ -179,10 +186,21 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       setEnabled(person.enabled);
       setMaxOpens(person.maxOpens !== undefined && person.maxOpens !== null ? person.maxOpens : "");
       setSchedules(person.schedules);
-      setUseSchedule(hasFaceRec ? (person.useSchedule !== false) : true);
-      setUseFaceRec(!!person.pluginSettings?.FACE_RECOGNITION);
-      setHasFacePhoto(!!person.hasFacePhoto);
-      setFacePhotoBase64("");
+      setUseSchedule(capabilitiesForRole(person.role).length > 0 ? (person.useSchedule !== false) : true);
+      // Populate generic plugin settings
+      const ps: Record<string, boolean> = {};
+      const me: Record<string, boolean> = {};
+      for (const [capName, capCfg] of Object.entries(capabilities)) {
+        ps[capName] = !!person.pluginSettings?.[capName];
+        // If capability has mediaEndpoint, check if server has a file (via uiExtensions avatarUrl as indicator)
+        if (capCfg.mediaEndpoint) {
+          me[capName] = !!person.hasFacePhoto; // ephemeral flag set by plugin
+        }
+      }
+      setPluginSettingsForm(ps);
+      setMediaFilesExisting(me);
+      setMediaFilesStaged({});
+      setFacePhotoBase64(""); // kept for now, removed in next step
     } else {
       setEditingPerson(null);
       setName("");
@@ -193,8 +211,11 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
         { id: Math.random().toString(36).substr(2, 9), days: [1, 2, 3, 4, 5], startTime: "18:00", endTime: "19:00" }
       ]);
       setUseSchedule(true);
-      setUseFaceRec(false);
-      setHasFacePhoto(false);
+      const ps: Record<string, boolean> = {};
+      for (const capName of Object.keys(capabilities)) ps[capName] = false;
+      setPluginSettingsForm(ps);
+      setMediaFilesExisting({});
+      setMediaFilesStaged({});
       setFacePhotoBase64("");
     }
     setIsModalOpen(true);
@@ -244,8 +265,9 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
     }
 
     let finalEnabled = enabled;
-    const finalUseSchedule = hasFaceRec ? useSchedule : true;
-    if (finalUseSchedule === false && !useFaceRec) {
+    const hasAnyPlugin = Object.values(pluginSettingsForm).some(Boolean);
+    const finalUseSchedule = hasAnyPlugin ? useSchedule : true;
+    if (finalUseSchedule === false && !hasAnyPlugin) {
       finalEnabled = false;
     }
 
@@ -262,23 +284,26 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       expiresAt: editingPerson ? editingPerson.expiresAt : undefined,
       lastOpenedDate: editingPerson ? editingPerson.lastOpenedDate : undefined,
       useSchedule: finalUseSchedule,
-      pluginSettings: { FACE_RECOGNITION: useFaceRec },
-      hasFacePhoto: editingPerson ? editingPerson.hasFacePhoto : false,
+      // Persist only plugin toggles (booleans), strip ephemeral fields
+      pluginSettings: { ...pluginSettingsForm },
     };
 
-    // Upload photo if changed
-    if (facePhotoBase64) {
-      fetch(`/api/plugins/face-id/image/${newPerson.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ base64Data: facePhotoBase64 })
-      }).catch(console.error);
-      newPerson.hasFacePhoto = true;
-    } else if (!hasFacePhoto && editingPerson?.hasFacePhoto) {
-      fetch(`/api/plugins/face-id/image/${newPerson.id}`, { method: 'DELETE' }).catch(console.error);
-      newPerson.hasFacePhoto = false;
-    } else {
-      newPerson.hasFacePhoto = hasFacePhoto;
+    // Upload / delete media for each capability that declares a mediaEndpoint
+    for (const [capName, capCfg] of Object.entries(capabilities)) {
+      if (!capCfg.mediaEndpoint) continue;
+      const staged = mediaFilesStaged[capName];
+      const existing = mediaFilesExisting[capName];
+      if (staged) {
+        // Upload new file to plugin's own endpoint
+        fetch(`${capCfg.mediaEndpoint}/${newPerson.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base64Data: staged })
+        }).catch(console.error);
+      } else if (!existing && editingPerson?.hasFacePhoto) {
+        // User cleared the file — delete from plugin storage
+        fetch(`${capCfg.mediaEndpoint}/${newPerson.id}`, { method: 'DELETE' }).catch(console.error);
+      }
     }
 
     // If it's a temporary event and was edited, update its expiresAt based on the latest endTime
@@ -337,7 +362,8 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       return false;
     }
 
-    const effectiveUseSchedule = isRoleSupportedByFaceRec(person.role) ? (person.useSchedule !== false) : true;
+    const hasAnyPlugin = Object.values(person.pluginSettings ?? {}).some(Boolean);
+    const effectiveUseSchedule = hasAnyPlugin ? (person.useSchedule !== false) : true;
     if (!effectiveUseSchedule) return false;
 
     const now = new Date();
@@ -363,7 +389,8 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
 
   const renderPersonCard = (person: Person) => {
     const isActive = isCurrentlyActive(person);
-    const effectiveUseSchedule = isRoleSupportedByFaceRec(person.role) ? (person.useSchedule !== false) : true;
+    const hasAnyPlugin = Object.values(person.pluginSettings ?? {}).some(Boolean);
+    const effectiveUseSchedule = hasAnyPlugin ? (person.useSchedule !== false) : true;
 
     return (
       <div
@@ -835,7 +862,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                       <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                         Автооткрытие по расписанию
                       </label>
-                      {isRoleSupportedByFaceRec(role) && (
+                      {capabilitiesForRole(role).length > 0 && (
                         <button
                           type="button"
                           onClick={() => setUseSchedule(!useSchedule)}
@@ -929,32 +956,40 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                   )}
                 </div>
 
-                {/* Form Row: Face ID (Appended if active) */}
-                {isRoleSupportedByFaceRec(role) && (
-                  <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/80 pt-4">
+                {/* Form Row: Plugin capability toggles (dynamic) */}
+                {capabilitiesForRole(role).map(([capName, capCfg]) => (
+                  <div key={capName} className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/80 pt-4">
                     <div className="flex items-center gap-3">
                       <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                        Автооткрытие по лицу
+                        {capCfg.label ?? capName}
                       </label>
                       <button
                         type="button"
-                        onClick={() => setUseFaceRec(!useFaceRec)}
-                        className={`flex items-center gap-1 text-[11px] font-bold transition-colors cursor-pointer ${useFaceRec ? "text-emerald-500" : "text-zinc-400"}`}
+                        onClick={() => setPluginSettingsForm(prev => ({ ...prev, [capName]: !prev[capName] }))}
+                        className={`flex items-center gap-1 text-[11px] font-bold transition-colors cursor-pointer ${pluginSettingsForm[capName] ? "text-emerald-500" : "text-zinc-400"}`}
                       >
-                        {useFaceRec ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                        {pluginSettingsForm[capName] ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
                       </button>
                     </div>
-                    
-                    {useFaceRec && (
+
+                    {/* Generic media upload widget — rendered only if capability declares mediaEndpoint */}
+                    {pluginSettingsForm[capName] && capCfg.mediaEndpoint && (
                       <div className="flex items-center gap-4 mt-2">
                         <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center shrink-0 overflow-hidden relative group">
-                          {facePhotoBase64 || hasFacePhoto ? (
+                          {mediaFilesStaged[capName] || mediaFilesExisting[capName] ? (
                             <>
-                              <img src={facePhotoBase64 || (editingPerson ? `/api/plugins/face-id/image/${editingPerson.id}` : '')} alt="Face preview" className="w-full h-full object-cover" />
+                              <img
+                                src={mediaFilesStaged[capName] || (editingPerson ? `${capCfg.mediaEndpoint}/${editingPerson.id}` : '')}
+                                alt="Preview"
+                                className="w-full h-full object-cover"
+                              />
                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button
                                   type="button"
-                                  onClick={() => { setFacePhotoBase64(""); setHasFacePhoto(false); }}
+                                  onClick={() => {
+                                    setMediaFilesStaged(prev => ({ ...prev, [capName]: '' }));
+                                    setMediaFilesExisting(prev => ({ ...prev, [capName]: false }));
+                                  }}
                                   className="text-white bg-red-500/80 rounded-full p-1 cursor-pointer hover:bg-red-500"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -969,35 +1004,35 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                           <input
                             type="file"
                             accept="image/*"
-                            id="face-upload"
+                            id={`media-upload-${capName}`}
                             className="hidden"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
                                 const reader = new FileReader();
                                 reader.onload = (ev) => {
-                                  setFacePhotoBase64(ev.target?.result as string);
-                                  setHasFacePhoto(true);
+                                  setMediaFilesStaged(prev => ({ ...prev, [capName]: ev.target?.result as string }));
+                                  setMediaFilesExisting(prev => ({ ...prev, [capName]: true }));
                                 };
                                 reader.readAsDataURL(file);
                               }
                             }}
                           />
                           <label
-                            htmlFor="face-upload"
+                            htmlFor={`media-upload-${capName}`}
                             className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-white text-xs font-bold rounded-xl transition cursor-pointer"
                           >
                             <ImagePlus className="w-4 h-4" />
                             <span>Выбрать фото</span>
                           </label>
                           <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
-                            Для корректной работы лицо должно быть хорошо освещено и смотреть прямо в камеру.
+                            Лицо должно быть хорошо освещено и смотреть прямо в камеру.
                           </p>
                         </div>
                       </div>
                     )}
                   </div>
-                )}
+                ))}
               </div>
 
               {/* Modal Footer */}

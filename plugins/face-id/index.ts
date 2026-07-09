@@ -3,7 +3,9 @@ import type { PluginAPI } from "../../server/plugin-manager.js";
 export default async function init(api: PluginAPI) {
   // Register capability so the frontend knows to show Face ID UI
   api.registerCapability("FACE_RECOGNITION", {
-    supportedRoles: ["resident", "guest"] // Explicitly skip couriers
+    supportedRoles: ["resident", "guest"], // Explicitly skip couriers
+    label: "Face ID",
+    mediaEndpoint: "/api/plugins/face-id/image"
   });
 
   // Hook into person load to add `hasFacePhoto` flag and generic `uiExtensions`

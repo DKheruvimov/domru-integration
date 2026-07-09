@@ -26,7 +26,8 @@ export interface Person {
   expiresAt?: number | null; // Stored in UTC milliseconds
   useSchedule?: boolean; // Defaults to true
   pluginSettings?: Record<string, boolean>; // Plugin specific boolean capabilities
-  hasFacePhoto?: boolean; // Ephemeral flag provided by plugin on read
+  /** @ephemeral Added by plugins in onPersonLoad, not stored in DB */
+  hasFacePhoto?: boolean;
   uiExtensions?: {
     avatarUrl?: string; // URL to override standard avatar icon
     badges?: {
@@ -44,5 +45,17 @@ export interface Person {
 }
 
 export interface CapabilityConfig {
+  /** Roles for which the capability toggle is shown. Omit to allow all roles. */
   supportedRoles?: ("resident" | "guest" | "courier")[];
+  /** Human-readable label shown in the modal toggle. Defaults to capabilityName. */
+  label?: string;
+  /**
+   * If the capability manages media files, provide the base REST endpoint.
+   * Core will render a generic file upload/preview widget and POST/DELETE to:
+   *   POST   {mediaEndpoint}/{personId}   body: { base64Data: string }
+   *   DELETE {mediaEndpoint}/{personId}
+   *   GET    {mediaEndpoint}/{personId}   (for preview src)
+   * The plugin registers these routes via api.router.
+   */
+  mediaEndpoint?: string;
 }
