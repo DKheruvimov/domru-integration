@@ -3,6 +3,7 @@ import path from "path";
 import express, { Router } from "express";
 import { DATA_DIR } from "./config.js";
 import type { CapabilityConfig } from "../shared/types.js";
+import { getAllModuleCapabilities } from "./modules-manager.js";
 
 // Ensure plugins data directory exists
 const PLUGINS_DATA_DIR = path.join(DATA_DIR, "plugins");
@@ -41,21 +42,13 @@ export class PluginManager {
 
     // Expose capabilities to frontend
     this.router.get("/capabilities", (req, res) => {
-      res.json(this.capabilities);
+      res.json(getAllModuleCapabilities());
     });
   }
 
   public async loadPlugins() {
-    // In a real system we would scan the /plugins folder.
-    // For this prototype, we'll manually require the face-id plugin.
-    try {
-      // Dynamic import to avoid static coupling
-      const faceIdPlugin = await import("../plugins/face-id/index.js");
-      await this.initPlugin("face-id", faceIdPlugin.default);
-      console.log("[PluginManager] Successfully loaded plugins.");
-    } catch (e) {
-      console.error("[PluginManager] Failed to load plugins:", e);
-    }
+    // Legacy Node.js plugins are removed. All capabilities are now dynamically registered via Module API.
+    console.log("[PluginManager] Legacy local plugins disabled. Awaiting dynamic module registrations.");
   }
 
   private async initPlugin(pluginId: string, initFn: (api: PluginAPI) => Promise<void> | void) {

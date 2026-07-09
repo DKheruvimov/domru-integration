@@ -25,13 +25,14 @@ import { findSnapshotForEvent, getSnapshotPath } from "../snapshots-manager.js";
 import { getOpeningByOurService } from "../openings-manager.js";
 import fs from "fs";
 import { pluginManager } from "../plugin-manager.js";
+import { enrichPeopleWithModuleExtensions } from "../modules-manager.js";
 
 const router = express.Router();
 
 // API Route: Authenticate
 router.get("/people", requireDomruAuth, async (req, res) => {
   try {
-    const enrichedPeople = await pluginManager.executePersonLoadHooks(getPeople());
+    const enrichedPeople = await enrichPeopleWithModuleExtensions(getPeople());
     res.json(enrichedPeople);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
