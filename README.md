@@ -82,13 +82,17 @@ PORT=8080 npm start
 ### Docker
 
 ```bash
-docker build -t domru-integration .
+# Если вы используете выделенный субдомен для API/WS в обход WAF:
+docker build --build-arg VITE_API_BASE_URL=https://api.yourdomain.com -t domru-integration .
+# Либо обычная сборка (API будет работать на том же домене):
+# docker build -t domru-integration .
+
 docker compose up -d
 ```
 Контейнер маппит порт `3100` (хост) → `3000` (контейнер). Данные сохраняются в volume `./data`.
 
 > [!TIP]
-> **Развертывание на публичном сервере:** Рекомендуется спрятать сервер за Reverse Proxy (TurboFlare, Cloudflare) в режиме `Full Strict`. В проекте встроен `app.set("trust proxy", true)` для корректного определения IP клиентов.
+> **Развертывание на публичном сервере:** Рекомендуется спрятать веб-интерфейс за Reverse Proxy (TurboFlare, Cloudflare). Однако, если WAF блокирует WebSockets или массовые API запросы (например, снапшоты с камер), выделите прямой сабдомен для API (без WAF проксирования) и передайте его через `VITE_API_BASE_URL` при сборке Docker-образа.
 
 ## 📖 Краткий пример использования API (`domru-api`)
 
