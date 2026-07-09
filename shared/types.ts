@@ -33,6 +33,13 @@ export interface Person {
       label: string;
       color: "success" | "warning" | "neutral" | "error";
     }[]; // Additional badges rendered on card
+    customBlocks?: {
+      title: string;
+      status?: { label: string; color: "success" | "warning" | "neutral" | "error" };
+      text?: string;
+      subText?: string;
+      imageUrl?: string;
+    }[]; // Generic blocks rendered below schedule
   };
 }
 
