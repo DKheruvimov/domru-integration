@@ -139,7 +139,8 @@ export default function MyHomeView({
     if (credentials.operatorId) params.set("operator", String(credentials.operatorId));
     params.set("token", credentials.token || "");
     params.set("t", String(localSnapshotTime));
-    return `/api/domru/snapshot/${selectedPlaceId}/${deviceId}?${params.toString()}`;
+    const apiBase = import.meta.env.VITE_API_BASE_URL || "";
+    return `${apiBase}/api/domru/snapshot/${selectedPlaceId}/${deviceId}?${params.toString()}`;
   };
 
   // Mobile layout matching original Dom.ru app

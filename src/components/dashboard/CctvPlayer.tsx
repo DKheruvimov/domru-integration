@@ -111,7 +111,8 @@ export default function CctvPlayer({
       if (credentials.operatorId) params.set("operatorId", String(credentials.operatorId));
       if (credentials.refreshToken) params.set("refreshToken", credentials.refreshToken);
     }
-    return `/api/domru/snapshot/${placeId}/${deviceId}?${params.toString()}`;
+    const apiBase = import.meta.env.VITE_API_BASE_URL || "";
+    return `${apiBase}/api/domru/snapshot/${placeId}/${deviceId}?${params.toString()}`;
   };
 
   const toggleAutoOpen = async (durationMinutes?: number, maxOpens?: number | null) => {
