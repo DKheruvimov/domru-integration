@@ -385,14 +385,18 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
         <div className="space-y-4">
           {/* Avatar and Info Header */}
           <div className="flex items-start gap-3">
-            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-extrabold text-sm border shadow-xs ${
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-extrabold text-sm border shadow-xs overflow-hidden shrink-0 ${
               person.role === "resident" 
                 ? "bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/20" 
                 : person.role === "courier"
                 ? "bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/20"
                 : "bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900/20"
             }`}>
-              {person.role === "resident" ? <UserCheck className="w-5 h-5" /> : person.role === "courier" ? <Truck className="w-5 h-5" /> : <User className="w-5 h-5" />}
+              {isRoleSupportedByFaceRec(person.role) && person.pluginSettings?.FACE_RECOGNITION && person.hasFacePhoto ? (
+                <img src={`/api/plugins/face-id/image/${person.id}`} alt="Face" className="w-full h-full object-cover" />
+              ) : (
+                person.role === "resident" ? <UserCheck className="w-5 h-5" /> : person.role === "courier" ? <Truck className="w-5 h-5" /> : <User className="w-5 h-5" />
+              )}
             </div>
             <div className="pr-12">
               <div className="flex items-center gap-2 flex-wrap">
@@ -408,6 +412,15 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                 }`}>
                   {person.role === "resident" ? "Жилец" : person.role === "courier" ? "Курьер" : "Гость"}
                 </span>
+                {isRoleSupportedByFaceRec(person.role) && person.pluginSettings?.FACE_RECOGNITION && (
+                  <span className={`text-[9px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border ${
+                    person.hasFacePhoto 
+                      ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30"
+                      : "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/30"
+                  }`}>
+                    Face ID
+                  </span>
+                )}
               </div>
 
               <div className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold mt-0.5 flex items-center gap-1">
@@ -420,68 +433,40 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
             </div>
           </div>
 
-          {/* Schedule list / Face Recognition */}
-          {(effectiveUseSchedule || (isRoleSupportedByFaceRec(person.role) && person.pluginSettings?.FACE_RECOGNITION)) && (
+          {/* Schedule list */}
+          {effectiveUseSchedule && (
             <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/50 pt-3">
               {/* 1. Schedule Block */}
-              {effectiveUseSchedule && (
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Расписание</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                      Вкл
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {person.schedules.length > 0 ? (
-                      person.schedules.map((rule) => (
-                        <div
-                          key={rule.id}
-                          className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 flex items-center gap-2"
-                        >
-                          <Calendar className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
-                          <span className="text-zinc-800 dark:text-zinc-300">
-                            {person.id.startsWith("temp-") ? "Сегодня" : formatDays(rule.days)}
-                          </span>
-                          <span className="text-zinc-400 dark:text-zinc-500 shrink-0">•</span>
-                          <Clock className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
-                          <span className="font-mono text-zinc-900 dark:text-white bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded-md">
-                            {rule.startTime} – {rule.endTime}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <span className="text-[10px] text-zinc-400">Нет интервалов</span>
-                    )}
-                  </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Расписание</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    Вкл
+                  </span>
                 </div>
-              )}
-
-              {/* 2. Face ID Block (Only if plugin is active) */}
-              {isRoleSupportedByFaceRec(person.role) && person.pluginSettings?.FACE_RECOGNITION && (
-                <div className={`flex flex-col gap-2 ${effectiveUseSchedule ? "border-t border-zinc-100 dark:border-zinc-800/50 pt-3" : ""}`}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Face ID</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                      Вкл
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 bg-zinc-50/80 dark:bg-zinc-800/60 p-2 rounded-xl border border-zinc-200/60 dark:border-zinc-700/60">
-                    <div className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shrink-0 overflow-hidden border-2 border-white dark:border-zinc-800 shadow-sm">
-                      {person.hasFacePhoto ? (
-                        <img src={`/api/plugins/face-id/image/${person.id}`} alt="Face" className="w-full h-full object-cover" />
-                      ) : (
-                        <Camera className="w-4 h-4 text-zinc-400" />
-                      )}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className={`text-[10px] font-bold ${person.hasFacePhoto ? "text-emerald-600 dark:text-emerald-400" : "text-amber-500 dark:text-amber-400"}`}>
-                        {person.hasFacePhoto ? "Фото загружено" : "Требуется фото"}
-                      </span>
-                    </div>
-                  </div>
+                <div className="space-y-1.5">
+                  {person.schedules.length > 0 ? (
+                    person.schedules.map((rule) => (
+                      <div
+                        key={rule.id}
+                        className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 flex items-center gap-2"
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                        <span className="text-zinc-800 dark:text-zinc-300">
+                          {person.id.startsWith("temp-") ? "Сегодня" : formatDays(rule.days)}
+                        </span>
+                        <span className="text-zinc-400 dark:text-zinc-500 shrink-0">•</span>
+                        <Clock className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                        <span className="font-mono text-zinc-900 dark:text-white bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded-md">
+                          {rule.startTime} – {rule.endTime}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-[10px] text-zinc-400">Нет интервалов</span>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>
