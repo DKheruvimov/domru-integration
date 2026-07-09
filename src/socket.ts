@@ -4,8 +4,11 @@ let socket: Socket | null = null;
 
 export const getSocket = (): Socket => {
   if (!socket) {
-    // Connect directly to the dedicated subdomain for WebSockets and API to bypass WAF
-    socket = io("wss://api.kheruvimov.ru", {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+    const socketUrl = apiBaseUrl ? apiBaseUrl.replace(/^http/, "ws") : undefined;
+
+    // Connect directly to the dedicated subdomain for WebSockets and API to bypass WAF if configured
+    socket = io(socketUrl as any, {
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
