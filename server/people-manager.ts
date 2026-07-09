@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { DATA_DIR } from "./config.js";
+import { getSettings } from "./settings-manager.js";
 import { broadcastAutoOpenStatusChanged } from "./ws-manager.js";
 
 import type { Person, ScheduleRule } from "../shared/types.js";
@@ -81,7 +83,7 @@ export function getPeople(): Person[] {
 
     // Auto-clean expired temporary guest/couriers and reset daily limits
     const now = Date.now();
-    const todayStr = getMskDateString(new Date(now));
+    const todayStr = getServerDateString(new Date(now));
     let hasChanges = false;
     const filtered = people.filter(p => {
       if (p.id.startsWith("temp-") && p.expiresAt && now > p.expiresAt) {
@@ -133,19 +135,42 @@ export function savePeople(people: Person[]) {
   }
 }
 
-export function getMskTime(now: Date = new Date()) {
-  // Moscow is UTC+3. This shifts the UTC time by 3 hours so that UTC methods return MSK values.
-  const mskTime = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+export function getServerTime(now: Date = new Date()) {
+  const { timezone } = getSettings();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone || "Europe/Moscow",
+    weekday: 'long',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  });
+  
+  const parts = formatter.formatToParts(now);
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+  
+  const days: Record<string, number> = {
+    Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6
+  };
+  
+  let hours = parseInt(getPart('hour') || '0', 10);
+  if (hours === 24) hours = 0; // en-US sometimes returns 24 for midnight if hour12: false
+
   return {
-    day: mskTime.getUTCDay(),
-    hours: mskTime.getUTCHours(),
-    minutes: mskTime.getUTCMinutes()
+    day: days[getPart('weekday')!] || 0,
+    hours,
+    minutes: parseInt(getPart('minute') || '0', 10)
   };
 }
 
-export function getMskDateString(now: Date = new Date()): string {
-  const mskTime = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-  return mskTime.toISOString().split("T")[0]; // Returns "YYYY-MM-DD"
+export function getServerDateString(now: Date = new Date()): string {
+  const { timezone } = getSettings();
+  const formatter = new Intl.DateTimeFormat('en-CA', { // en-CA produces YYYY-MM-DD
+    timeZone: timezone || "Europe/Moscow",
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  return formatter.format(now);
 }
 
 export function isScheduleActive(person: Person, now: Date = new Date()): boolean {
@@ -158,7 +183,7 @@ export function isScheduleActive(person: Person, now: Date = new Date()): boolea
     }
   }
 
-  const { day, hours, minutes } = getMskTime(now);
+  const { day, hours, minutes } = getServerTime(now);
   const currentMinutesSinceMidnight = hours * 60 + minutes;
   const prevDay = (day - 1 + 7) % 7;
 
@@ -235,7 +260,7 @@ export async function checkAutoOpenRules(deviceId?: number): Promise<{ active: b
     // If we reach here, the person passed all required checks (2FA succeeded)
     if (person.role !== "resident" && person.opensRemaining !== undefined && person.opensRemaining !== null) {
       person.opensRemaining = Math.max(0, person.opensRemaining - 1);
-      person.lastOpenedDate = getMskDateString(now);
+      person.lastOpenedDate = getServerDateString(now);
       savePeople(people);
     }
 
@@ -250,7 +275,7 @@ export async function checkAutoOpenRules(deviceId?: number): Promise<{ active: b
 }
 
 function formatTimeHHMM_MSK(date: Date): string {
-  const { hours, minutes } = getMskTime(date);
+  const { hours, minutes } = getServerTime(date);
   const hh = String(hours).padStart(2, "0");
   const mm = String(minutes).padStart(2, "0");
   return `${hh}:${mm}`;

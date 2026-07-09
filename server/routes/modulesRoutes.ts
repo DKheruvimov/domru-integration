@@ -61,7 +61,7 @@ router.post("/actions/open", async (req, res) => {
   const { deviceId, personId, capability } = req.body;
   
   if (personId) {
-    const { getPeople, isScheduleActive, savePeople, getMskDateString } = await import("../people-manager.js");
+    const { getPeople, isScheduleActive, savePeople, getServerDateString } = await import("../people-manager.js");
     const people = getPeople();
     const person = people.find((p: any) => p.id === personId);
     
@@ -85,7 +85,7 @@ router.post("/actions/open", async (req, res) => {
         return res.status(403).json({ error: "Person has no remaining opens" });
       }
       person.opensRemaining = Math.max(0, person.opensRemaining - 1);
-      person.lastOpenedDate = getMskDateString(new Date());
+      person.lastOpenedDate = getServerDateString(new Date());
       savePeople(people);
     }
   }

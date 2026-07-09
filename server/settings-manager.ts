@@ -6,6 +6,7 @@ export interface AppSettings {
   autoOpenDelayResidentMs: number;
   autoOpenDelayGuestMs: number;
   customDomain?: string;
+  timezone: string;
 }
 
 const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
@@ -14,6 +15,7 @@ const defaultSettings: AppSettings = {
   autoOpenDelayResidentMs: 0,
   autoOpenDelayGuestMs: 3000,
   customDomain: "",
+  timezone: "Europe/Moscow",
 };
 
 export function getSettings(): AppSettings {

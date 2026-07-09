@@ -25,6 +25,9 @@ router.post("/", (req, res) => {
   if (typeof newSettings.customDomain === "string") {
     currentSettings.customDomain = newSettings.customDomain;
   }
+  if (typeof newSettings.timezone === "string") {
+    currentSettings.timezone = newSettings.timezone;
+  }
 
   saveSettings(currentSettings);
   res.json(currentSettings);

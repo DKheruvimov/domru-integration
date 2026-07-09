@@ -26,9 +26,27 @@ export default function App() {
   const [useWebRTC, setUseWebRTC] = useState<boolean>(() => {
     return localStorage.getItem("is_webrtc_enabled") === "true";
   });
-  const [timezone, setTimezone] = useState<string>(() => {
-    return localStorage.getItem("app_timezone") || "Europe/Moscow";
-  });
+  const [timezone, setTimezoneState] = useState<string>("Europe/Moscow");
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data.timezone) {
+          setTimezoneState(data.timezone);
+        }
+      })
+      .catch(err => console.error("Failed to load global timezone settings:", err));
+  }, []);
+
+  const setTimezone = (tz: string) => {
+    setTimezoneState(tz);
+    fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timezone: tz })
+    }).catch(err => console.error("Failed to save global timezone settings:", err));
+  };
 
   useEffect(() => {
     localStorage.setItem("is_dev_mode_enabled", String(isDevModeEnabled));
@@ -38,9 +56,6 @@ export default function App() {
     localStorage.setItem("is_webrtc_enabled", String(useWebRTC));
   }, [useWebRTC]);
 
-  useEffect(() => {
-    localStorage.setItem("app_timezone", timezone);
-  }, [timezone]);
 
   useEffect(() => {
     const root = document.documentElement;
