@@ -404,7 +404,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
           </div>
 
           {/* Schedule list / Face Recognition */}
-          {(effectiveUseSchedule || (hasFaceRec && person.role === "resident" && person.pluginSettings?.FACE_RECOGNITION)) && (
+          {(effectiveUseSchedule || (hasFaceRec && person.pluginSettings?.FACE_RECOGNITION)) && (
             <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/50 pt-3">
               {/* 1. Schedule Block */}
               {effectiveUseSchedule && (
@@ -441,7 +441,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
               )}
 
               {/* 2. Face ID Block (Only if plugin is active) */}
-              {hasFaceRec && person.role === "resident" && person.pluginSettings?.FACE_RECOGNITION && (
+              {hasFaceRec && person.pluginSettings?.FACE_RECOGNITION && (
                 <div className={`flex flex-col gap-2 ${effectiveUseSchedule ? "border-t border-zinc-100 dark:border-zinc-800/50 pt-3" : ""}`}>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Face ID</span>
@@ -879,7 +879,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                 </div>
 
                 {/* Form Row: Face ID (Appended if active) */}
-                {hasFaceRec && role === "resident" && (
+                {hasFaceRec && (
                   <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/80 pt-4">
                     <div className="flex items-center gap-3">
                       <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
