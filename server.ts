@@ -1,5 +1,8 @@
 import express from "express";
 import path from "path";
+import { fileURLToPath } from "url";
+import { resolve } from "path";
+import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import "./server/config.js";
 import codeRoutes from "./server/routes/codeRoutes.js";
@@ -22,6 +25,11 @@ async function startServer() {
 
   app.set("trust proxy", true);
 
+  app.use(cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  }));
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
