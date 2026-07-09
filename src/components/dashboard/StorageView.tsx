@@ -12,6 +12,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
   const [deleting, setDeleting] = useState(false);
   const [previewSnapshot, setPreviewSnapshot] = useState<StorageSnapshot | null>(null);
   const [previewFaceId, setPreviewFaceId] = useState<string | null>(null);
+  const [peopleNames, setPeopleNames] = useState<Record<string, string>>({});
 
   const loadSnapshots = async () => {
     setLoading(true);
@@ -46,6 +47,32 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
       setLoading(false);
     }
   };
+
+  const loadPeopleNames = async () => {
+    try {
+      const headers: HeadersInit = {};
+      if (credentials) {
+        headers["x-domru-login"] = credentials.login;
+        headers["x-domru-password"] = credentials.password;
+        if (credentials.token) headers["x-domru-token"] = credentials.token;
+      }
+      const res = await fetch("/api/domru/people", { headers });
+      if (res.ok) {
+        const data = await res.json();
+        const map: Record<string, string> = {};
+        data.forEach((p: any) => {
+          map[p.id] = p.name;
+        });
+        setPeopleNames(map);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    loadPeopleNames();
+  }, [credentials]);
 
   useEffect(() => {
     if (activeTab === "snapshots") {
@@ -349,8 +376,8 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
                     
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-100 transition-opacity" />
                     
-                    <div className="absolute bottom-2 left-2 text-white/90 text-[10px] font-mono drop-shadow-md bg-black/40 px-2 py-0.5 rounded-lg backdrop-blur-md truncate max-w-[90%]">
-                      ID: {key}
+                    <div className="absolute bottom-2 left-2 text-white/90 text-[10px] font-bold drop-shadow-md bg-black/40 px-2 py-0.5 rounded-lg backdrop-blur-md truncate max-w-[90%]">
+                      {peopleNames[key] || `ID: ${key}`}
                     </div>
 
                     {selectionMode && (
