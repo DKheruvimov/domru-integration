@@ -54,7 +54,37 @@ router.post("/actions/open", async (req, res) => {
     return res.status(403).json({ error: "Invalid or missing module token" });
   }
 
-  const { deviceId } = req.body;
+  const { deviceId, personId, capability } = req.body;
+  
+  if (personId) {
+    const { getPeople, isScheduleActive, savePeople, getMskDateString } = await import("../people-manager.js");
+    const people = getPeople();
+    const person = people.find((p: any) => p.id === personId);
+    
+    if (!person) {
+      return res.status(404).json({ error: "Person not found" });
+    }
+    if (!person.enabled) {
+      return res.status(403).json({ error: "Person is disabled" });
+    }
+    
+    if (capability && person.pluginSettings && person.pluginSettings[capability] === false) {
+      return res.status(403).json({ error: `Capability ${capability} is disabled for this person` });
+    }
+
+    if (person.useSchedule !== false && !isScheduleActive(person)) {
+      return res.status(403).json({ error: "Person is not allowed by schedule at this time" });
+    }
+
+    if (person.role !== "resident" && person.opensRemaining !== undefined && person.opensRemaining !== null) {
+      if (person.opensRemaining <= 0) {
+        return res.status(403).json({ error: "Person has no remaining opens" });
+      }
+      person.opensRemaining = Math.max(0, person.opensRemaining - 1);
+      person.lastOpenedDate = getMskDateString(new Date());
+      savePeople(people);
+    }
+  }
   
   try {
     const tokens = loadSavedTokens();
@@ -91,7 +121,7 @@ router.post("/actions/open", async (req, res) => {
       return res.status(400).json({ error: "deviceId is required and no default intercom found" });
     }
 
-    await handleManualOpen(targetPlaceId, Number(deviceId), client, `Модуль: ${module.name}`);
+    await handleManualOpen(targetPlaceId, Number(deviceId), client, `Модуль: ${module.name}${personId ? ' (ID: ' + personId + ')' : ''}`);
     res.json({ success: true, message: "Door opened" });
 
   } catch (error: any) {
