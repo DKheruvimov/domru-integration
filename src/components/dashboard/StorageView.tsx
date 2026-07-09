@@ -72,6 +72,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
 
   useEffect(() => {
     loadPeopleNames();
+    loadFaceIdKeys();
   }, [credentials]);
 
   useEffect(() => {

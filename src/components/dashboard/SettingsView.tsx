@@ -631,6 +631,25 @@ export default function SettingsView({
                     <span className="font-mono text-zinc-800 dark:text-zinc-200 font-black">{isMobile ? "Mobile UI" : "Desktop UI"}</span>
                   </div>
                 </div>
+
+                {/* Plugin Data Clearance */}
+                <div className="bg-red-500/5 dark:bg-red-950/10 border border-red-500/20 rounded-3xl p-6 flex flex-col gap-4 animate-fade-in">
+                  <div className="space-y-1.5">
+                    <span className="text-sm font-extrabold text-red-600 dark:text-red-500 block">
+                      Удаление данных плагинов
+                    </span>
+                    <span className="text-xs text-red-500/80 dark:text-red-400/80 font-semibold block leading-relaxed">
+                      Вы можете принудительно очистить все данные плагина Face ID, хранящиеся локально.
+                    </span>
+                  </div>
+                  <button
+                    onClick={clearFaceIdData}
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto px-5 py-3 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-xl transition shadow-sm shadow-red-500/20 cursor-pointer self-start"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Очистить данные Face ID</span>
+                  </button>
+                </div>
               </>
             )}
           </div>
