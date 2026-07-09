@@ -44,20 +44,20 @@ Python-сервису нужно:
 - Для каждого `personId`, у которого `pluginSettings.FACE_RECOGNITION === true`, скачать эталонное фото из хранилища: `GET http://localhost:3000/api/modules/actions/storage/{personId}?token=MODULE_TOKEN`.
 - Обучить / загрузить эти лица в Qdrant / InsightFace.
 
-### 2. Ожидание звонка (WebSocket)
+### 3. Ожидание звонка (WebSocket)
 Сервис подключается по WebSocket:
 - URL: `ws://localhost:3000/modules?token=MODULE_TOKEN`
 - Слушает событие `incoming_call`.
 - Payload события содержит `{ deviceId, placeId, login }`.
 
-### 3. Получение видео и Распознавание
+### 4. Получение видео и Распознавание
 Когда пришёл звонок:
 - Сервис запрашивает локальную ссылку на видео: `GET http://localhost:3000/api/modules/actions/stream/{deviceId}?token=MODULE_TOKEN`
 - Получает JSON с `hlsUrl` (например, `http://localhost:3000/api/domru/go2rtc-proxy/api/hls.m3u8?src=...`)
 - Передаёт эту локальную ссылку в OpenCV / FFmpeg.
 - Пытается найти лицо из загруженной ранее базы.
 
-### 4. Команда на открытие двери
+### 5. Команда на открытие двери
 Если лицо найдено (например, узнали `personId: "user_123"`):
 - Сервис делает POST-запрос:
   ```http

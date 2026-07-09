@@ -52,8 +52,9 @@ domru-integration/
 │   │   └── yandexDialogs.ts     # POST /api/yandex/dialogs — голосовые команды Алисы
 │   └── views/
 │       └── oauth-consent.html   # Страница согласия OAuth для Яндекс Smart Home
-├── plugins/                     # Сторонние и внутренние расширения функционала
-│   └── face-id/                 # Плагин распознавания по лицу (2FA)
+├── plugins/                     # Директория с локальными плагинами (например, SIP-перехватчики)
+│   ├── plugin-api.d.ts          # Описание API для плагинов
+│   └── example-plugin/          # Пример плагина
 ├── src/                         # Фронтенд (React)
 │   ├── App.tsx                  # Главный компонент: роутинг Login → Dashboard
 │   ├── main.tsx                 # Точка входа React
