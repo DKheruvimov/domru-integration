@@ -113,13 +113,23 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
 
   // Toggle single person
   const handleTogglePerson = async (id: string, currentEnabled: boolean) => {
-    const updated = people.map(p => p.id === id ? { ...p, enabled: !currentEnabled } : p);
+    const target = people.find(p => p.id === id);
+    if (!target) return;
+
+    const newEnabled = !currentEnabled;
+    const updatedPerson = { ...target, enabled: newEnabled };
+
+    if (newEnabled && updatedPerson.useSchedule === false && !updatedPerson.pluginSettings?.FACE_RECOGNITION) {
+      updatedPerson.useSchedule = true;
+    }
+
+    const updated = people.map(p => p.id === id ? updatedPerson : p);
     setPeople(updated); // Optimistic
     try {
-      await fetch("/api/domru/people/toggle", {
+      await fetch("/api/domru/people", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...proxyHeaders },
-        body: JSON.stringify({ id, enabled: !currentEnabled }),
+        body: JSON.stringify({ people: updated }),
       });
     } catch (err) {
       // Revert on error
@@ -152,7 +162,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       setEnabled(person.enabled);
       setMaxOpens(person.maxOpens !== undefined && person.maxOpens !== null ? person.maxOpens : "");
       setSchedules(person.schedules);
-      setUseSchedule(person.useSchedule !== false);
+      setUseSchedule(hasFaceRec ? (person.useSchedule !== false) : true);
       setUseFaceRec(!!person.pluginSettings?.FACE_RECOGNITION);
       setHasFacePhoto(!!person.hasFacePhoto);
       setFacePhotoBase64("");
@@ -216,11 +226,17 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       return;
     }
 
+    let finalEnabled = enabled;
+    const finalUseSchedule = hasFaceRec ? useSchedule : true;
+    if (finalUseSchedule === false && !useFaceRec) {
+      finalEnabled = false;
+    }
+
     const newPerson: Person = {
       id: editingPerson ? editingPerson.id : Math.random().toString(36).substr(2, 9),
       name: name.trim(),
       role,
-      enabled,
+      enabled: finalEnabled,
       schedules,
       maxOpens: role !== "resident" && maxOpens !== "" ? Number(maxOpens) : null,
       opensRemaining: editingPerson
@@ -228,7 +244,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
         : (role !== "resident" && maxOpens !== "" ? Number(maxOpens) : null),
       expiresAt: editingPerson ? editingPerson.expiresAt : undefined,
       lastOpenedDate: editingPerson ? editingPerson.lastOpenedDate : undefined,
-      useSchedule,
+      useSchedule: finalUseSchedule,
       pluginSettings: { FACE_RECOGNITION: useFaceRec },
       hasFacePhoto: editingPerson ? editingPerson.hasFacePhoto : false,
     };
@@ -383,65 +399,69 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
           </div>
 
           {/* Schedule list / Face Recognition */}
-          <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/50 pt-3">
-            {/* 1. Schedule Block */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Расписание</span>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${person.useSchedule !== false ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"}`}>
-                  {person.useSchedule !== false ? "Вкл" : "Выкл"}
-                </span>
-              </div>
-              <div className="space-y-1.5">
-                {person.schedules.length > 0 ? (
-                  person.schedules.map((rule) => (
-                    <div
-                      key={rule.id}
-                      className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 flex items-center gap-2"
-                    >
-                      <Calendar className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
-                      <span className="text-zinc-800 dark:text-zinc-300">
-                        {person.id.startsWith("temp-") ? "Сегодня" : formatDays(rule.days)}
-                      </span>
-                      <span className="text-zinc-400 dark:text-zinc-500 shrink-0">•</span>
-                      <Clock className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
-                      <span className="font-mono text-zinc-900 dark:text-white bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded-md">
-                        {rule.startTime} – {rule.endTime}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <span className="text-[10px] text-zinc-400">Нет интервалов</span>
-                )}
-              </div>
-            </div>
-
-            {/* 2. Face ID Block (Only if plugin is active) */}
-            {hasFaceRec && person.role === "resident" && (
-              <div className="flex flex-col gap-2 border-t border-zinc-100 dark:border-zinc-800/50 pt-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Face ID</span>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${person.pluginSettings?.FACE_RECOGNITION ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"}`}>
-                    {person.pluginSettings?.FACE_RECOGNITION ? "Вкл" : "Выкл"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 bg-zinc-50/80 dark:bg-zinc-800/60 p-2 rounded-xl border border-zinc-200/60 dark:border-zinc-700/60">
-                  <div className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shrink-0 overflow-hidden border-2 border-white dark:border-zinc-800 shadow-sm">
-                    {person.hasFacePhoto ? (
-                      <img src={`/api/plugins/face-id/image/${person.id}`} alt="Face" className="w-full h-full object-cover" />
-                    ) : (
-                      <Camera className="w-4 h-4 text-zinc-400" />
-                    )}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className={`text-[10px] font-bold ${person.hasFacePhoto ? "text-emerald-600 dark:text-emerald-400" : "text-amber-500 dark:text-amber-400"}`}>
-                      {person.hasFacePhoto ? "Фото загружено" : "Требуется фото"}
+          {(person.useSchedule !== false || (hasFaceRec && person.role === "resident" && person.pluginSettings?.FACE_RECOGNITION)) && (
+            <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/50 pt-3">
+              {/* 1. Schedule Block */}
+              {person.useSchedule !== false && (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Расписание</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                      Вкл
                     </span>
                   </div>
+                  <div className="space-y-1.5">
+                    {person.schedules.length > 0 ? (
+                      person.schedules.map((rule) => (
+                        <div
+                          key={rule.id}
+                          className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 flex items-center gap-2"
+                        >
+                          <Calendar className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                          <span className="text-zinc-800 dark:text-zinc-300">
+                            {person.id.startsWith("temp-") ? "Сегодня" : formatDays(rule.days)}
+                          </span>
+                          <span className="text-zinc-400 dark:text-zinc-500 shrink-0">•</span>
+                          <Clock className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                          <span className="font-mono text-zinc-900 dark:text-white bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded-md">
+                            {rule.startTime} – {rule.endTime}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-[10px] text-zinc-400">Нет интервалов</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+
+              {/* 2. Face ID Block (Only if plugin is active) */}
+              {hasFaceRec && person.role === "resident" && person.pluginSettings?.FACE_RECOGNITION && (
+                <div className={`flex flex-col gap-2 ${person.useSchedule !== false ? "border-t border-zinc-100 dark:border-zinc-800/50 pt-3" : ""}`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Face ID</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                      Вкл
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 bg-zinc-50/80 dark:bg-zinc-800/60 p-2 rounded-xl border border-zinc-200/60 dark:border-zinc-700/60">
+                    <div className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shrink-0 overflow-hidden border-2 border-white dark:border-zinc-800 shadow-sm">
+                      {person.hasFacePhoto ? (
+                        <img src={`/api/plugins/face-id/image/${person.id}`} alt="Face" className="w-full h-full object-cover" />
+                      ) : (
+                        <Camera className="w-4 h-4 text-zinc-400" />
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className={`text-[10px] font-bold ${person.hasFacePhoto ? "text-emerald-600 dark:text-emerald-400" : "text-amber-500 dark:text-amber-400"}`}>
+                        {person.hasFacePhoto ? "Фото загружено" : "Требуется фото"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer Toggle and actions */}
@@ -759,13 +779,15 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                       <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                         Автооткрытие по расписанию
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => setUseSchedule(!useSchedule)}
-                        className={`flex items-center gap-1 text-[11px] font-bold transition-colors cursor-pointer ${useSchedule ? "text-emerald-500" : "text-zinc-400"}`}
-                      >
-                        {useSchedule ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-                      </button>
+                      {hasFaceRec && (
+                        <button
+                          type="button"
+                          onClick={() => setUseSchedule(!useSchedule)}
+                          className={`flex items-center gap-1 text-[11px] font-bold transition-colors cursor-pointer ${useSchedule ? "text-emerald-500" : "text-zinc-400"}`}
+                        >
+                          {useSchedule ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                        </button>
+                      )}
                     </div>
                     {useSchedule && (
                       <button

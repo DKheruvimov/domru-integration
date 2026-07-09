@@ -330,7 +330,7 @@ export default function SettingsView({
           <ModulesView />
         )}
 
-        {settingsTab === "storage" && (
+        {settingsTab === "keys" && (
           <div className="space-y-6 animate-fade-in">
             <div className="p-5 bg-zinc-50 dark:bg-zinc-800/30 border border-zinc-200/60 dark:border-zinc-850 rounded-3xl text-sm text-zinc-600 dark:text-zinc-400 font-semibold leading-relaxed">
               Вы можете временно приостановить действие физических ключей от вашего подъезда, а также сгенерировать временный цифровой код гостя.
@@ -406,6 +406,13 @@ export default function SettingsView({
             </div>
           </div>
         )}
+
+        {settingsTab === "storage" && (
+          <div className="animate-fade-in w-full h-full">
+            <StorageView credentials={credentials} />
+          </div>
+        )}
+
 
         {settingsTab === "general" && (
           <div className="space-y-8 animate-fade-in max-w-3xl">
