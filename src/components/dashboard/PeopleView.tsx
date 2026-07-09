@@ -320,6 +320,9 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       return false;
     }
 
+    const effectiveUseSchedule = hasFaceRec ? (person.useSchedule !== false) : true;
+    if (!effectiveUseSchedule) return false;
+
     const now = new Date();
     const currentDay = now.getDay();
     const currentHours = now.getHours();
@@ -343,6 +346,8 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
 
   const renderPersonCard = (person: Person) => {
     const isActive = isCurrentlyActive(person);
+    const effectiveUseSchedule = hasFaceRec ? (person.useSchedule !== false) : true;
+
     return (
       <div
         key={person.id}
@@ -399,10 +404,10 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
           </div>
 
           {/* Schedule list / Face Recognition */}
-          {(person.useSchedule !== false || (hasFaceRec && person.role === "resident" && person.pluginSettings?.FACE_RECOGNITION)) && (
+          {(effectiveUseSchedule || (hasFaceRec && person.role === "resident" && person.pluginSettings?.FACE_RECOGNITION)) && (
             <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-800/50 pt-3">
               {/* 1. Schedule Block */}
-              {person.useSchedule !== false && (
+              {effectiveUseSchedule && (
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Расписание</span>
@@ -437,7 +442,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
 
               {/* 2. Face ID Block (Only if plugin is active) */}
               {hasFaceRec && person.role === "resident" && person.pluginSettings?.FACE_RECOGNITION && (
-                <div className={`flex flex-col gap-2 ${person.useSchedule !== false ? "border-t border-zinc-100 dark:border-zinc-800/50 pt-3" : ""}`}>
+                <div className={`flex flex-col gap-2 ${effectiveUseSchedule ? "border-t border-zinc-100 dark:border-zinc-800/50 pt-3" : ""}`}>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Face ID</span>
                     <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
