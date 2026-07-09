@@ -27,6 +27,13 @@ export interface Person {
   useSchedule?: boolean; // Defaults to true
   pluginSettings?: Record<string, boolean>; // Plugin specific boolean capabilities
   hasFacePhoto?: boolean; // Ephemeral flag provided by plugin on read
+  uiExtensions?: {
+    avatarUrl?: string; // URL to override standard avatar icon
+    badges?: {
+      label: string;
+      color: "success" | "warning" | "neutral" | "error";
+    }[]; // Additional badges rendered on card
+  };
 }
 
 export interface CapabilityConfig {

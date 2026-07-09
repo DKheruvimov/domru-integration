@@ -392,8 +392,8 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                 ? "bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/20"
                 : "bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900/20"
             }`}>
-              {isRoleSupportedByFaceRec(person.role) && person.pluginSettings?.FACE_RECOGNITION && person.hasFacePhoto ? (
-                <img src={`/api/plugins/face-id/image/${person.id}`} alt="Face" className="w-full h-full object-cover" />
+              {person.uiExtensions?.avatarUrl ? (
+                <img src={person.uiExtensions.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 person.role === "resident" ? <UserCheck className="w-5 h-5" /> : person.role === "courier" ? <Truck className="w-5 h-5" /> : <User className="w-5 h-5" />
               )}
@@ -412,15 +412,19 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                 }`}>
                   {person.role === "resident" ? "Жилец" : person.role === "courier" ? "Курьер" : "Гость"}
                 </span>
-                {isRoleSupportedByFaceRec(person.role) && person.pluginSettings?.FACE_RECOGNITION && (
-                  <span className={`text-[9px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border ${
-                    person.hasFacePhoto 
+                {person.uiExtensions?.badges?.map((badge, idx) => (
+                  <span key={idx} className={`text-[9px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border ${
+                    badge.color === "success" 
                       ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30"
-                      : "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/30"
+                      : badge.color === "warning"
+                      ? "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/30"
+                      : badge.color === "error"
+                      ? "bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900/30"
+                      : "bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700"
                   }`}>
-                    Face ID
+                    {badge.label}
                   </span>
-                )}
+                ))}
               </div>
 
               <div className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold mt-0.5 flex items-center gap-1">

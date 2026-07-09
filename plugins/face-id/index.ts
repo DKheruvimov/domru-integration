@@ -6,14 +6,31 @@ export default async function init(api: PluginAPI) {
     supportedRoles: ["resident", "guest"] // Explicitly skip couriers
   });
 
-  // Hook into person load to add `hasFacePhoto` flag to UI
+  // Hook into person load to add `hasFacePhoto` flag and generic `uiExtensions`
   api.onPersonLoad(async (people) => {
     const photos = await api.storage.getAll();
     return people.map((p) => {
-      if (photos[p.id]) {
-        return { ...p, hasFacePhoto: true };
+      const hasFacePhoto = !!photos[p.id];
+      const isFaceIdEnabled = !!p.pluginSettings?.FACE_RECOGNITION;
+      
+      const uiExtensions: any = { badges: [] };
+      
+      if (isFaceIdEnabled) {
+        uiExtensions.badges.push({
+          label: "Face ID",
+          color: hasFacePhoto ? "success" : "warning"
+        });
       }
-      return p;
+      
+      if (hasFacePhoto) {
+        uiExtensions.avatarUrl = `/api/plugins/face-id/image/${p.id}`;
+      }
+
+      return { 
+        ...p, 
+        hasFacePhoto,
+        uiExtensions: (isFaceIdEnabled || hasFacePhoto) ? uiExtensions : undefined
+      };
     });
   });
 
