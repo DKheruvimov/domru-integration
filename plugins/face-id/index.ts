@@ -66,4 +66,24 @@ export default async function init(api: PluginAPI) {
       res.status(500).send(err.message);
     }
   });
+
+  // Get all storage keys
+  api.router.get("/storage", async (req, res) => {
+    try {
+      const allData = await api.storage.getAll();
+      res.json({ keys: Object.keys(allData) });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Clear all storage
+  api.router.delete("/storage", async (req, res) => {
+    try {
+      await api.storage.clear();
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 }

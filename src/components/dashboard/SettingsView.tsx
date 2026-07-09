@@ -27,6 +27,7 @@ import {
   ShieldAlert,
   HardDrive,
   Plug,
+  Trash2,
 } from "lucide-react";
 
 declare const __APP_VERSION__: string;
@@ -111,6 +112,21 @@ export default function SettingsView({
     { id: "2C7E55F9", name: "Резервный ключ", active: false },
   ]);
   const [guestCode, setGuestCode] = useState("1409");
+
+  const clearFaceIdData = async () => {
+    if (!window.confirm("Удалить все загруженные фотографии Face ID? Это действие необратимо.")) return;
+    try {
+      const res = await fetch("/api/plugins/face-id/storage", { method: "DELETE" });
+      if (res.ok) {
+        alert("Данные плагина очищены");
+      } else {
+        alert("Ошибка при очистке данных");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Ошибка при очистке данных");
+    }
+  };
 
   const toggleKey = (id: string) => {
     setKeysList((prev) =>

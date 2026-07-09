@@ -14,6 +14,7 @@ export interface PluginStorage {
   set: (key: string, value: any) => Promise<void>;
   delete: (key: string) => Promise<void>;
   getAll: () => Promise<Record<string, any>>;
+  clear: () => Promise<void>;
 }
 
 export interface PluginAPI {
@@ -84,6 +85,9 @@ export class PluginManager {
       },
       getAll: async () => {
         return await readStorage();
+      },
+      clear: async () => {
+        await writeStorage({});
       }
     };
 
