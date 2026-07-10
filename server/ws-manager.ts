@@ -29,6 +29,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
     socket.emit("modules_status_changed", getConnectedModules());
 
     socket.on("get_modules_status", () => {
+      console.log(`[WS] Client ${socket.id} requested modules status. Sending:`, getConnectedModules());
       socket.emit("modules_status_changed", getConnectedModules());
     });
 
