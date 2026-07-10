@@ -35,8 +35,9 @@ router.post("/", (req, res) => {
 });
 
 // UI Endpoint: Delete a module
-router.delete("/:id", (req, res) => {
-  const { id } = req.params;
+router.post("/delete", (req, res) => {
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ error: "id is required" });
   const success = deleteModule(id);
   if (success) {
     res.json({ success: true });
@@ -46,9 +47,9 @@ router.delete("/:id", (req, res) => {
 });
 
 // UI Endpoint: Configure module connection
-router.post("/:id/connection", (req, res) => {
-  const { id } = req.params;
-  const { type, webhookUrl } = req.body;
+router.post("/connection", (req, res) => {
+  const { id, type, webhookUrl } = req.body;
+  if (!id) return res.status(400).json({ error: "id is required" });
   if (!["websocket", "webhook", "long_polling"].includes(type)) {
     return res.status(400).json({ error: "Invalid connection type" });
   }

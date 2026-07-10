@@ -74,7 +74,11 @@ export default function ModulesView() {
     if (!window.confirm("Вы уверены, что хотите удалить этот модуль?")) return;
     
     try {
-      const res = await fetch(`/api/modules/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/modules/delete`, { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
       if (res.ok) {
         setModules(prev => prev.filter(m => m.id !== id));
       } else {
@@ -96,10 +100,10 @@ export default function ModulesView() {
 
   const saveConnection = async (id: string) => {
     try {
-      const res = await fetch(`/api/modules/${id}/connection`, {
+      const res = await fetch(`/api/modules/connection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editConnection)
+        body: JSON.stringify({ id, ...editConnection })
       });
       if (res.ok) {
         setModules(modules.map(m => m.id === id ? { ...m, connection: { type: editConnection.type, webhookUrl: editConnection.webhookUrl } } : m));
