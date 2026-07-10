@@ -119,14 +119,18 @@ router.get("/me/settings", (req, res) => {
   res.json(module.configValues || {});
 });
 
+import { notifyModuleViaWebSocket } from "../ws-manager.js";
+
 // UI Endpoint: Save user settings for a module
 router.post("/settings", (req, res) => {
   const { id, values } = req.body;
   if (!id) return res.status(400).json({ error: "id is required" });
   
   setModuleConfigValues(id, values);
-  // Optional: notify module about the change if it's connected via websocket or webhook
-  // dispatchModuleEvent("settings_updated", { moduleId: id, values }); 
+  
+  // Notify module about the change if it's connected via websocket, webhook, or long polling
+  notifyModuleViaWebSocket(id, "settings_updated", values);
+  dispatchModuleEvent("settings_updated", values, id).catch(err => console.error("Error dispatching settings to webhook:", err));
   
   res.json({ success: true });
 });

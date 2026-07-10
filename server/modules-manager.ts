@@ -194,10 +194,11 @@ export function addPollingClient(moduleId: string, timeoutMs: number = 30000): P
   });
 }
 
-export async function dispatchModuleEvent(event: string, payload: any) {
+export async function dispatchModuleEvent(event: string, payload: any, targetModuleId?: string) {
   const modules = getModules();
   
   for (const mod of modules) {
+    if (targetModuleId && mod.id !== targetModuleId) continue;
     if (!mod.connection) continue;
     
     const eventData = { event, payload, timestamp: Date.now() };

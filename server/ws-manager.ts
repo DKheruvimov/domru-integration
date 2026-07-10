@@ -13,6 +13,16 @@ export function dispatchModuleEvent(event: string, payload: any) {
   io?.emit(event, payload);
 }
 
+export function notifyModuleViaWebSocket(moduleId: string, event: string, payload: any) {
+  if (!io) return;
+  const modulesNs = io.of("/modules");
+  for (const [socketId, mId] of connectedModules.entries()) {
+    if (mId === moduleId) {
+      modulesNs.to(socketId).emit(event, payload);
+    }
+  }
+}
+
 export function initWebSocketServer(httpServer: HttpServer) {
   io = new Server(httpServer, {
     cors: {
