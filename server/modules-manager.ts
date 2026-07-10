@@ -6,6 +6,18 @@ const DATA_FILE = path.join(process.cwd(), "data", "modules.json");
 
 import type { CapabilityConfig } from "../shared/types.js";
 
+export type FieldType = "string" | "password" | "number" | "boolean" | "select";
+
+export interface ModuleConfigField {
+  key: string;
+  type: FieldType;
+  label: string;
+  description?: string;
+  required?: boolean;
+  defaultValue?: any;
+  options?: { label: string, value: string }[];
+}
+
 export interface ExternalModule {
   id: string;
   name: string;
@@ -16,6 +28,11 @@ export interface ExternalModule {
     type: "websocket" | "webhook" | "long_polling";
     webhookUrl?: string;
   };
+  configSchema?: {
+    instruction?: string;
+    fields: ModuleConfigField[];
+  };
+  configValues?: Record<string, any>;
 }
 
 function ensureDataDir() {
@@ -110,6 +127,25 @@ export function setModuleConnection(moduleId: string, type: "websocket" | "webho
   const mod = modules.find(m => m.id === moduleId);
   if (mod) {
     mod.connection = { type, webhookUrl };
+    saveModules(modules);
+  }
+}
+
+// UI Configuration Schema
+export function setModuleSchema(moduleId: string, instruction: string | undefined, fields: ModuleConfigField[]) {
+  const modules = getModules();
+  const mod = modules.find(m => m.id === moduleId);
+  if (mod) {
+    mod.configSchema = { instruction, fields };
+    saveModules(modules);
+  }
+}
+
+export function setModuleConfigValues(moduleId: string, values: Record<string, any>) {
+  const modules = getModules();
+  const mod = modules.find(m => m.id === moduleId);
+  if (mod) {
+    mod.configValues = values;
     saveModules(modules);
   }
 }

@@ -9,7 +9,9 @@ import {
   setModuleStorageValue,
   deleteModuleStorageValue,
   setModuleConnection,
-  addPollingClient
+  addPollingClient,
+  setModuleSchema,
+  setModuleConfigValues
 } from "../modules-manager.js";
 import { handleManualOpen } from "../sip-manager.js";
 import { loadSavedTokens } from "../tokenStore.js";
@@ -69,6 +71,59 @@ router.post("/me/webhook", (req, res) => {
   // Set the connection type to webhook and save the URL
   setModuleConnection(module.id, "webhook", webhookUrl);
   res.json({ success: true, message: "Webhook URL configured successfully" });
+});
+// External Module Endpoint: Register Config Schema
+router.post("/me/schema", (req, res) => {
+  const authHeader = req.headers["authorization"] || "";
+  let token = "";
+  if (authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7).trim();
+  } else {
+    token = String(req.query.token || "").trim();
+  }
+
+  const module = validateModuleToken(token);
+  if (!module) {
+    return res.status(403).json({ error: "Invalid or missing module token" });
+  }
+
+  const { instruction, fields } = req.body;
+  if (!Array.isArray(fields)) {
+    return res.status(400).json({ error: "fields must be an array" });
+  }
+
+  setModuleSchema(module.id, instruction, fields);
+  res.json({ success: true });
+});
+
+// External Module Endpoint: Get Settings
+router.get("/me/settings", (req, res) => {
+  const authHeader = req.headers["authorization"] || "";
+  let token = "";
+  if (authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7).trim();
+  } else {
+    token = String(req.query.token || "").trim();
+  }
+
+  const module = validateModuleToken(token);
+  if (!module) {
+    return res.status(403).json({ error: "Invalid or missing module token" });
+  }
+
+  res.json(module.configValues || {});
+});
+
+// UI Endpoint: Save user settings for a module
+router.post("/settings", (req, res) => {
+  const { id, values } = req.body;
+  if (!id) return res.status(400).json({ error: "id is required" });
+  
+  setModuleConfigValues(id, values);
+  // Optional: notify module about the change if it's connected via websocket or webhook
+  // dispatchModuleEvent("settings_updated", { moduleId: id, values }); 
+  
+  res.json({ success: true });
 });
 
 // External Module Endpoint: Action Open

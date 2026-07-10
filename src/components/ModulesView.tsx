@@ -3,6 +3,18 @@ import { Plug, Plus, Trash2, KeyRound, Clock, Activity, CheckCircle2, XCircle, S
 
 import { getSocket } from "../socket";
 
+export type FieldType = "string" | "password" | "number" | "boolean" | "select";
+
+export interface ModuleConfigField {
+  key: string;
+  type: FieldType;
+  label: string;
+  description?: string;
+  required?: boolean;
+  defaultValue?: any;
+  options?: { label: string, value: string }[];
+}
+
 export interface ExternalModule {
   id: string;
   name: string;
@@ -12,6 +24,11 @@ export interface ExternalModule {
     type: "websocket" | "webhook" | "long_polling";
     webhookUrl?: string;
   };
+  configSchema?: {
+    instruction?: string;
+    fields: ModuleConfigField[];
+  };
+  configValues?: Record<string, any>;
 }
 
 export default function ModulesView() {
@@ -19,6 +36,8 @@ export default function ModulesView() {
   const [onlineModules, setOnlineModules] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [newModuleName, setNewModuleName] = useState("");
+  const [editingModule, setEditingModule] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, any>>({});
 
   useEffect(() => {
     fetchModules();
@@ -85,6 +104,33 @@ export default function ModulesView() {
     } catch (e) {
       console.error("Failed to delete module", e);
       alert("Ошибка сети при удалении");
+    }
+  };
+
+  const startEditing = (mod: ExternalModule) => {
+    if (editingModule === mod.id) {
+      setEditingModule(null);
+      return;
+    }
+    setEditingModule(mod.id);
+    setEditValues(mod.configValues || {});
+  };
+
+  const saveSettings = async (id: string) => {
+    try {
+      const res = await fetch("/api/modules/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, values: editValues })
+      });
+      if (res.ok) {
+        setModules(modules.map(m => m.id === id ? { ...m, configValues: editValues } : m));
+        setEditingModule(null);
+      } else {
+        alert("Ошибка сохранения настроек");
+      }
+    } catch (e) {
+      console.error("Failed to save settings", e);
     }
   };
 
@@ -172,15 +218,96 @@ export default function ModulesView() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                <button
-                  disabled
-                  className="p-2 text-zinc-300 dark:text-zinc-600 rounded-lg cursor-not-allowed opacity-50"
-                  title="Настройки соединения (В разработке)"
-                >
-                  <Settings2 className="w-4 h-4" />
-                </button>
+                {mod.configSchema ? (
+                  <button
+                    onClick={() => startEditing(mod)}
+                    className={`p-2 rounded-lg transition-colors cursor-pointer ${editingModule === mod.id ? "text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10" : "text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:text-zinc-200 dark:hover:bg-zinc-800"}`}
+                    title="Настройки модуля"
+                  >
+                    <Settings2 className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="p-2 text-zinc-300 dark:text-zinc-700 rounded-lg cursor-not-allowed"
+                    title="Модуль не предоставляет настроек"
+                  >
+                    <Settings2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
               </div>
+
+              {/* Editing Section (Schema-Driven) */}
+              {editingModule === mod.id && mod.configSchema && (
+                <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800/50 w-full col-span-full">
+                  <div className="space-y-4">
+                    {mod.configSchema.instruction && (
+                      <div className="bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 p-3 rounded-xl text-[11px] font-medium leading-relaxed border border-blue-100 dark:border-blue-500/20">
+                        {mod.configSchema.instruction}
+                      </div>
+                    )}
+                    
+                    <div className="space-y-4">
+                      {mod.configSchema.fields.map(field => (
+                        <div key={field.key} className="space-y-1">
+                          <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">
+                            {field.label} {field.required && <span className="text-red-500">*</span>}
+                          </label>
+                          
+                          {field.type === "string" || field.type === "password" || field.type === "number" ? (
+                            <input
+                              type={field.type === "password" ? "password" : field.type === "number" ? "number" : "text"}
+                              value={editValues[field.key] || ""}
+                              onChange={e => setEditValues(prev => ({ ...prev, [field.key]: field.type === "number" ? Number(e.target.value) : e.target.value }))}
+                              className="w-full bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/50 dark:border-zinc-800/80 rounded-xl px-3 py-2 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-hidden focus:border-zinc-300 dark:focus:border-zinc-700 transition-colors"
+                              required={field.required}
+                            />
+                          ) : field.type === "boolean" ? (
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                className="sr-only peer" 
+                                checked={!!editValues[field.key]} 
+                                onChange={e => setEditValues(prev => ({ ...prev, [field.key]: e.target.checked }))}
+                              />
+                              <div className="w-9 h-5 bg-zinc-200 dark:bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                            </label>
+                          ) : field.type === "select" ? (
+                            <select
+                              value={editValues[field.key] || ""}
+                              onChange={e => setEditValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+                              className="w-full bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/50 dark:border-zinc-800/80 rounded-xl px-3 py-2 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-hidden focus:border-zinc-300 dark:focus:border-zinc-700 transition-colors"
+                              required={field.required}
+                            >
+                              <option value="" disabled>Выберите...</option>
+                              {field.options?.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                          ) : null}
+                          
+                          {field.description && (
+                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+                              {field.description}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <button
+                        onClick={() => saveSettings(mod.id)}
+                        className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors flex items-center gap-2"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        Сохранить настройки
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
