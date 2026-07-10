@@ -21,6 +21,7 @@ const socket = io(CORE_URL + "/modules", {
 
 socket.on("connect", () => {
   console.log("✅ Успешное подключение по WebSocket к Ядру!");
+  reportStatus("warning", "Модуль подключен, ожидаю конфигурации...");
   registerSchema();
 });
 
@@ -41,9 +42,29 @@ socket.on("door_opened", (data) => {
   console.log("🚪 [Событие] Дверь открыта!", data);
 });
 
+// Отправка явного статуса плагина в Ядро
+function reportStatus(status: "offline" | "warning" | "error" | "online", message?: string) {
+  console.log(`📤 Отправка статуса Ядру: [${status}] ${message || ""}`);
+  socket.emit("update_status", { status, message });
+}
+
 // Слушаем обновление настроек из UI
 socket.on("settings_updated", (data) => {
-  console.log("⚙️ [Настройки] Пользователь изменил настройки в UI:", data);
+  console.log("⚙️ [Настройки] Ядро прислало новые настройки:", data);
+  
+  if (!data.test_string) {
+    reportStatus("error", "Отсутствует 'Тестовая строка'! Не могу продолжить работу.");
+    return;
+  }
+  
+  console.log("🔄 Имитация подключения к Telegram...");
+  setTimeout(() => {
+    if (data.test_string === "error") {
+      reportStatus("error", "Тестовая строка содержит 'error'. Ошибка подключения к ТГ!");
+    } else {
+      reportStatus("online", "Успешно подключено к ТГ. Плагин готов к работе!");
+    }
+  }, 1000);
 });
 
 // 2. Функция регистрации Схемы настроек

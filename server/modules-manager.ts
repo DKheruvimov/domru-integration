@@ -33,6 +33,10 @@ export interface ExternalModule {
     fields: ModuleConfigField[];
   };
   configValues?: Record<string, any>;
+  
+  // Explicit Dynamic Status (in-memory, not persisted in DB)
+  status?: "offline" | "warning" | "error" | "online";
+  statusMessage?: string;
 }
 
 function ensureDataDir() {
@@ -42,6 +46,13 @@ function ensureDataDir() {
   }
 }
 
+// In-memory statuses
+const moduleStatuses = new Map<string, { status: "offline" | "warning" | "error" | "online", message?: string }>();
+
+export function setModuleStatus(moduleId: string, status: "offline" | "warning" | "error" | "online", message?: string) {
+  moduleStatuses.set(moduleId, { status, message });
+}
+
 export function getModules(): ExternalModule[] {
   ensureDataDir();
   if (!fs.existsSync(DATA_FILE)) {
@@ -49,7 +60,18 @@ export function getModules(): ExternalModule[] {
   }
   try {
     const content = fs.readFileSync(DATA_FILE, "utf-8");
-    return JSON.parse(content);
+    const parsed: ExternalModule[] = JSON.parse(content);
+    // Inject dynamic statuses
+    return parsed.map(m => {
+      const mem = moduleStatuses.get(m.id);
+      if (mem) {
+        m.status = mem.status;
+        m.statusMessage = mem.message;
+      } else {
+        m.status = "offline"; // Default if not in memory
+      }
+      return m;
+    });
   } catch (error) {
     console.error("Error reading modules.json:", error);
     return [];

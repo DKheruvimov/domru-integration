@@ -55,6 +55,19 @@ export function initWebSocketServer(httpServer: HttpServer) {
     console.log(`[WS/Modules] Module connected: ${module.name} (${module.id})`);
     connectedModules.set(socket.id, module.id);
     
+    // Explicit dynamic status event from plugin
+    socket.on("update_status", (payload: { status: "offline" | "warning" | "error" | "online", message?: string }) => {
+      import("./modules-manager.js").then(({ setModuleStatus }) => {
+        setModuleStatus(module.id, payload.status, payload.message);
+        // Broadcast the specific state change to all UI clients
+        io?.emit("module_state_updated", {
+          moduleId: module.id,
+          status: payload.status,
+          message: payload.message
+        });
+      });
+    });
+
     io?.emit("modules_status_changed", getConnectedModules());
 
     socket.on("disconnect", () => {

@@ -44,12 +44,17 @@ export default function ModulesView() {
     
     const socket = getSocket();
     const handleStatusChanged = (activeIds: string[]) => setOnlineModules(activeIds);
+    const handleStateUpdated = (payload: { moduleId: string, status: string, message?: string }) => {
+      setModules(prev => prev.map(m => m.id === payload.moduleId ? { ...m, status: payload.status as any, statusMessage: payload.message } : m));
+    };
     
     socket.on("modules_status_changed", handleStatusChanged);
+    socket.on("module_state_updated", handleStateUpdated);
     socket.emit("get_modules_status");
     
     return () => {
       socket.off("modules_status_changed", handleStatusChanged);
+      socket.off("module_state_updated", handleStateUpdated);
     };
   }, []);
 
@@ -120,6 +125,7 @@ export default function ModulesView() {
   const getModuleStatus = (mod: ExternalModule, isOnline: boolean) => {
     const hasConnection = isOnline || mod.connection?.type === "webhook";
     
+    // If not connected via WS/Webhook, force offline
     if (!hasConnection) {
       return { 
         state: "offline", 
@@ -130,6 +136,38 @@ export default function ModulesView() {
       };
     }
 
+    // If module provided explicit status, use it
+    if (mod.status === "error") {
+      return {
+        state: "error",
+        label: "Ошибка",
+        tooltip: mod.statusMessage || "Произошла ошибка в работе плагина.",
+        icon: <XCircle className="w-3 h-3" />,
+        className: "text-red-500 bg-red-50 dark:bg-red-500/10"
+      };
+    }
+    
+    if (mod.status === "warning") {
+      return {
+        state: "warning",
+        label: "Ожидание / Внимание",
+        tooltip: mod.statusMessage || "Плагин ожидает настройки или находится в промежуточном состоянии.",
+        icon: <AlertCircle className="w-3 h-3" />,
+        className: "text-amber-500 bg-amber-50 dark:bg-amber-500/10"
+      };
+    }
+    
+    if (mod.status === "online") {
+      return {
+        state: "online",
+        label: "В сети",
+        tooltip: mod.statusMessage || "Плагин успешно подключился и готов к работе.",
+        icon: <CheckCircle2 className="w-3 h-3" />,
+        className: "text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10"
+      };
+    }
+
+    // Fallback logic for legacy modules (no explicit status)
     let missingRequired = false;
     if (mod.configSchema?.fields) {
       for (const field of mod.configSchema.fields) {
@@ -155,7 +193,7 @@ export default function ModulesView() {
       label: "В сети", 
       tooltip: "Модуль подключен и готов к работе.",
       icon: <CheckCircle2 className="w-3 h-3" />,
-      className: "text-emerald-500 bg-emerald-500/10"
+      className: "text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10"
     };
   };
 
