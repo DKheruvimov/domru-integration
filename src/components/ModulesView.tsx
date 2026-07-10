@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plug, Plus, Trash2, KeyRound, Clock, Activity, CheckCircle2, XCircle, Settings2, Save } from "lucide-react";
+import { Plug, Plus, Trash2, KeyRound, Clock, Activity, CheckCircle2, XCircle, Settings2, Save, AlertCircle } from "lucide-react";
 
 import { getSocket } from "../socket";
 
@@ -116,6 +116,48 @@ export default function ModulesView() {
     setEditValues(mod.configValues || {});
   };
 
+  const getModuleStatus = (mod: ExternalModule, isOnline: boolean) => {
+    const hasConnection = isOnline || mod.connection?.type === "webhook";
+    
+    if (!hasConnection) {
+      return { 
+        state: "offline", 
+        label: "Не в сети", 
+        tooltip: "Модуль не подключен. Запустите скрипт или настройте webhook.",
+        icon: <XCircle className="w-3 h-3" />,
+        className: "text-zinc-400 bg-zinc-100 dark:bg-zinc-800"
+      };
+    }
+
+    let missingRequired = false;
+    if (mod.configSchema?.fields) {
+      for (const field of mod.configSchema.fields) {
+        if (field.required && !mod.configValues?.[field.key]) {
+          missingRequired = true;
+          break;
+        }
+      }
+    }
+
+    if (missingRequired) {
+      return { 
+        state: "warning", 
+        label: "Требует настройки", 
+        tooltip: "Модуль подключен, но не может работать, пока вы не заполните обязательные настройки (нажмите на шестеренку).",
+        icon: <AlertCircle className="w-3 h-3" />,
+        className: "text-amber-500 bg-amber-50 dark:bg-amber-500/10"
+      };
+    }
+
+    return { 
+      state: "online", 
+      label: "В сети", 
+      tooltip: "Модуль подключен и готов к работе.",
+      icon: <CheckCircle2 className="w-3 h-3" />,
+      className: "text-emerald-500 bg-emerald-500/10"
+    };
+  };
+
   const saveSettings = async (id: string) => {
     try {
       const res = await fetch("/api/modules/settings", {
@@ -174,23 +216,21 @@ export default function ModulesView() {
       <div className="space-y-3">
         {modules.map(mod => {
           const isOnline = onlineModules.includes(mod.id);
+          const status = getModuleStatus(mod, isOnline);
+          
           return (
             <div key={mod.id} className="p-4 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl shadow-xs flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h5 className="font-extrabold text-sm text-zinc-900 dark:text-white">{mod.name}</h5>
-                  {isOnline ? (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                      <CheckCircle2 className="w-3 h-3" />
-                      В сети
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-zinc-400 uppercase tracking-widest bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                      <XCircle className="w-3 h-3" />
-                      Не в сети
-                    </span>
-                  )}
+                  <span 
+                    title={status.tooltip}
+                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full cursor-help ${status.className}`}
+                  >
+                    {status.icon}
+                    {status.label}
+                  </span>
                 </div>
                 <div className="flex items-center gap-3 text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
                   <span className="flex items-center gap-1">
@@ -280,9 +320,9 @@ export default function ModulesView() {
                               className="w-full bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/50 dark:border-zinc-800/80 rounded-xl px-3 py-2 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-hidden focus:border-zinc-300 dark:focus:border-zinc-700 transition-colors"
                               required={field.required}
                             >
-                              <option value="" disabled>Выберите...</option>
+                              <option value="" disabled className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">Выберите...</option>
                               {field.options?.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                <option key={opt.value} value={opt.value} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">{opt.label}</option>
                               ))}
                             </select>
                           ) : null}
