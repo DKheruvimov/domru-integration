@@ -7,7 +7,9 @@ import {
   registerModuleCapability,
   getModuleStorageValue,
   setModuleStorageValue,
-  deleteModuleStorageValue
+  deleteModuleStorageValue,
+  setModuleConnection,
+  addPollingClient
 } from "../modules-manager.js";
 import { handleManualOpen } from "../sip-manager.js";
 import { loadSavedTokens } from "../tokenStore.js";
@@ -41,6 +43,17 @@ router.delete("/:id", (req, res) => {
   } else {
     res.status(404).json({ error: "Module not found" });
   }
+});
+
+// UI Endpoint: Configure module connection
+router.post("/:id/connection", (req, res) => {
+  const { id } = req.params;
+  const { type, webhookUrl } = req.body;
+  if (!["websocket", "webhook", "long_polling"].includes(type)) {
+    return res.status(400).json({ error: "Invalid connection type" });
+  }
+  setModuleConnection(id, type, webhookUrl);
+  res.json({ success: true });
 });
 
 // External Module Endpoint: Action Open
@@ -131,6 +144,39 @@ router.post("/actions/open", async (req, res) => {
   } catch (error: any) {
     console.error("Module Open Error:", error);
     res.status(500).json({ error: error.message || "Failed to open door" });
+  }
+});
+
+// External Module Endpoint: Configure Connection
+router.post("/actions/connection", async (req, res) => {
+  const authHeader = req.headers["authorization"] || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.substring(7).trim() : String(req.query.token || "").trim();
+  const module = validateModuleToken(token);
+  if (!module) return res.status(403).json({ error: "Invalid or missing module token" });
+
+  const { type, webhookUrl } = req.body;
+  if (!["websocket", "webhook", "long_polling"].includes(type)) {
+    return res.status(400).json({ error: "Invalid connection type" });
+  }
+  
+  setModuleConnection(module.id, type, webhookUrl);
+  res.json({ success: true });
+});
+
+// External Module Endpoint: Long Polling
+router.get("/actions/poll", async (req, res) => {
+  const authHeader = req.headers["authorization"] || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.substring(7).trim() : String(req.query.token || "").trim();
+  const module = validateModuleToken(token);
+  if (!module) return res.status(403).json({ error: "Invalid or missing module token" });
+
+  // Wait for an event for up to 30 seconds
+  const event = await addPollingClient(module.id, 30000);
+  
+  if (event) {
+    res.json({ success: true, ...event });
+  } else {
+    res.json({ success: true, event: "timeout" }); // No events happened
   }
 });
 

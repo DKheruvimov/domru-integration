@@ -12,6 +12,10 @@ export interface ExternalModule {
   token: string;
   createdAt: number;
   capabilities?: Record<string, CapabilityConfig>;
+  connection?: {
+    type: "websocket" | "webhook" | "long_polling";
+    webhookUrl?: string;
+  };
 }
 
 function ensureDataDir() {
@@ -98,6 +102,73 @@ export function getAllModuleCapabilities(): Record<string, CapabilityConfig> {
     }
   }
   return allCaps;
+}
+
+// Connection Configuration
+export function setModuleConnection(moduleId: string, type: "websocket" | "webhook" | "long_polling", webhookUrl?: string) {
+  const modules = getModules();
+  const mod = modules.find(m => m.id === moduleId);
+  if (mod) {
+    mod.connection = { type, webhookUrl };
+    saveModules(modules);
+  }
+}
+
+// Event Dispatching & Long Polling
+interface PollingClient {
+  moduleId: string;
+  resolve: (eventData: any) => void;
+  timer: NodeJS.Timeout;
+}
+const pollingClients: PollingClient[] = [];
+
+export function addPollingClient(moduleId: string, timeoutMs: number = 30000): Promise<any> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      const idx = pollingClients.findIndex(p => p.timer === timer);
+      if (idx !== -1) {
+        pollingClients.splice(idx, 1);
+        resolve(null); // Timeout with no events
+      }
+    }, timeoutMs);
+
+    pollingClients.push({ moduleId, resolve, timer });
+  });
+}
+
+export async function dispatchModuleEvent(event: string, payload: any) {
+  const modules = getModules();
+  
+  for (const mod of modules) {
+    if (!mod.connection) continue;
+    
+    const eventData = { event, payload, timestamp: Date.now() };
+
+    if (mod.connection.type === "webhook" && mod.connection.webhookUrl) {
+      try {
+        fetch(mod.connection.webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(eventData),
+          signal: AbortSignal.timeout(5000)
+        }).catch(err => {
+          console.error(`[Webhook] Error sending event to module ${mod.name}:`, err.message);
+        });
+      } catch (err) {
+        console.error(`[Webhook] Error sending event to module ${mod.name}:`, err);
+      }
+    } else if (mod.connection.type === "long_polling") {
+      // Find all pending long polling requests for this module and resolve them
+      const clients = pollingClients.filter(c => c.moduleId === mod.id);
+      for (const client of clients) {
+        clearTimeout(client.timer);
+        client.resolve(eventData);
+        // Remove from array
+        const idx = pollingClients.indexOf(client);
+        if (idx !== -1) pollingClients.splice(idx, 1);
+      }
+    }
+  }
 }
 
 // Storage

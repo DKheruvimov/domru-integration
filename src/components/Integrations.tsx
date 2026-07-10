@@ -125,8 +125,8 @@ export default function Integrations({ credentials }: IntegrationsProps) {
               className="flex-1 bg-transparent border-none text-xs font-mono font-bold text-zinc-800 dark:text-zinc-200 focus:outline-hidden pl-1"
             />
           </div>
-          </div>
         </div>
+      </div>
 
         {/* Diagnostics Button & Results */}
         <div className="pt-2">

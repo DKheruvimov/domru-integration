@@ -86,18 +86,21 @@ export function broadcastIncomingCall(login: string, details?: string, placeId?:
     
     // Notify external modules
     if (placeId && deviceId) {
-      io.of("/modules").emit("incoming_call", {
-        login,
-        placeId,
-        deviceId
-      });
+      const payload = { login, placeId, deviceId };
+      io.of("/modules").emit("incoming_call", payload);
+      
+      // Also dispatch to Webhook & Long Polling modules
+      import("./modules-manager.js").then(m => m.dispatchModuleEvent("incoming_call", payload));
     }
   }
 }
 
 export function broadcastDoorOpened(deviceId: number, source: string, details: string) {
+  const payload = { deviceId, source, details };
   if (io) {
-    io.emit("door_opened", { deviceId, source, details });
-    io.of("/modules").emit("door_opened", { deviceId, source, details });
+    io.emit("door_opened", payload);
+    io.of("/modules").emit("door_opened", payload);
   }
+  // Dispatch to Webhook & Long Polling modules
+  import("./modules-manager.js").then(m => m.dispatchModuleEvent("door_opened", payload));
 }

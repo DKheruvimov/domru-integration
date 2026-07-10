@@ -655,11 +655,7 @@ export default function SettingsView({
           </div>
         )}
 
-        {settingsTab === "integrations" && (
-          <div className="animate-fade-in w-full h-full">
-            <Integrations credentials={credentials || { login: "demo", isDemo: true }} />
-          </div>
-        )}
+
 
         {settingsTab === "inspector" && isDevModeEnabled && (
           <div className="animate-fade-in w-full h-full">
