@@ -142,6 +142,13 @@ domru-integration/
 | `yandexRoutes.ts` | `/oauth/*`, `/v1.0/*` | OAuth flow + Yandex Smart Home |
 | `yandexDialogs.ts` | `/api/yandex/dialogs` | Голосовые команды Алисы (Dialogs) |
 
+### 2.2. Авторизация Фронтенд ↔ Бэкенд (Обход WAF)
+
+Чтобы избежать блокировок со стороны WAF (Cloudflare, Cloud.ru) из-за передачи чувствительных данных в нестандартных HTTP-заголовках, используется следующая архитектура:
+1. **API вызовы (fetch)**: Все XHR-запросы используют исключительно стандартный заголовок `Authorization: Bearer <base64_encode(json)>`.
+2. **Загрузка изображений (Снапшоты)**: Изображения с камер загружаются через стандартные HTML-теги `<img>` (для защиты от Bot Fight Mode). Тег `<img>` не поддерживает установку заголовков, поэтому авторизация для картинок передается через стандартный браузерный **Cookie** `domru_auth`.
+3. **getDomruInstance Middleware**: Единый фасад `server/domruClientHelper.ts` прозрачно парсит как заголовок `Authorization`, так и куку `domru_auth`, извлекая токены и создавая экземпляр `DomruClient`.
+
 > **Безопасность API:** Все приватные маршруты защищены middleware `requireDomruAuth`. Этот слой проверяет наличие валидных credentials в заголовках запроса и предотвращает неавторизованный доступ.
 
 ### 3. SIP Manager (`server/sip-manager.ts` + `server/sip-init.ts`)

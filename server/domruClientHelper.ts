@@ -51,11 +51,30 @@ export const getDomruInstance = (req: express.Request) => {
     }
   }
 
+  if (req.headers.cookie) {
+    try {
+      const cookies = req.headers.cookie.split(';').map(c => c.trim());
+      const domruCookie = cookies.find(c => c.startsWith('domru_auth='));
+      if (domruCookie) {
+        const b64 = domruCookie.substring('domru_auth='.length);
+        const decoded = JSON.parse(decodeURIComponent(Buffer.from(b64, 'base64').toString('utf8')));
+        login = decoded.login || login;
+        password = decoded.password || password;
+        token = decoded.token || token;
+        refreshToken = decoded.refreshToken || refreshToken;
+        operatorId = decoded.operatorId || operatorId;
+      }
+    } catch (e) {
+      console.error("Failed to decode domru_auth cookie:", e);
+    }
+  }
+
   const client = new DomruClient({
     login,
     password,
     refreshToken,
     operatorId,
+    accessToken: token,
     timeout: 10000,
     logger: {
       info: (msg: string, ...args: any[]) => console.log(`[DomruClient:INFO] ${msg}`, ...args),

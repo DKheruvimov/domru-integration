@@ -12,6 +12,13 @@ import {
   ChevronDown,
   ShieldCheck,
   X,
+  Loader2,
+  DoorOpen,
+  Shield,
+  ShieldAlert,
+  WifiOff,
+  CarFront,
+  Users,
 } from "lucide-react";
 import AutoOpenConfigModal from "./AutoOpenConfigModal";
 import { getSocket } from "../../socket";
@@ -75,8 +82,7 @@ export default function MyHomeView({
       fetch(`/api/domru/sip/auto-open/status?_t=${Date.now()}`, { 
         cache: "no-store",
         headers: {
-          "x-domru-token": credentials?.token || "",
-          "x-domru-refresh-token": credentials?.refreshToken || "",
+          "Authorization": `Bearer ${btoa(encodeURIComponent(JSON.stringify({ token: credentials?.token, refreshToken: credentials?.refreshToken, operatorId: credentials?.operatorId })))}`
         }
       })
         .then((res) => res.json())
@@ -107,8 +113,7 @@ export default function MyHomeView({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-domru-token": credentials?.token || "",
-          "x-domru-refresh-token": credentials?.refreshToken || "",
+          "Authorization": `Bearer ${btoa(encodeURIComponent(JSON.stringify({ token: credentials?.token, refreshToken: credentials?.refreshToken, operatorId: credentials?.operatorId })))}`
         },
         body: JSON.stringify({
           placeId: selectedPlaceId,
@@ -137,10 +142,8 @@ export default function MyHomeView({
     if (!selectedPlaceId || !deviceId || !credentials) return undefined;
     const params = new URLSearchParams();
     if (credentials.operatorId) params.set("operator", String(credentials.operatorId));
-    params.set("token", credentials.token || "");
     params.set("t", String(localSnapshotTime));
-    const apiBase = import.meta.env.VITE_API_BASE_URL || "";
-    return `${apiBase}/api/domru/snapshot/${selectedPlaceId}/${deviceId}?${params.toString()}`;
+    return `/api/domru/snapshot/${selectedPlaceId}/${deviceId}?${params.toString()}`;
   };
 
   // Mobile layout matching original Dom.ru app
@@ -188,8 +191,8 @@ export default function MyHomeView({
                             src={buildSnapshotUrl(device.id)}
                             className="absolute inset-0 w-full h-full object-cover opacity-75 dark:opacity-70 group-hover:opacity-90 transition-all duration-500"
                             alt="Камера доступа"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
+                            onError={(e: any) => {
+                              if (e?.currentTarget) e.currentTarget.style.display = "none";
                             }}
                           />
                         ) : (
@@ -328,8 +331,8 @@ export default function MyHomeView({
                               src={buildSnapshotUrl(device.id)}
                               className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
                               alt="Снимок с камеры"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
+                              onError={(e: any) => {
+                                if (e?.currentTarget) e.currentTarget.style.display = "none";
                               }}
                             />
                           ) : (

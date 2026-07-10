@@ -61,6 +61,16 @@ export default function CctvPlayer({
   const [isGlobalAutoOpen, setIsGlobalAutoOpen] = useState<boolean>(false);
   const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<boolean>(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState<boolean>(false);
+  const [localSnapshotTime, setLocalSnapshotTime] = useState(snapshotTime);
+
+  useEffect(() => {
+    if (playerMode === "snapshot") {
+      const intv = setInterval(() => {
+        setLocalSnapshotTime(Date.now());
+      }, 1500);
+      return () => clearInterval(intv);
+    }
+  }, [playerMode]);
 
   const matchingDevice = devices.find(
     (d) => d.externalCameraId === activeCamera || String(d.id) === activeCamera
@@ -71,8 +81,7 @@ export default function CctvPlayer({
       fetch(`/api/domru/sip/auto-open/status?_t=${Date.now()}`, { 
         cache: "no-store",
         headers: {
-          "x-domru-token": credentials?.token || "",
-          "x-domru-refresh-token": credentials?.refreshToken || "",
+          "Authorization": `Bearer ${btoa(encodeURIComponent(JSON.stringify({ token: credentials?.token, refreshToken: credentials?.refreshToken, operatorId: credentials?.operatorId })))}`
         }
       })
         .then((res) => res.json())
@@ -101,18 +110,11 @@ export default function CctvPlayer({
   ) => {
     if (!placeId) return "";
     const params = new URLSearchParams();
-    params.set("t", String(snapshotTime));
+    params.set("t", String(localSnapshotTime));
     if (credentials.isDemo) {
       params.set("demo", "true");
-    } else {
-      if (credentials.login) params.set("login", credentials.login);
-      if (credentials.password) params.set("password", credentials.password);
-      if (credentials.token) params.set("token", credentials.token);
-      if (credentials.operatorId) params.set("operatorId", String(credentials.operatorId));
-      if (credentials.refreshToken) params.set("refreshToken", credentials.refreshToken);
     }
-    const apiBase = import.meta.env.VITE_API_BASE_URL || "";
-    return `${apiBase}/api/domru/snapshot/${placeId}/${deviceId}?${params.toString()}`;
+    return `/api/domru/snapshot/${placeId}/${deviceId}?${params.toString()}`;
   };
 
   const toggleAutoOpen = async (durationMinutes?: number, maxOpens?: number | null) => {
@@ -124,8 +126,7 @@ export default function CctvPlayer({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-domru-token": credentials?.token || "",
-          "x-domru-refresh-token": credentials?.refreshToken || "",
+          "Authorization": `Bearer ${btoa(encodeURIComponent(JSON.stringify({ token: credentials?.token, refreshToken: credentials?.refreshToken, operatorId: credentials?.operatorId })))}`
         },
         body: JSON.stringify({
           placeId: selectedPlaceId,
@@ -354,7 +355,7 @@ export default function CctvPlayer({
       video.srcObject = null;
       video.src = "";
     };
-  }, [streamUrl, streamType, forceHlsJS, addStreamLog, setHasStreamError, activeCamera]);
+  }, [streamUrl, streamType, forceHlsJS, addStreamLog, setHasStreamError, activeCamera, playerMode]);
 
   return (
     <div
@@ -407,7 +408,7 @@ export default function CctvPlayer({
           <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mr-2 hidden sm:block font-bold">
             {playerMode === "stream"
               ? "Рекомендуется H.264"
-              : `Обновление ~1.5с • ${formatTimeInTimezone(snapshotTime, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`}
+              : `Обновление ~1.5с • ${formatTimeInTimezone(localSnapshotTime, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`}
           </div>
         </div>
       )}
@@ -460,10 +461,9 @@ export default function CctvPlayer({
         {playerMode === "snapshot" && matchingDevice ? (
           <div className="w-full h-full relative">
             <img
-              key={snapshotTime}
+              key={localSnapshotTime}
               src={buildSnapshotUrl(selectedPlaceId, matchingDevice.id)}
               alt="Кадр с домофона"
-              referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
               onError={() => {
                 addStreamLog("⛔ Сбой загрузки снимка с домофона.");
@@ -499,7 +499,8 @@ export default function CctvPlayer({
               alt="MJPEG Stream"
               className="w-full h-full object-cover"
               onError={() => {
-                addStreamLog("⛔ Сбой загрузки MJPEG-потока.");
+                addStreamLog("⛔ MJPEG поток недоступен");
+                handleError();
               }}
             />
           ) : (

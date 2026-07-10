@@ -12,6 +12,9 @@ export interface DomruClientOptions {
 	/** Идентификатор оператора */
 	operatorId?: number;
 
+	/** Токен доступа (если сессия уже активна) */
+	accessToken?: string;
+
 	/** Таймаут запросов в миллисекундах */
 	timeout?: number;
 

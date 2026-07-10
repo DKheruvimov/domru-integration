@@ -19,9 +19,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
     try {
       const headers: HeadersInit = {};
       if (credentials) {
-        headers["x-domru-login"] = credentials.login;
-        headers["x-domru-password"] = credentials.password;
-        if (credentials.token) headers["x-domru-token"] = credentials.token;
+        headers["Authorization"] = `Bearer ${btoa(encodeURIComponent(JSON.stringify({ token: credentials.token, login: credentials.login, password: credentials.password })))}`;
       }
       const res = await fetch(`/api/domru/snapshots/history?login=${encodeURIComponent(credentials?.login || "")}`, { headers });
       const data = await res.json();
@@ -52,9 +50,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
     try {
       const headers: HeadersInit = {};
       if (credentials) {
-        headers["x-domru-login"] = credentials.login;
-        headers["x-domru-password"] = credentials.password;
-        if (credentials.token) headers["x-domru-token"] = credentials.token;
+        headers["Authorization"] = `Bearer ${btoa(encodeURIComponent(JSON.stringify({ token: credentials.token, login: credentials.login, password: credentials.password })))}`;
       }
       const res = await fetch("/api/domru/people", { headers });
       if (res.ok) {
@@ -121,9 +117,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
       if (activeTab === "snapshots") {
         const headers: HeadersInit = { "Content-Type": "application/json" };
         if (credentials) {
-          headers["x-domru-login"] = credentials.login;
-          headers["x-domru-password"] = credentials.password;
-          if (credentials.token) headers["x-domru-token"] = credentials.token;
+          headers["Authorization"] = `Bearer ${btoa(encodeURIComponent(JSON.stringify({ token: credentials.token, login: credentials.login, password: credentials.password })))}`;
         }
 
         await fetch(`/api/domru/snapshots/delete?login=${encodeURIComponent(credentials?.login || "")}`, {
@@ -296,7 +290,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
                           }}
                         >
                           <img 
-                            src={`${import.meta.env.VITE_API_BASE_URL || ""}/api/domru/snapshots/${snapshot.fileName}?login=${credentials?.login || ''}`}
+                            src={`/api/domru/snapshots/${snapshot.fileName}?login=${credentials?.login || ''}`}
                             className={`w-full h-full object-cover transition-opacity ${deleting && isSelected ? 'opacity-50' : 'opacity-100'}`}
                             alt="Snapshot"
                             loading="lazy"
@@ -369,7 +363,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
                     }}
                   >
                     <img 
-                      src={`${import.meta.env.VITE_API_BASE_URL || ""}/api/plugins/face-id/image/${key}`}
+                      src={`/api/plugins/face-id/image/${key}`}
                       className={`w-full h-full object-cover transition-opacity ${deleting && isSelected ? 'opacity-50' : 'opacity-100'}`}
                       alt="Face ID"
                       loading="lazy"
@@ -409,7 +403,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
           onClick={() => setPreviewSnapshot(null)}
         >
           <img 
-            src={`${import.meta.env.VITE_API_BASE_URL || ""}/api/domru/snapshots/${previewSnapshot.fileName}?login=${encodeURIComponent(credentials?.login || '')}`}
+            src={`/api/domru/snapshots/${previewSnapshot.fileName}?login=${encodeURIComponent(credentials?.login || '')}`}
             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-default"
             alt="Preview"
             onClick={(e) => e.stopPropagation()}
@@ -430,7 +424,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
           onClick={() => setPreviewFaceId(null)}
         >
           <img 
-            src={`${import.meta.env.VITE_API_BASE_URL || ""}/api/plugins/face-id/image/${previewFaceId}`}
+            src={`/api/plugins/face-id/image/${previewFaceId}`}
             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-default"
             alt="Preview"
             onClick={(e) => e.stopPropagation()}

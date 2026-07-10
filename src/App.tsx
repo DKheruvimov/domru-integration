@@ -9,7 +9,15 @@ export default function App() {
     const saved = localStorage.getItem("domru_credentials");
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const creds = JSON.parse(saved);
+        // Ensure cookie is set
+        const authPayload = btoa(encodeURIComponent(JSON.stringify({
+          token: creds.token,
+          refreshToken: creds.refreshToken,
+          operatorId: creds.operatorId
+        })));
+        document.cookie = `domru_auth=${authPayload}; path=/; max-age=31536000; secure; samesite=strict`;
+        return creds;
       } catch (e) {
         console.error("Failed to parse saved credentials", e);
       }
@@ -90,11 +98,20 @@ export default function App() {
   const handleLoginSuccess = (creds: AppCredentials) => {
     setCredentials(creds);
     localStorage.setItem("domru_credentials", JSON.stringify(creds));
+    
+    // Set cookie for standard <img> tag auth
+    const authPayload = btoa(encodeURIComponent(JSON.stringify({
+      token: creds.token,
+      refreshToken: creds.refreshToken,
+      operatorId: creds.operatorId
+    })));
+    document.cookie = `domru_auth=${authPayload}; path=/; max-age=31536000; secure; samesite=strict`;
   };
 
   const handleLogout = () => {
     setCredentials(null);
     localStorage.removeItem("domru_credentials");
+    document.cookie = `domru_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
   };
 
   return (
