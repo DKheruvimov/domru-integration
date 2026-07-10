@@ -26,6 +26,7 @@ export default defineConfig(() => {
   return {
     define: {
       __APP_VERSION__: JSON.stringify(appVersion),
+      'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL || ""),
     },
     plugins: [react(), tailwindcss()],
     server: {

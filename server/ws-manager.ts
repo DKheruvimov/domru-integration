@@ -34,7 +34,9 @@ export function initWebSocketServer(httpServer: HttpServer) {
         }
       },
       methods: ["GET", "POST"]
-    }
+    },
+    pingInterval: 5000,
+    pingTimeout: 5000
   });
 
   io.on("connection", (socket) => {
