@@ -11,7 +11,8 @@ import {
   setModuleConnection,
   addPollingClient,
   setModuleSchema,
-  setModuleConfigValues
+  setModuleConfigValues,
+  dispatchModuleEvent
 } from "../modules-manager.js";
 import { handleManualOpen } from "../sip-manager.js";
 import { loadSavedTokens } from "../tokenStore.js";
