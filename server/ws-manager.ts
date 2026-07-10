@@ -9,6 +9,10 @@ export function getConnectedModules() {
   return Array.from(new Set(connectedModules.values()));
 }
 
+export function dispatchModuleEvent(event: string, payload: any) {
+  io?.emit(event, payload);
+}
+
 export function initWebSocketServer(httpServer: HttpServer) {
   io = new Server(httpServer, {
     cors: {
@@ -57,6 +61,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
     
     // Explicit dynamic status event from plugin
     socket.on("update_status", (payload: { status: "offline" | "warning" | "error" | "online", message?: string }) => {
+      console.log(`[WS/Modules] Status update from ${module.name} (${module.id}): ${payload.status} - ${payload.message}`);
       import("./modules-manager.js").then(({ setModuleStatus }) => {
         setModuleStatus(module.id, payload.status, payload.message);
         // Broadcast the specific state change to all UI clients

@@ -47,14 +47,19 @@ export default function ModulesView() {
     const handleStateUpdated = (payload: { moduleId: string, status: string, message?: string }) => {
       setModules(prev => prev.map(m => m.id === payload.moduleId ? { ...m, status: payload.status as any, statusMessage: payload.message } : m));
     };
+    const handleSchemaUpdated = (payload: { moduleId: string, schema: any }) => {
+      setModules(prev => prev.map(m => m.id === payload.moduleId ? { ...m, configSchema: payload.schema } : m));
+    };
     
     socket.on("modules_status_changed", handleStatusChanged);
     socket.on("module_state_updated", handleStateUpdated);
+    socket.on("module_schema_updated", handleSchemaUpdated);
     socket.emit("get_modules_status");
     
     return () => {
       socket.off("modules_status_changed", handleStatusChanged);
       socket.off("module_state_updated", handleStateUpdated);
+      socket.off("module_schema_updated", handleSchemaUpdated);
     };
   }, []);
 

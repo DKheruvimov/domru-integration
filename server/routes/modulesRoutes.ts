@@ -93,6 +93,11 @@ router.post("/me/schema", (req, res) => {
   }
 
   setModuleSchema(module.id, instruction, fields);
+  
+  import("../ws-manager.js").then(({ dispatchModuleEvent }) => {
+    dispatchModuleEvent("module_schema_updated", { moduleId: module.id, schema: { instruction, fields } });
+  });
+
   res.json({ success: true });
 });
 
