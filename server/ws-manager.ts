@@ -28,6 +28,10 @@ export function initWebSocketServer(httpServer: HttpServer) {
     socket.emit("connected", { message: "Welcome to Dom.ru Intercom WebSocket" });
     socket.emit("modules_status_changed", getConnectedModules());
 
+    socket.on("get_modules_status", () => {
+      socket.emit("modules_status_changed", getConnectedModules());
+    });
+
     socket.on("disconnect", () => {
       console.log(`[WS] Client disconnected: ${socket.id}`);
     });

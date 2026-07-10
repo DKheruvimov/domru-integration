@@ -46,6 +46,7 @@ export default function ModulesView() {
     const handleStatusChanged = (activeIds: string[]) => setOnlineModules(activeIds);
     
     socket.on("modules_status_changed", handleStatusChanged);
+    socket.emit("get_modules_status");
     
     return () => {
       socket.off("modules_status_changed", handleStatusChanged);
