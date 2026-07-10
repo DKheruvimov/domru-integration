@@ -88,7 +88,7 @@ export default function ModulesView() {
       });
       if (res.ok) {
         const newMod = await res.json();
-        setModules([...modules, newMod]);
+        setModules(prev => [...prev, newMod]);
         setNewModuleName("");
       }
     } catch (e) {
@@ -221,7 +221,7 @@ export default function ModulesView() {
         body: JSON.stringify({ id, values: editValues })
       });
       if (res.ok) {
-        setModules(modules.map(m => m.id === id ? { ...m, configValues: editValues } : m));
+        setModules(prev => prev.map(m => m.id === id ? { ...m, configValues: editValues } : m));
         setEditingModule(null);
       } else {
         alert("Ошибка сохранения настроек");
