@@ -135,19 +135,22 @@ export function setModuleConnection(moduleId: string, type: "websocket" | "webho
 export function setModuleSchema(moduleId: string, instruction: string | undefined, fields: ModuleConfigField[]) {
   const modules = getModules();
   const mod = modules.find(m => m.id === moduleId);
-  if (mod) {
-    mod.configSchema = { instruction, fields };
-    saveModules(modules);
-  }
+export function setModuleSchema(id: string, schema: any) {
+  const modules = getModules();
+  const index = modules.findIndex(m => m.id === id);
+  if (index === -1) return false;
+  modules[index].configSchema = schema;
+  saveModules(modules);
+  return true;
 }
 
-export function setModuleConfigValues(moduleId: string, values: Record<string, any>) {
+export function setModuleConfigValues(id: string, values: Record<string, any>) {
   const modules = getModules();
-  const mod = modules.find(m => m.id === moduleId);
-  if (mod) {
-    mod.configValues = values;
-    saveModules(modules);
-  }
+  const index = modules.findIndex(m => m.id === id);
+  if (index === -1) return false;
+  modules[index].configValues = values;
+  saveModules(modules);
+  return true;
 }
 
 // Event Dispatching & Long Polling
