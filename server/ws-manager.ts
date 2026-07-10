@@ -88,6 +88,21 @@ export function initWebSocketServer(httpServer: HttpServer) {
     socket.on("disconnect", () => {
       console.log(`[WS/Modules] Module disconnected: ${module.name} (${module.id})`);
       connectedModules.delete(socket.id);
+      
+      // Explicitly mark module as offline when socket disconnects
+      import("./modules-manager.js").then(({ setModuleStatus }) => {
+        // Only set offline if there are no other active connections for this module
+        const stillConnected = Array.from(connectedModules.values()).includes(module.id);
+        if (!stillConnected) {
+          setModuleStatus(module.id, "offline", "Отключено от сервера");
+          io?.emit("module_state_updated", {
+            moduleId: module.id,
+            status: "offline",
+            message: "Отключено от сервера"
+          });
+        }
+      });
+
       io?.emit("modules_status_changed", getConnectedModules());
     });
   });

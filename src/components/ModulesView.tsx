@@ -128,18 +128,7 @@ export default function ModulesView() {
   };
 
   const getModuleStatus = (mod: ExternalModule, isOnline: boolean) => {
-    const hasConnection = isOnline || mod.connection?.type === "webhook";
-    
-    // If not connected via WS/Webhook, force offline
-    if (!hasConnection) {
-      return { 
-        state: "offline", 
-        label: "Не в сети", 
-        tooltip: "Модуль не подключен. Запустите скрипт или настройте webhook.",
-        icon: <XCircle className="w-3 h-3" />,
-        className: "text-red-500 bg-red-50 dark:bg-red-500/10"
-      };
-    }
+    // Removed the aggressive override here so that we trust mod.status (which the server maintains)
 
     // If module provided explicit status, use it
     if (mod.status === "error") {
@@ -172,7 +161,29 @@ export default function ModulesView() {
       };
     }
 
+    if (mod.status === "offline") {
+      return { 
+        state: "offline", 
+        label: "Не в сети", 
+        tooltip: mod.statusMessage || "Модуль отключен.",
+        icon: <XCircle className="w-3 h-3" />,
+        className: "text-red-500 bg-red-50 dark:bg-red-500/10"
+      };
+    }
+
     // Fallback logic for legacy modules (no explicit status)
+    const hasConnection = isOnline || mod.connection?.type === "webhook";
+    
+    if (!hasConnection) {
+      return { 
+        state: "offline", 
+        label: "Не в сети", 
+        tooltip: "Модуль не подключен. Запустите скрипт или настройте webhook.",
+        icon: <XCircle className="w-3 h-3" />,
+        className: "text-red-500 bg-red-50 dark:bg-red-500/10"
+      };
+    }
+
     let missingRequired = false;
     if (mod.configSchema?.fields) {
       for (const field of mod.configSchema.fields) {
