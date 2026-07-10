@@ -46,15 +46,29 @@ router.post("/delete", (req, res) => {
   }
 });
 
-// UI Endpoint: Configure module connection
-router.post("/connection", (req, res) => {
-  const { id, type, webhookUrl } = req.body;
-  if (!id) return res.status(400).json({ error: "id is required" });
-  if (!["websocket", "webhook", "long_polling"].includes(type)) {
-    return res.status(400).json({ error: "Invalid connection type" });
+// External Module Endpoint: Configure webhook connection
+router.post("/me/webhook", (req, res) => {
+  const authHeader = req.headers["authorization"] || "";
+  let token = "";
+  if (authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7).trim();
+  } else {
+    token = String(req.query.token || "").trim();
   }
-  setModuleConnection(id, type, webhookUrl);
-  res.json({ success: true });
+
+  const module = validateModuleToken(token);
+  if (!module) {
+    return res.status(403).json({ error: "Invalid or missing module token" });
+  }
+
+  const { webhookUrl } = req.body;
+  if (typeof webhookUrl !== 'string') {
+    return res.status(400).json({ error: "webhookUrl is required and must be a string" });
+  }
+
+  // Set the connection type to webhook and save the URL
+  setModuleConnection(module.id, "webhook", webhookUrl);
+  res.json({ success: true, message: "Webhook URL configured successfully" });
 });
 
 // External Module Endpoint: Action Open
