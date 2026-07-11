@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plug, Plus, Trash2, KeyRound, Clock, Activity, CheckCircle2, XCircle, Settings2, Save, AlertCircle } from "lucide-react";
+import { Plug, Plus, Trash2, KeyRound, Clock, Activity, CheckCircle2, XCircle, Settings2, Save, AlertCircle, Copy, Check } from "lucide-react";
 
 import { getSocket } from "../socket";
 
@@ -29,6 +29,8 @@ export interface ExternalModule {
     fields: ModuleConfigField[];
   };
   configValues?: Record<string, any>;
+  status?: "online" | "offline" | "error" | "warning";
+  statusMessage?: string;
 }
 
 export default function ModulesView() {
@@ -38,6 +40,7 @@ export default function ModulesView() {
   const [newModuleName, setNewModuleName] = useState("");
   const [editingModule, setEditingModule] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, any>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchModules();
@@ -125,6 +128,12 @@ export default function ModulesView() {
     }
     setEditingModule(mod.id);
     setEditValues(mod.configValues || {});
+  };
+
+  const handleCopy = (token: string, id: string) => {
+    navigator.clipboard.writeText(token);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const getModuleStatus = (mod: ExternalModule, isOnline: boolean) => {
@@ -300,11 +309,18 @@ export default function ModulesView() {
               </div>
               
               <div className="flex items-center gap-3">
-                <div className="flex-1 sm:flex-none flex items-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5 min-w-[200px]">
+                <div className="flex-1 sm:flex-none flex items-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-3 pr-1 py-1 min-w-[200px]">
                   <KeyRound className="w-3.5 h-3.5 text-zinc-400 shrink-0 mr-2" />
-                  <code className="text-[10px] font-mono font-bold text-zinc-700 dark:text-zinc-300 truncate w-full select-all">
+                  <code className="text-[10px] font-mono font-bold text-zinc-700 dark:text-zinc-300 truncate w-full select-all mr-2">
                     {mod.token}
                   </code>
+                  <button
+                    onClick={() => handleCopy(mod.token, mod.id)}
+                    className="p-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-md transition-colors shrink-0 cursor-pointer"
+                    title="Копировать токен"
+                  >
+                    {copiedId === mod.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
                 </div>
                 <button
                   onClick={() => deleteModule(mod.id)}
