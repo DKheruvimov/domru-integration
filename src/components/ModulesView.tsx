@@ -318,6 +318,14 @@ export default function ModulesView() {
                     <Activity className="w-3 h-3" />
                     {mod.connection?.type === "webhook" ? "Webhook" : mod.connection?.type === "long_polling" ? "Long Polling" : "WebSocket"}
                   </span>
+                  {mod.connection?.type === "webhook" && mod.connection.webhookUrl && (
+                    <span 
+                      className="text-[9px] text-zinc-400 dark:text-zinc-500 font-mono truncate max-w-[150px] sm:max-w-[250px]" 
+                      title={mod.connection.webhookUrl}
+                    >
+                      {mod.connection.webhookUrl}
+                    </span>
+                  )}
                 </div>
               </div>
               
