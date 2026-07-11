@@ -425,9 +425,9 @@ export default function ModulesView() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-center p-6 text-center text-zinc-500 dark:text-zinc-400">
-                        <Settings2 className="w-8 h-8 mb-3 opacity-20" />
-                        <p className="text-xs font-medium">Этот модуль не предоставляет дополнительных настроек.</p>
+                      <div className="flex items-center justify-center gap-2 p-3 text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900/40 rounded-xl border border-zinc-200/50 dark:border-zinc-800/60">
+                        <Settings2 className="w-4 h-4 opacity-50" />
+                        <p className="text-[11px] font-medium">Этот модуль не предоставляет дополнительных настроек.</p>
                       </div>
                     )}
 
