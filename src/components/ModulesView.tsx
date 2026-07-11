@@ -153,10 +153,10 @@ export default function ModulesView() {
     if (mod.status === "warning") {
       return {
         state: "warning",
-        label: "Ожидание настройки",
+        label: "Требуется настройка",
         tooltip: mod.statusMessage || "Плагин подключен (токен проброшен), но ожидает конфигурации.",
         icon: <AlertCircle className="w-3 h-3" />,
-        className: "text-zinc-500 bg-zinc-100 dark:bg-zinc-800"
+        className: "text-amber-500 bg-amber-50 dark:bg-amber-500/10"
       };
     }
     
@@ -175,8 +175,8 @@ export default function ModulesView() {
         state: "offline", 
         label: "Не в сети", 
         tooltip: mod.statusMessage || "Модуль отключен.",
-        icon: <XCircle className="w-3 h-3" />,
-        className: "text-red-500 bg-red-50 dark:bg-red-500/10"
+        icon: <Plug className="w-3 h-3" />,
+        className: "text-zinc-500 bg-zinc-100 dark:bg-zinc-800"
       };
     }
 
@@ -188,8 +188,8 @@ export default function ModulesView() {
         state: "offline", 
         label: "Не в сети", 
         tooltip: "Модуль не подключен. Запустите скрипт или настройте webhook.",
-        icon: <XCircle className="w-3 h-3" />,
-        className: "text-red-500 bg-red-50 dark:bg-red-500/10"
+        icon: <Plug className="w-3 h-3" />,
+        className: "text-zinc-500 bg-zinc-100 dark:bg-zinc-800"
       };
     }
 
