@@ -10,7 +10,8 @@ import { DATA_DIR } from "./config.js";
 import { DomruClient } from "../src/domru-api/index.js";
 import { loadSavedTokens } from "./tokenStore.js";
 import { getSettings } from "./settings-manager.js";
-import { broadcastAutoOpenStatusChanged, broadcastSipLogAdded, broadcastIncomingCall } from "./ws-manager.js";
+import { broadcastAutoOpenStatusChanged, broadcastSipLogAdded, broadcastIncomingCall, broadcastCallEnded } from "./ws-manager.js";
+
 
 export async function triggerDoorOpenForLogin(login: string, placeId: number, deviceId: number, details?: string): Promise<void> {
   const tokens = loadSavedTokens();
@@ -600,6 +601,7 @@ export function startSipServer() {
                if (ringingCalls.has(login)) {
                  addSipLog(`[SIP] Held call for ${login} timed out.`);
                  ringingCalls.delete(login);
+                 broadcastCallEnded(login);
                }
             }, 60000);
             
@@ -626,6 +628,7 @@ export function startSipServer() {
            if (call.request.headers["call-id"] === request.headers["call-id"]) {
               clearTimeout(call.timeoutId);
               ringingCalls.delete(login);
+              broadcastCallEnded(login);
               addSipLog(`[SIP] Removed ringing call for ${login} due to ${request.method}`);
            }
         }
@@ -660,6 +663,7 @@ export async function handleManualOpen(placeId: number, deviceId: number, client
     const ringingCall = ringingCalls.get(matchedLogin)!;
     clearTimeout(ringingCall.timeoutId);
     ringingCalls.delete(matchedLogin);
+    broadcastCallEnded(matchedLogin);
     
     addSipLog(`[SIP] Intercepting manual open request for ${matchedLogin}...`);
     const request = ringingCall.request;

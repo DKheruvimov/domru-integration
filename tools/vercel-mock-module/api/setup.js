@@ -19,10 +19,10 @@ export default async function handler(req, res) {
 
   try {
     // 1. Регистрируем Webhook Connection
-    const connRes = await fetch(`${CORE_URL}/api/modules/actions/connection`, {
+    const connRes = await fetch(`${CORE_URL}/api/modules/me/webhook`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${TOKEN}` },
-      body: JSON.stringify({ type: "webhook", webhookUrl })
+      body: JSON.stringify({ webhookUrl })
     });
 
     if (!connRes.ok) {

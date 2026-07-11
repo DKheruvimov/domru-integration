@@ -102,6 +102,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
     
     const socket = getSocket();
     socket.on("auto_open_status_changed", fetchPeople);
+    socket.on("entity_status_updated", fetchPeople);
     
     const loadCaps = async () => {
       try {
@@ -113,6 +114,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
 
     return () => {
       socket.off("auto_open_status_changed", fetchPeople);
+      socket.off("entity_status_updated", fetchPeople);
     };
   }, []);
 
@@ -437,7 +439,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                   {person.role === "resident" ? "Жилец" : person.role === "courier" ? "Курьер" : "Гость"}
                 </span>
                 {person.uiExtensions?.badges?.map((badge, idx) => (
-                  <span key={idx} className={`text-[9px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border ${
+                  <span key={idx} title={badge.message} className={`text-[9px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border cursor-help ${
                     badge.color === "success" 
                       ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30"
                       : badge.color === "warning"

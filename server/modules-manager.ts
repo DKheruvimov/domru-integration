@@ -18,6 +18,14 @@ export interface ModuleConfigField {
   options?: { label: string, value: string }[];
 }
 
+export interface EntityStatus {
+  entityType: string;
+  entityId: string;
+  status: "processing" | "success" | "error";
+  message?: string;
+  updatedAt: number;
+}
+
 export interface ExternalModule {
   id: string;
   name: string;
@@ -37,6 +45,9 @@ export interface ExternalModule {
   // Explicit Dynamic Status (in-memory, not persisted in DB)
   status?: "offline" | "warning" | "error" | "online";
   statusMessage?: string;
+  
+  // Entity Status Reporting
+  entityStatuses?: Record<string, EntityStatus>; // key: `${entityType}_${entityId}`
 }
 
 function ensureDataDir() {
@@ -55,6 +66,25 @@ export function setModuleStatus(moduleId: string, status: "offline" | "warning" 
   // Persist the status so webhooks remember their state across restarts
   const modules = getModules(); // getModules will automatically inject the new status from the memory map
   saveModules(modules);
+}
+
+export function setModuleEntityStatus(moduleId: string, entityType: string, entityId: string, status: "processing" | "success" | "error", message?: string) {
+  const modules = getModules();
+  const mod = modules.find(m => m.id === moduleId);
+  if (mod) {
+    if (!mod.entityStatuses) {
+      mod.entityStatuses = {};
+    }
+    const key = `${entityType}_${entityId}`;
+    mod.entityStatuses[key] = {
+      entityType,
+      entityId,
+      status,
+      message,
+      updatedAt: Date.now()
+    };
+    saveModules(modules);
+  }
 }
 
 export function getModules(): ExternalModule[] {
@@ -310,9 +340,26 @@ export async function enrichPeopleWithModuleExtensions(people: any[]): Promise<a
         const hasData = keys.includes(p.id);
 
         if (isEnabled) {
+          const entityStatus = m.entityStatuses?.[`person_${p.id}`];
+          let color = hasData ? "success" : "warning";
+          let label = config.label || capName;
+          let message = undefined;
+
+          if (entityStatus) {
+             if (entityStatus.status === "processing") {
+                color = "warning";
+             } else if (entityStatus.status === "error") {
+                color = "error";
+             } else if (entityStatus.status === "success") {
+                color = "success";
+             }
+             message = entityStatus.message;
+          }
+
           uiExtensions.badges.push({
-            label: config.label || capName,
-            color: hasData ? "success" : "warning"
+            label,
+            color,
+            message
           });
           hasExtensions = true;
         }

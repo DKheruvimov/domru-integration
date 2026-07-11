@@ -146,6 +146,17 @@ export function broadcastIncomingCall(login: string, details?: string, placeId?:
   }
 }
 
+export function broadcastCallEnded(login: string) {
+  if (io) {
+    io.emit("sip_call_ended", { login });
+    
+    // Notify external modules
+    const payload = { login };
+    io.of("/modules").emit("call_ended", payload);
+    import("./modules-manager.js").then(m => m.dispatchModuleEvent("call_ended", payload));
+  }
+}
+
 export function broadcastDoorOpened(deviceId: number, source: string, details: string) {
   const payload = { deviceId, source, details };
   if (io) {

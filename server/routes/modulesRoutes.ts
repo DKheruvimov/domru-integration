@@ -127,6 +127,35 @@ router.post("/me/status", (req, res) => {
   res.json({ success: true });
 });
 
+// External Module Endpoint: Update Entity Status
+router.post("/me/entity-status", (req, res) => {
+  const authHeader = req.headers["authorization"] || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.substring(7).trim() : String(req.query.token || "").trim();
+
+  const module = validateModuleToken(token);
+  if (!module) {
+    return res.status(403).json({ error: "Invalid or missing module token" });
+  }
+
+  const { entityType, entityId, status, message } = req.body;
+  if (!entityType || !entityId || !status) {
+    return res.status(400).json({ error: "Missing required fields: entityType, entityId, status" });
+  }
+  if (!["processing", "success", "error"].includes(status)) {
+    return res.status(400).json({ error: "Invalid status" });
+  }
+
+  import("../modules-manager.js").then(({ setModuleEntityStatus }) => {
+    setModuleEntityStatus(module.id, entityType, entityId, status, message);
+  });
+  
+  import("../ws-manager.js").then(({ dispatchModuleEvent }) => {
+    dispatchModuleEvent("entity_status_updated", { moduleId: module.id, entityType, entityId, status, message });
+  });
+
+  res.json({ success: true });
+});
+
 // External Module Endpoint: Get Settings
 router.get("/me/settings", (req, res) => {
   const authHeader = req.headers["authorization"] || "";
@@ -503,6 +532,11 @@ router.post("/storage/:moduleId/:key", async (req, res) => {
     if (valueToStore === undefined) return res.status(400).json({ error: "Missing data" });
 
     await setModuleStorageValue(moduleId, key, valueToStore);
+    
+    import("../ws-manager.js").then(({ dispatchModuleEvent }) => {
+      dispatchModuleEvent("module_data_updated", { moduleId, key, action: "updated" });
+    });
+    
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -514,6 +548,11 @@ router.delete("/storage/:moduleId/:key", async (req, res) => {
   try {
     const { moduleId, key } = req.params;
     await deleteModuleStorageValue(moduleId, key);
+    
+    import("../ws-manager.js").then(({ dispatchModuleEvent }) => {
+      dispatchModuleEvent("module_data_updated", { moduleId, key, action: "deleted" });
+    });
+    
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

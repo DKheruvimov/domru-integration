@@ -31,6 +31,13 @@ export interface ExternalModule {
   configValues?: Record<string, any>;
   status?: "online" | "offline" | "error" | "warning";
   statusMessage?: string;
+  entityStatuses?: Record<string, {
+    entityType: string;
+    entityId: string;
+    status: "processing" | "success" | "error";
+    message?: string;
+    updatedAt: number;
+  }>;
 }
 
 export default function ModulesView() {
@@ -53,16 +60,40 @@ export default function ModulesView() {
     const handleSchemaUpdated = (payload: { moduleId: string, schema: any }) => {
       setModules(prev => prev.map(m => m.id === payload.moduleId ? { ...m, configSchema: payload.schema } : m));
     };
+    const handleEntityStatusUpdated = (payload: { moduleId: string, entityType: string, entityId: string, status: any, message?: string }) => {
+      setModules(prev => prev.map(m => {
+        if (m.id === payload.moduleId) {
+          const key = `${payload.entityType}_${payload.entityId}`;
+          const currentEntityStatuses = m.entityStatuses || {};
+          return {
+            ...m,
+            entityStatuses: {
+              ...currentEntityStatuses,
+              [key]: {
+                entityType: payload.entityType,
+                entityId: payload.entityId,
+                status: payload.status,
+                message: payload.message,
+                updatedAt: Date.now()
+              }
+            }
+          };
+        }
+        return m;
+      }));
+    };
     
     socket.on("modules_status_changed", handleStatusChanged);
     socket.on("module_state_updated", handleStateUpdated);
     socket.on("module_schema_updated", handleSchemaUpdated);
+    socket.on("entity_status_updated", handleEntityStatusUpdated);
     socket.emit("get_modules_status");
     
     return () => {
       socket.off("modules_status_changed", handleStatusChanged);
       socket.off("module_state_updated", handleStateUpdated);
       socket.off("module_schema_updated", handleSchemaUpdated);
+      socket.off("entity_status_updated", handleEntityStatusUpdated);
     };
   }, []);
 
@@ -448,6 +479,38 @@ export default function ModulesView() {
                         </button>
                       )}
                     </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Entity Statuses Display */}
+              {mod.entityStatuses && Object.keys(mod.entityStatuses).length > 0 && (
+                <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800/50 w-full col-span-full">
+                  <div className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3">
+                    Статусы обработки
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {Object.values(mod.entityStatuses).map((status) => (
+                      <div key={`${status.entityType}_${status.entityId}`} className="flex flex-col gap-1 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/60 p-2.5 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate pr-2">
+                            {status.entityType === "person" ? `ID: ${status.entityId}` : `${status.entityType} ${status.entityId}`}
+                          </span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0 ${
+                            status.status === "success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                            status.status === "error" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
+                            "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                          }`}>
+                            {status.status === "success" ? "Успех" : status.status === "error" ? "Ошибка" : "В процессе"}
+                          </span>
+                        </div>
+                        {status.message && (
+                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-tight">
+                            {status.message}
+                          </span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
