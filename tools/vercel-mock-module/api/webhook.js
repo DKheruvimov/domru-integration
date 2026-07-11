@@ -15,10 +15,18 @@ export default async function handler(req, res) {
     
     if (isValid) {
       console.log("✅ Настройки ВАЛИДНЫ.");
-      // Опционально можно дернуть REST API ядра, чтобы явно сообщить статус
-      // POST /api/modules/actions/status (если будет реализовано)
+      await fetch(`${process.env.CORE_URL || "https://api.kheruvimov.ru"}/api/modules/me/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.CORE_TOKEN}` },
+        body: JSON.stringify({ status: "online", message: "Настройки валидны. Подключено к ТГ. Плагин готов к работе!" })
+      });
     } else {
       console.log("❌ Настройки НЕВАЛИДНЫ.");
+      await fetch(`${process.env.CORE_URL || "https://api.kheruvimov.ru"}/api/modules/me/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.CORE_TOKEN}` },
+        body: JSON.stringify({ status: "warning", message: "Требуются настройки. Задайте число 110726 и включите магию в UI." })
+      });
     }
   }
 

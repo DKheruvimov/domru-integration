@@ -172,6 +172,16 @@ export function setModuleConfigValues(moduleId: string, values: Record<string, a
   }
 }
 
+export function setModuleStatus(moduleId: string, status: "offline" | "online" | "warning" | "error", message?: string) {
+  const modules = getModules();
+  const mod = modules.find(m => m.id === moduleId);
+  if (mod) {
+    mod.status = status;
+    mod.statusMessage = message;
+    saveModules(modules);
+  }
+}
+
 // Event Dispatching & Long Polling
 interface PollingClient {
   moduleId: string;

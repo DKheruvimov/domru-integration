@@ -12,7 +12,8 @@ import {
   addPollingClient,
   setModuleSchema,
   setModuleConfigValues,
-  dispatchModuleEvent
+  dispatchModuleEvent,
+  setModuleStatus
 } from "../modules-manager.js";
 import { handleManualOpen } from "../sip-manager.js";
 import { loadSavedTokens } from "../tokenStore.js";
@@ -97,6 +98,30 @@ router.post("/me/schema", (req, res) => {
   
   import("../ws-manager.js").then(({ dispatchModuleEvent }) => {
     dispatchModuleEvent("module_schema_updated", { moduleId: module.id, schema: { instruction, fields } });
+  });
+
+  res.json({ success: true });
+});
+
+// External Module Endpoint: Update Status
+router.post("/me/status", (req, res) => {
+  const authHeader = req.headers["authorization"] || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.substring(7).trim() : String(req.query.token || "").trim();
+
+  const module = validateModuleToken(token);
+  if (!module) {
+    return res.status(403).json({ error: "Invalid or missing module token" });
+  }
+
+  const { status, message } = req.body;
+  if (!["offline", "online", "warning", "error"].includes(status)) {
+    return res.status(400).json({ error: "Invalid status" });
+  }
+
+  setModuleStatus(module.id, status, message);
+  
+  import("../ws-manager.js").then(({ dispatchModuleEvent }) => {
+    dispatchModuleEvent("module_state_updated", { moduleId: module.id, status, message });
   });
 
   res.json({ success: true });

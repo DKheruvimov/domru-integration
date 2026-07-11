@@ -50,6 +50,13 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Failed to register schema in Core", details: err });
     }
 
+    // 3. Отправляем начальный статус (Ожидание настроек)
+    await fetch(`${CORE_URL}/api/modules/me/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${TOKEN}` },
+      body: JSON.stringify({ status: "warning", message: "Ожидание конфигурации из UI" })
+    });
+
     return res.json({ 
       success: true, 
       message: "Модуль успешно инициализирован и привязан к Ядру!", 
