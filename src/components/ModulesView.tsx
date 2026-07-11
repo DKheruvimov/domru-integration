@@ -422,6 +422,8 @@ export default function ModulesView() {
                           )}
                         </div>
                       ))}
+                        </div>
+                      </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center p-6 text-center text-zinc-500 dark:text-zinc-400">
                         <Settings2 className="w-8 h-8 mb-3 opacity-20" />
