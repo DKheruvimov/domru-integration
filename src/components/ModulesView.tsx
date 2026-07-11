@@ -222,7 +222,15 @@ export default function ModulesView() {
     };
   };
 
-  const saveSettings = async (id: string) => {
+  const saveSettings = async (id: string, schema?: { fields: ModuleConfigField[] }) => {
+    if (schema?.fields) {
+      const missingFields = schema.fields.filter(f => f.required && !editValues[f.key]);
+      if (missingFields.length > 0) {
+        alert(`Пожалуйста, заполните обязательные поля: ${missingFields.map(f => f.label).join(", ")}`);
+        return;
+      }
+    }
+
     try {
       const res = await fetch("/api/modules/settings", {
         method: "POST",
@@ -407,9 +415,15 @@ export default function ModulesView() {
                       ))}
                     </div>
 
-                    <div className="flex justify-end pt-2">
+                    <div className="flex justify-end pt-2 gap-2">
                       <button
-                        onClick={() => saveSettings(mod.id)}
+                        onClick={() => setEditingModule(null)}
+                        className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-xs font-bold rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        onClick={() => saveSettings(mod.id, mod.configSchema)}
                         className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors flex items-center gap-2"
                       >
                         <Save className="w-3.5 h-3.5" />
