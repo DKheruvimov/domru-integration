@@ -51,6 +51,10 @@ const moduleStatuses = new Map<string, { status: "offline" | "warning" | "error"
 
 export function setModuleStatus(moduleId: string, status: "offline" | "warning" | "error" | "online", message?: string) {
   moduleStatuses.set(moduleId, { status, message });
+  
+  // Persist the status so webhooks remember their state across restarts
+  const modules = getModules(); // getModules will automatically inject the new status from the memory map
+  saveModules(modules);
 }
 
 export function getModules(): ExternalModule[] {
@@ -68,7 +72,12 @@ export function getModules(): ExternalModule[] {
         m.status = mem.status;
         m.statusMessage = mem.message;
       } else {
-        m.status = "offline"; // Default if not in memory
+        // Only reset to offline for stateful connections (websockets).
+        // Webhooks are stateless, so their last saved status remains valid.
+        if (m.connection?.type !== "webhook") {
+          m.status = "offline"; 
+          m.statusMessage = undefined;
+        }
       }
       return m;
     });
