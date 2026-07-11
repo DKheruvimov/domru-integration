@@ -21,7 +21,11 @@ const socket = io(CORE_URL + "/modules", {
 
 socket.on("connect", () => {
   console.log("✅ Успешное подключение по WebSocket к Ядру!");
-  reportStatus("warning", "Модуль подключен, ожидаю конфигурации...");
+  
+  // При запуске загружаем локальные настройки и сразу рапортуем статус
+  const localSettings = loadLocalSettings();
+  validateAndReportStatus(localSettings);
+  
   registerSchema();
 });
 
@@ -42,6 +46,43 @@ socket.on("door_opened", (data) => {
   console.log("🚪 [Событие] Дверь открыта!", data);
 });
 
+import fs from "fs";
+import path from "path";
+
+// Загрузка локальных настроек
+const SETTINGS_FILE = path.join(process.cwd(), "data", "mock-settings.json");
+
+function loadLocalSettings() {
+  if (fs.existsSync(SETTINGS_FILE)) {
+    try {
+      return JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf-8"));
+    } catch (e) {
+      console.error("Ошибка чтения настроек:", e);
+    }
+  }
+  return {};
+}
+
+function saveLocalSettings(data: any) {
+  try {
+    if (!fs.existsSync(path.dirname(SETTINGS_FILE))) {
+      fs.mkdirSync(path.dirname(SETTINGS_FILE), { recursive: true });
+    }
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.error("Ошибка сохранения настроек:", e);
+  }
+}
+
+function validateAndReportStatus(data: any) {
+  // Имитация валидации: случайное число должно быть 33546, а магия включена
+  if (Number(data.test_number) === 33546 && String(data.test_boolean) === "true") {
+    reportStatus("online", "Настройки валидны. Подключено к ТГ. Плагин готов к работе!");
+  } else {
+    reportStatus("warning", "Требуются настройки. Задайте число 33546 и включите магию в UI.");
+  }
+}
+
 // Отправка явного статуса плагина в Ядро
 function reportStatus(status: "offline" | "warning" | "error" | "online", message?: string) {
   console.log(`📤 Отправка статуса Ядру: [${status}] ${message || ""}`);
@@ -52,18 +93,13 @@ function reportStatus(status: "offline" | "warning" | "error" | "online", messag
 socket.on("settings_updated", (data) => {
   console.log("⚙️ [Настройки] Ядро прислало новые настройки:", data);
   
-  if (!data.test_string) {
-    reportStatus("error", "Отсутствует 'Тестовая строка'! Не могу продолжить работу.");
-    return;
-  }
+  // 1. Сохраняем локально
+  saveLocalSettings(data);
   
-  console.log("🔄 Имитация подключения к Telegram...");
+  // 2. Валидируем и отправляем статус
+  console.log("🔄 Имитация проверки настроек и переподключения...");
   setTimeout(() => {
-    if (data.test_string === "error") {
-      reportStatus("error", "Тестовая строка содержит 'error'. Ошибка подключения к ТГ!");
-    } else {
-      reportStatus("online", "Успешно подключено к ТГ. Плагин готов к работе!");
-    }
+    validateAndReportStatus(data);
   }, 1000);
 });
 
