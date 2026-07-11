@@ -318,14 +318,6 @@ export default function ModulesView() {
                     <Activity className="w-3 h-3" />
                     {mod.connection?.type === "webhook" ? "Webhook" : mod.connection?.type === "long_polling" ? "Long Polling" : "WebSocket"}
                   </span>
-                  {mod.connection?.type === "webhook" && mod.connection.webhookUrl && (
-                    <span 
-                      className="text-[9px] text-zinc-400 dark:text-zinc-500 font-mono truncate max-w-[150px] sm:max-w-[250px]" 
-                      title={mod.connection.webhookUrl}
-                    >
-                      {mod.connection.webhookUrl}
-                    </span>
-                  )}
                 </div>
               </div>
               
@@ -350,30 +342,34 @@ export default function ModulesView() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                {mod.configSchema ? (
-                  <button
-                    onClick={() => startEditing(mod)}
-                    className={`p-2 rounded-lg transition-colors cursor-pointer ${editingModule === mod.id ? "text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10" : "text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:text-zinc-200 dark:hover:bg-zinc-800"}`}
-                    title="Настройки модуля"
-                  >
-                    <Settings2 className="w-4 h-4" />
-                  </button>
-                ) : (
-                  <button
-                    disabled
-                    className="p-2 text-zinc-300 dark:text-zinc-700 rounded-lg cursor-not-allowed"
-                    title="Модуль не предоставляет настроек"
-                  >
-                    <Settings2 className="w-4 h-4" />
-                  </button>
-                )}
+                <button
+                  onClick={() => startEditing(mod)}
+                  className={`p-2 rounded-lg transition-colors cursor-pointer ${editingModule === mod.id ? "text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10" : "text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:text-zinc-200 dark:hover:bg-zinc-800"}`}
+                  title="Настройки модуля"
+                >
+                  <Settings2 className="w-4 h-4" />
+                </button>
               </div>
               </div>
 
               {/* Editing Section (Schema-Driven) */}
-              {editingModule === mod.id && mod.configSchema && (
+              {editingModule === mod.id && (
                 <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800/50 w-full col-span-full">
-                  <div className="space-y-4">
+                  <div className="space-y-6">
+                    {/* System Information */}
+                    {mod.connection?.type === "webhook" && mod.connection.webhookUrl && (
+                      <div className="space-y-1 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/60 p-3 rounded-xl">
+                        <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">
+                          URL вебхука
+                        </label>
+                        <code className="text-[11px] font-mono text-zinc-600 dark:text-zinc-300 break-all select-all block">
+                          {mod.connection.webhookUrl}
+                        </code>
+                      </div>
+                    )}
+                    
+                    {mod.configSchema ? (
+                      <div className="space-y-4">
                     {mod.configSchema.instruction && (
                       <div className="bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 p-3 rounded-xl text-[11px] font-medium leading-relaxed border border-blue-100 dark:border-blue-500/20">
                         {mod.configSchema.instruction}
@@ -426,7 +422,12 @@ export default function ModulesView() {
                           )}
                         </div>
                       ))}
-                    </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-6 text-center text-zinc-500 dark:text-zinc-400">
+                        <Settings2 className="w-8 h-8 mb-3 opacity-20" />
+                        <p className="text-xs font-medium">Этот модуль не предоставляет дополнительных настроек.</p>
+                      </div>
+                    )}
 
                     <div className="flex justify-end pt-2 gap-2">
                       <button
@@ -435,13 +436,15 @@ export default function ModulesView() {
                       >
                         Отмена
                       </button>
-                      <button
-                        onClick={() => saveSettings(mod.id, mod.configSchema)}
-                        className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors flex items-center gap-2"
-                      >
-                        <Save className="w-3.5 h-3.5" />
-                        Сохранить настройки
-                      </button>
+                      {mod.configSchema && (
+                        <button
+                          onClick={() => saveSettings(mod.id, mod.configSchema)}
+                          className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors flex items-center gap-2"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          Сохранить настройки
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
