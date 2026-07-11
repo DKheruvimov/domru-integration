@@ -4,19 +4,30 @@
 
 ## Как развернуть на Vercel
 
-1. Зайдите в интерфейс Домофона -> "Внешние модули".
-2. Создайте новый модуль и скопируйте его **Токен**.
-3. Убедитесь, что у вас установлен Vercel CLI: `npm i -g vercel`.
-4. Находясь в этой папке (`tools/vercel-mock-module`), добавьте токен в переменные окружения Vercel при деплое:
+## Как развернуть на Vercel
+
+### Способ 1: Через GitHub (Рекомендуемый)
+Это самый простой и удобный способ. Деплой будет происходить автоматически при каждом пуше в репозиторий.
+
+1. Зайдите в панель Vercel и нажмите **Add New -> Project**.
+2. Подключите ваш GitHub аккаунт и выберите репозиторий `domru-integration`.
+3. В настройках импорта проекта (Import Project):
+   - Разверните раздел **"Root Directory"** и нажмите Edit.
+   - Выберите папку `tools/vercel-mock-module` и нажмите Continue.
+   - Разверните раздел **"Environment Variables"** и добавьте переменную `CORE_TOKEN` (вставьте туда токен из Ядра).
+4. Нажмите **Deploy**.
+5. Vercel выдаст вам Production URL (например, `https://vercel-mock-module-xyz.vercel.app`).
+
+### Способ 2: Через локальный Vercel CLI
+1. Убедитесь, что у вас установлен Vercel CLI: `npm i -g vercel`.
+2. Находясь в папке `tools/vercel-mock-module`, добавьте токен в переменные:
    ```bash
    vercel env add CORE_TOKEN
    ```
-   (Вставьте ваш токен, когда попросит, и выберите среду `Production` / `Preview` / `Development`).
-5. Выполните деплой:
+3. Выполните деплой:
    ```bash
    vercel --prod
    ```
-6. Vercel выдаст вам Production URL (например, `https://vercel-mock-module-xyz.vercel.app`).
 
 ## Как подключить к Ядру (Инициализация)
 
