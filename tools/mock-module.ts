@@ -75,11 +75,11 @@ function saveLocalSettings(data: any) {
 }
 
 function validateAndReportStatus(data: any) {
-  // Имитация валидации: случайное число должно быть 33546, а магия включена
-  if (Number(data.test_number) === 33546 && String(data.test_boolean) === "true") {
+  // Имитация валидации: случайное число должно быть 110726, а магия включена
+  if (Number(data.test_number) === 110726 && String(data.test_boolean) === "true") {
     reportStatus("online", "Настройки валидны. Подключено к ТГ. Плагин готов к работе!");
   } else {
-    reportStatus("warning", "Требуются настройки. Задайте число 33546 и включите магию в UI.");
+    reportStatus("warning", "Требуются настройки. Задайте число 110726 и включите магию в UI.");
   }
 }
 
