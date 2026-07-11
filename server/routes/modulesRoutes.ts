@@ -498,6 +498,19 @@ router.get("/actions/storage/:key", async (req, res) => {
   res.status(400).json({ error: "Use /storage/:moduleId/:key for generic storage read" });
 });
 
+// UI Public Storage Endpoint: Read All Keys
+router.get("/storage/:moduleId/keys", async (req, res) => {
+  try {
+    const { moduleId } = req.params;
+    import("../modules-manager.js").then(async ({ readModuleStorage }) => {
+      const data = await readModuleStorage(moduleId);
+      res.json({ keys: Object.keys(data) });
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // UI & Module Public Storage Endpoint: Read
 router.get("/storage/:moduleId/:key", async (req, res) => {
   try {

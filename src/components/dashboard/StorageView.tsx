@@ -13,6 +13,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
   const [previewSnapshot, setPreviewSnapshot] = useState<StorageSnapshot | null>(null);
   const [previewFaceId, setPreviewFaceId] = useState<string | null>(null);
   const [peopleNames, setPeopleNames] = useState<Record<string, string>>({});
+  const [faceModuleId, setFaceModuleId] = useState<string | null>(null);
 
   const loadSnapshots = async () => {
     setLoading(true);
@@ -34,10 +35,20 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
   const loadFaceIdKeys = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/plugins/face-id/storage");
-      if (res.ok) {
-        const data = await res.json();
-        setFaceIdKeys(data.keys || []);
+      const modRes = await fetch("/api/modules");
+      if (modRes.ok) {
+        const modules = await modRes.json();
+        const faceModule = modules.find((m: any) => m.capabilities?.FACE_RECOGNITION);
+        if (faceModule) {
+          setFaceModuleId(faceModule.id);
+          const res = await fetch(`/api/modules/storage/${faceModule.id}/keys`);
+          if (res.ok) {
+            const data = await res.json();
+            setFaceIdKeys(data.keys || []);
+          }
+        } else {
+          setFaceIdKeys([]);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -127,10 +138,12 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
         });
         await loadSnapshots();
       } else {
-        for (const id of Array.from(selectedIds)) {
-          await fetch(`/api/plugins/face-id/image/${id}`, { method: "DELETE" });
+        if (faceModuleId) {
+          for (const id of Array.from(selectedIds)) {
+            await fetch(`/api/modules/storage/${faceModuleId}/${id}`, { method: "DELETE" });
+          }
+          await loadFaceIdKeys();
         }
-        await loadFaceIdKeys();
       }
       setSelectedIds(new Set());
       setSelectionMode(false);
@@ -363,7 +376,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
                     }}
                   >
                     <img 
-                      src={`/api/plugins/face-id/image/${key}`}
+                      src={`/api/modules/storage/${faceModuleId}/${key}`}
                       className={`w-full h-full object-cover transition-opacity ${deleting && isSelected ? 'opacity-50' : 'opacity-100'}`}
                       alt="Face ID"
                       loading="lazy"
@@ -424,7 +437,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
           onClick={() => setPreviewFaceId(null)}
         >
           <img 
-            src={`/api/plugins/face-id/image/${previewFaceId}`}
+            src={`/api/modules/storage/${faceModuleId}/${previewFaceId}`}
             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-default"
             alt="Preview"
             onClick={(e) => e.stopPropagation()}
