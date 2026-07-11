@@ -1,0 +1,8 @@
+{
+  "name": "vercel-mock-module",
+  "version": "1.0.0",
+  "description": "Mock Webhook Module for Vercel",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
