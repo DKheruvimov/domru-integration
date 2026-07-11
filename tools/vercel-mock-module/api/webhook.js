@@ -4,14 +4,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { event, data } = req.body;
+  const { event, payload } = req.body;
   console.log(`\n📥 [Vercel Webhook] Получено событие от Ядра: ${event}`);
-  console.log("Данные:", data);
+  console.log("Данные:", payload);
 
   // Имитация обработки настроек
   if (event === "settings_updated") {
     // В реальном модуле (ТГ-боте) здесь вы бы сохранили настройки в БД
-    const isValid = Number(data.test_number) === 110726 && String(data.test_boolean) === "true";
+    const isValid = Number(payload.test_number) === 110726 && String(payload.test_boolean) === "true";
     
     if (isValid) {
       console.log("✅ Настройки ВАЛИДНЫ.");
