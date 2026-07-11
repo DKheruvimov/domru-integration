@@ -112,8 +112,8 @@ async function registerSchema() {
     fields: [
       { key: "test_string", type: "string", label: "Тестовая строка", required: true },
       { key: "test_password", type: "password", label: "Секретный ключ", description: "Никому не показывайте" },
-      { key: "test_number", type: "number", label: "Случайное число", defaultValue: 42 },
-      { key: "test_boolean", type: "boolean", label: "Включить магию?" },
+      { key: "test_number", type: "number", label: "Случайное число", defaultValue: 42, required: true },
+      { key: "test_boolean", type: "boolean", label: "Включить магию?", required: true },
       { 
         key: "test_select", 
         type: "select", 

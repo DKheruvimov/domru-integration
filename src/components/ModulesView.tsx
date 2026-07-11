@@ -224,7 +224,12 @@ export default function ModulesView() {
 
   const saveSettings = async (id: string, schema?: { fields: ModuleConfigField[] }) => {
     if (schema?.fields) {
-      const missingFields = schema.fields.filter(f => f.required && !editValues[f.key]);
+      const missingFields = schema.fields.filter(f => {
+        if (!f.required) return false;
+        if (f.type === "boolean") return false;
+        const val = editValues[f.key];
+        return val === undefined || val === null || val === "";
+      });
       if (missingFields.length > 0) {
         alert(`Пожалуйста, заполните обязательные поля: ${missingFields.map(f => f.label).join(", ")}`);
         return;
@@ -378,7 +383,7 @@ export default function ModulesView() {
                             <input
                               type={field.type === "password" ? "password" : field.type === "number" ? "number" : "text"}
                               value={editValues[field.key] || ""}
-                              onChange={e => setEditValues(prev => ({ ...prev, [field.key]: field.type === "number" ? Number(e.target.value) : e.target.value }))}
+                              onChange={e => setEditValues(prev => ({ ...prev, [field.key]: field.type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value }))}
                               className="w-full bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/50 dark:border-zinc-800/80 rounded-xl px-3 py-2 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-hidden focus:border-zinc-300 dark:focus:border-zinc-700 transition-colors"
                               required={field.required}
                             />
