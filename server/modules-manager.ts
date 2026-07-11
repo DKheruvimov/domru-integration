@@ -169,6 +169,9 @@ export function setModuleConfigValues(moduleId: string, values: Record<string, a
   if (mod) {
     mod.configValues = values;
     saveModules(modules);
+  }
+}
+
 // Event Dispatching & Long Polling
 interface PollingClient {
   moduleId: string;
