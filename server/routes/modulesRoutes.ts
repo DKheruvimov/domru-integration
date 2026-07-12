@@ -524,7 +524,8 @@ router.get("/storage/:moduleId/:key", async (req, res) => {
     }
 
     if (typeof data === "string") {
-      const matches = data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      const dataStr = data.trim();
+      const matches = dataStr.match(/^data:([A-Za-z0-9-+\/]+);base64,([\s\S]+)$/);
       if (matches && matches.length === 3) {
         console.log(`[STORAGE READ] Found valid base64 image: type=${matches[1]}, base64 length=${matches[2].length}`);
         const buffer = Buffer.from(matches[2], "base64");
