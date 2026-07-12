@@ -41,6 +41,7 @@ const WEEKDAYS = [
 
 export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevModeEnabled }: PeopleViewProps) {
   const [capabilities, setCapabilities] = useState<Record<string, any>>({});
+  const [capabilityKeys, setCapabilityKeys] = useState<Record<string, string[]>>({});
 
   /** Returns true if at least one capability supports the given role */
   const isCapabilitySupportedForRole = (capName: string, r: string): boolean => {
@@ -107,7 +108,24 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
     const loadCaps = async () => {
       try {
         const res = await fetch("/api/plugins/capabilities", { headers: { ...proxyHeaders } });
-        if (res.ok) setCapabilities(await res.json());
+        if (res.ok) {
+          const caps = await res.json();
+          setCapabilities(caps);
+          
+          const newExisting: Record<string, string[]> = {};
+          for (const [capName, capCfg] of Object.entries(caps) as any) {
+            if (capCfg.mediaEndpoint) {
+              try {
+                const keysRes = await fetch(`${capCfg.mediaEndpoint}/keys`);
+                if (keysRes.ok) {
+                  const keysData = await keysRes.json();
+                  newExisting[capName] = keysData.keys || [];
+                }
+              } catch (e) {}
+            }
+          }
+          setCapabilityKeys(newExisting);
+        }
       } catch (e) {}
     };
     loadCaps();
@@ -193,9 +211,8 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       const me: Record<string, boolean> = {};
       for (const [capName, capCfg] of Object.entries(capabilities)) {
         ps[capName] = !!person.pluginSettings?.[capName];
-        // If capability has mediaEndpoint, check if server has a file (via uiExtensions avatarUrl as indicator)
         if (capCfg.mediaEndpoint) {
-          me[capName] = !!person.hasFacePhoto; // ephemeral flag set by plugin
+          me[capName] = capabilityKeys[capName]?.includes(person.id) || false;
         }
       }
       setPluginSettingsForm(ps);
@@ -299,9 +316,11 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ base64Data: staged })
         }).catch(console.error);
-      } else if (!existing && editingPerson?.hasFacePhoto) {
+        setCapabilityKeys(prev => ({ ...prev, [capName]: [...(prev[capName] || []), newPerson.id] }));
+      } else if (!existing && capabilityKeys[capName]?.includes(newPerson.id)) {
         // User cleared the file — delete from plugin storage
         fetch(`${capCfg.mediaEndpoint}/${newPerson.id}`, { method: 'DELETE' }).catch(console.error);
+        setCapabilityKeys(prev => ({ ...prev, [capName]: (prev[capName] || []).filter(id => id !== newPerson.id) }));
       }
     }
 
