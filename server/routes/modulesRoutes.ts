@@ -515,18 +515,24 @@ router.get("/storage/:moduleId/keys", async (req, res) => {
 router.get("/storage/:moduleId/:key", async (req, res) => {
   try {
     const { moduleId, key } = req.params;
+    console.log(`[STORAGE READ] Request for moduleId=${moduleId}, key=${key}`);
     const data = await getModuleStorageValue(moduleId, key);
     
     if (!data) {
+      console.log(`[STORAGE READ] Data not found for key=${key}`);
       return res.status(404).send("Not found");
     }
 
     if (typeof data === "string") {
       const matches = data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
       if (matches && matches.length === 3) {
+        console.log(`[STORAGE READ] Found valid base64 image: type=${matches[1]}, base64 length=${matches[2].length}`);
         const buffer = Buffer.from(matches[2], "base64");
+        console.log(`[STORAGE READ] Buffer length: ${buffer.length}`);
         res.type(matches[1]);
         return res.send(buffer);
+      } else if (data.startsWith('data:')) {
+         console.error(`[STORAGE READ] Data starts with 'data:' but regex failed! Prefix: ${data.substring(0, 50)}... length: ${data.length}`);
       }
     }
     
@@ -540,18 +546,30 @@ router.get("/storage/:moduleId/:key", async (req, res) => {
 router.post("/storage/:moduleId/:key", async (req, res) => {
   try {
     const { moduleId, key } = req.params;
+    console.log(`[STORAGE WRITE] POST requested for moduleId=${moduleId}, key=${key}`);
+    
     const { base64Data, data } = req.body;
+    console.log(`[STORAGE WRITE] Body keys: ${Object.keys(req.body)}, base64Data type: ${typeof base64Data}, base64Data length: ${base64Data ? base64Data.length : 0}`);
+    
     const valueToStore = base64Data || data;
-    if (valueToStore === undefined) return res.status(400).json({ error: "Missing data" });
+    if (!valueToStore) {
+      console.log(`[STORAGE WRITE] Failed: No data provided`);
+      return res.status(400).json({ error: "No data provided" });
+    }
 
+    console.log(`[STORAGE WRITE] Storing data...`);
     await setModuleStorageValue(moduleId, key, valueToStore);
     
-    import("../ws-manager.js").then(({ dispatchModuleEvent }) => {
-      dispatchModuleEvent("module_data_updated", { moduleId, key, action: "updated" });
-    });
-    
+    console.log(`[STORAGE WRITE] Emitting socket event module_data_updated...`);
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("module_data_updated", { moduleId, key });
+    }
+
+    console.log(`[STORAGE WRITE] Success!`);
     res.json({ success: true });
   } catch (error: any) {
+    console.error(`[STORAGE WRITE] Exception: ${error.message}`, error);
     res.status(500).json({ error: error.message });
   }
 });
