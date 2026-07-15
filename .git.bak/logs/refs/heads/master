@@ -1,2 +1,0 @@
-0000000000000000000000000000000000000000 ce2660d23be88fdd069620504da2241e352f571d root <root@localhost.(none)> 1784112904 +0000	reset: moving to origin/main
-ce2660d23be88fdd069620504da2241e352f571d fe99eba7a3e20eea2e8af76512a0eb1dc0ed74ae rusillusion <rusillusion@gmail.com> 1784114151 +0000	commit: feat(modules): глобальное обновление архитектуры интеграции внешних модулей и добавление плагина Face ID

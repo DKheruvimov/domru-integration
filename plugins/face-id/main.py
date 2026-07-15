@@ -228,11 +228,9 @@ def sync_people_database():
                 
                 # Phase 1: Initialize
                 report_entity_status(person_id, "processing", "Инициализация... Подключение к хранилищу")
-                time.sleep(random.uniform(5.0, 7.0))
                 
                 # Phase 2: GET request from storage
                 report_entity_status(person_id, "processing", "Загрузка фото профиля (HTTP GET)...")
-                time.sleep(random.uniform(5.0, 7.0))
                 
                 photo_url = f"{args.url}/api/modules/storage/{MODULE_ID}/{person_id}"
                 try:
@@ -245,7 +243,6 @@ def sync_people_database():
                 if photo_bytes:
                     # Phase 3: Decoding
                     report_entity_status(person_id, "processing", f"Декодирование файла ({len(photo_bytes)} байт)...")
-                    time.sleep(random.uniform(10.0, 15.0))
                     
                     # Convert to numpy array for CV2
                     nparr = np.frombuffer(photo_bytes, np.uint8)
@@ -256,7 +253,6 @@ def sync_people_database():
                         # Phase 4: Face Analysis
                         if HAS_FACE_RECOGNITION:
                             report_entity_status(person_id, "processing", "Анализ биометрии (face_recognition)...")
-                            time.sleep(random.uniform(20.0, 30.0))
                             # Convert BGR (OpenCV) to RGB (face_recognition)
                             rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                             encodings = face_recognition.face_encodings(rgb_img)
@@ -269,7 +265,6 @@ def sync_people_database():
                                 report_entity_status(person_id, "error", "Лицо не обнаружено на фотографии")
                         else:
                             report_entity_status(person_id, "processing", "Определение структуры лица (Haar Cascade)...")
-                            time.sleep(random.uniform(20.0, 30.0))
                             report_entity_status(person_id, "success", "Синхронизировано (эмуляция Haar Cascade)")
                         
                         new_db[person_id] = {

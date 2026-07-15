@@ -9,3 +9,8 @@ coverage/
 data/
 .git-bin/
 face-id-module/
+.git.bak/
+commit_msg.txt
+scratch/
+temp_old_*.tsx
+plugins/face-id/.module_id
