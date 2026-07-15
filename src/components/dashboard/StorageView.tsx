@@ -4,6 +4,19 @@ import type { StorageSnapshot, AppCredentials } from "../../types";
 import { getSocket } from "../../socket";
 
 export default function StorageView({ credentials }: { credentials?: AppCredentials }) {
+  const resolveUrl = (url: string): string => {
+    if (!url) return "";
+    if (url.startsWith("/")) {
+      let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
+      if (!apiBaseUrl && typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" && !window.location.hostname.endsWith(".run.app")) {
+        const baseDomain = window.location.hostname.replace(/^api\./, "");
+        apiBaseUrl = `https://api.${baseDomain}`;
+      }
+      return `${apiBaseUrl}${url}`;
+    }
+    return url;
+  };
+
   const [activeTab, setActiveTab] = useState<string>("snapshots");
   const [snapshots, setSnapshots] = useState<StorageSnapshot[]>([]);
   const [moduleKeys, setModuleKeys] = useState<string[]>([]);
@@ -70,7 +83,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
         const counts: Record<string, number> = {};
         for (const m of activeModules) {
           try {
-            const keysRes = await fetch(`/api/modules/storage/${m.id}/keys`);
+            const keysRes = await fetch(resolveUrl(`/api/modules/storage/${m.id}/keys`));
             if (keysRes.ok) {
               const keysData = await keysRes.json();
               counts[m.id] = (keysData.keys || []).length;
@@ -189,7 +202,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
             await loadSnapshots();
           } else {
             for (const id of Array.from(selectedIds)) {
-              await fetch(`/api/modules/storage/${activeTab}/${id}`, { method: "DELETE" });
+              await fetch(resolveUrl(`/api/modules/storage/${activeTab}/${id}`), { method: "DELETE" });
             }
             await loadModulesAndKeys();
           }
@@ -429,7 +442,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
                     }}
                   >
                     <img 
-                      src={`/api/modules/storage/${activeTab}/${key}`}
+                      src={resolveUrl(`/api/modules/storage/${activeTab}/${key}`)}
                       className={`w-full h-full object-cover transition-opacity ${deleting && isSelected ? 'opacity-50' : 'opacity-100'}`}
                       alt={modules.find(m => m.id === activeTab)?.name || "Module data"}
                       loading="lazy"
@@ -490,7 +503,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
           onClick={() => setPreviewFaceId(null)}
         >
           <img 
-            src={`/api/modules/storage/${activeTab}/${previewFaceId}`}
+            src={resolveUrl(`/api/modules/storage/${activeTab}/${previewFaceId}`)}
             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-default"
             alt="Preview"
             onClick={(e) => e.stopPropagation()}
