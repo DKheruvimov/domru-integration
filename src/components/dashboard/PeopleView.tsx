@@ -41,6 +41,19 @@ const WEEKDAYS = [
 ];
 
 export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevModeEnabled }: PeopleViewProps) {
+  const resolveUrl = (url: string | undefined): string | undefined => {
+    if (!url) return undefined;
+    if (url.startsWith("/")) {
+      let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
+      if (!apiBaseUrl && typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" && !window.location.hostname.endsWith(".run.app")) {
+        const baseDomain = window.location.hostname.replace(/^api\./, "");
+        apiBaseUrl = `https://api.${baseDomain}`;
+      }
+      return `${apiBaseUrl}${url}`;
+    }
+    return url;
+  };
+
   const [capabilities, setCapabilities] = useState<Record<string, any>>({});
   const [capabilityKeys, setCapabilityKeys] = useState<Record<string, string[]>>({});
 
@@ -458,7 +471,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                 : "bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900/20"
             }`}>
               {person.uiExtensions?.avatarUrl ? (
-                <img src={person.uiExtensions.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                <img src={resolveUrl(person.uiExtensions.avatarUrl)} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 person.role === "resident" ? <UserCheck className="w-5 h-5" /> : person.role === "courier" ? <Truck className="w-5 h-5" /> : <User className="w-5 h-5" />
               )}
@@ -559,7 +572,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                     <div className="flex items-center gap-3 bg-zinc-50/80 dark:bg-zinc-800/60 p-2 rounded-xl border border-zinc-200/60 dark:border-zinc-700/60">
                       {block.imageUrl && (
                         <div className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shrink-0 overflow-hidden border-2 border-white dark:border-zinc-800 shadow-sm">
-                          <img src={block.imageUrl} alt="" className="w-full h-full object-cover" />
+                          <img src={resolveUrl(block.imageUrl)} alt="" className="w-full h-full object-cover" />
                         </div>
                       )}
                       {block.text && (
@@ -1017,7 +1030,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
                           {mediaFilesStaged[capName] || mediaFilesExisting[capName] ? (
                             <>
                               <img
-                                src={mediaFilesStaged[capName] || (editingPerson ? `${capCfg.mediaEndpoint}/${editingPerson.id}` : '')}
+                                src={mediaFilesStaged[capName] || (editingPerson ? resolveUrl(`${capCfg.mediaEndpoint}/${editingPerson.id}`) : '')}
                                 alt="Preview"
                                 className="w-full h-full object-cover"
                               />
