@@ -133,7 +133,8 @@ def register_capabilities():
         "capability": "FACE_RECOGNITION",
         "label": "Face ID (Python)",
         "supportedRoles": ["resident", "guest"],
-        "mediaEndpoint": f"/api/modules/storage/{MODULE_ID}"
+        # Use absolute URL so the browser's fetch() bypasses WAF (goes directly to api subdomain)
+        "mediaEndpoint": f"{args.url}/api/modules/storage/{MODULE_ID}"
     }
     
     url = f"{args.url}/api/modules/actions/capabilities?token={args.token}"
