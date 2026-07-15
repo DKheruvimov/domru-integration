@@ -11,6 +11,7 @@ export function getConnectedModules() {
 
 export function dispatchModuleEvent(event: string, payload: any) {
   io?.emit(event, payload);
+  io?.of("/modules").emit(event, payload);
 }
 
 export function notifyModuleViaWebSocket(moduleId: string, event: string, payload: any) {
@@ -19,6 +20,21 @@ export function notifyModuleViaWebSocket(moduleId: string, event: string, payloa
   for (const [socketId, mId] of connectedModules.entries()) {
     if (mId === moduleId) {
       modulesNs.to(socketId).emit(event, payload);
+    }
+  }
+}
+
+export function disconnectModule(moduleId: string, code?: string, message?: string) {
+  if (!io) return;
+  const modulesNs = io.of("/modules");
+  const sockets = Array.from(modulesNs.sockets.values());
+  for (const s of sockets) {
+    if (s.data.module?.id === moduleId) {
+      console.log(`[WS/Modules] Force disconnecting module: ${moduleId}`);
+      if (code || message) {
+        s.emit("error", { code: code || "disabled", message: message || "Module is disabled" });
+      }
+      s.disconnect(true);
     }
   }
 }
@@ -58,10 +74,27 @@ export function initWebSocketServer(httpServer: HttpServer) {
   const modulesNs = io.of("/modules");
   modulesNs.use((socket, next) => {
     const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+    const moduleId = socket.handshake.auth?.moduleId || socket.handshake.query?.moduleId;
     const module = validateModuleToken(token as string);
     if (!module) {
       return next(new Error("Authentication error: invalid module token"));
     }
+    
+    // Check if the module is enabled in settings
+    if (module.isEnabled === false) {
+      return next(new Error("Authentication error: module is disabled in settings"));
+    }
+    
+    // If the module token is claimed, require a matching moduleId from the client
+    if (module.isClaimed) {
+      if (!moduleId) {
+        return next(new Error("Authentication error: token is claimed, but no moduleId was provided"));
+      }
+      if (moduleId !== module.id) {
+        return next(new Error("Authentication error: moduleId mismatch"));
+      }
+    }
+    
     socket.data.module = module;
     next();
   });
@@ -69,6 +102,17 @@ export function initWebSocketServer(httpServer: HttpServer) {
   modulesNs.on("connection", (socket) => {
     const module = socket.data.module;
     console.log(`[WS/Modules] Module connected: ${module.name} (${module.id})`);
+    
+    // Conflict resolution: if another socket is already connected for this module ID, disconnect the older one
+    const existingSockets = Array.from(modulesNs.sockets.values());
+    for (const s of existingSockets) {
+      if (s.id !== socket.id && s.data.module?.id === module.id) {
+        console.warn(`[WS/Modules] Duplicate connection detected for module ${module.name} (${module.id}). Disconnecting older socket: ${s.id}`);
+        s.emit("error", { code: "duplicate_connection", message: "Another instance of this module has connected. Connection closed." });
+        s.disconnect(true);
+      }
+    }
+
     connectedModules.set(socket.id, module.id);
     
     // Explicit dynamic status event from plugin

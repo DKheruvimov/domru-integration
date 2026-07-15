@@ -128,7 +128,11 @@ export function savePeople(people: Person[]) {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(PEOPLE_FILE, JSON.stringify(people, null, 2), "utf-8");
+    const cleanPeople = people.map(p => {
+      const { uiExtensions, ...rest } = p as any;
+      return rest;
+    });
+    fs.writeFileSync(PEOPLE_FILE, JSON.stringify(cleanPeople, null, 2), "utf-8");
     broadcastAutoOpenStatusChanged();
   } catch (err) {
     console.error("Failed to save people schedules", err);
@@ -235,9 +239,31 @@ export async function checkAutoOpenRules(deviceId?: number): Promise<{ active: b
     if (!person.enabled) continue;
 
     const requiresSchedule = person.useSchedule !== false;
-    // For now we assume any true value in pluginSettings means it requires plugin validation.
-    // In a real system, you'd iterate over plugins.
-    const requiresPlugin = person.pluginSettings?.FACE_RECOGNITION === true;
+    
+    // Check if any plugin/module settings are enabled and functional (not in error status) for this person
+    let requiresPlugin = false;
+    if (person.pluginSettings) {
+      try {
+        const { getModules } = await import("./modules-manager.js");
+        const modules = getModules();
+        const activePlugins = Object.entries(person.pluginSettings).filter(([capName, isEnabled]) => {
+          if (!isEnabled) return false;
+          // Find the module that registers this capability
+          const owningModule = modules.find(m => m.capabilities && m.capabilities[capName]);
+          if (owningModule) {
+            const entityStatus = owningModule.entityStatuses?.[`person_${person.id}`];
+            if (entityStatus && entityStatus.status === "error") {
+              return false; // Skip plugins that are in error state
+            }
+          }
+          return true;
+        });
+        requiresPlugin = activePlugins.length > 0;
+      } catch (err) {
+        console.error("Error evaluating plugin readiness status in checkAutoOpenRules:", err);
+        requiresPlugin = Object.values(person.pluginSettings).some(val => val === true);
+      }
+    }
 
     // Fast fail if both are disabled
     if (!requiresSchedule && !requiresPlugin) {

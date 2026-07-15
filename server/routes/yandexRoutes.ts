@@ -1,4 +1,6 @@
 import express from "express";
+import fs from "fs";
+import path from "path";
 import { registerCredentials } from "../tokenStore.js";
 import { getRequestId, getProxiedStreamUrl } from "../yandexHelper.js";
 import { getDomruInstanceFromToken, isDemo, MOCK_PLACES, MOCK_DEVICES, MOCK_CAMERAS } from "../domruClientHelper.js";
@@ -32,7 +34,7 @@ router.get("/oauth/authorize", (req, res) => {
     return res.status(400).send("Bad request: missing redirect_uri");
   }
 
-  const htmlContent = require('fs').readFileSync(require('path').join(process.cwd(), 'server', 'views', 'oauth-consent.html'), 'utf-8');
+  const htmlContent = fs.readFileSync(path.join(process.cwd(), 'server', 'views', 'oauth-consent.html'), 'utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');

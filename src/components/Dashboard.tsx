@@ -105,6 +105,10 @@ export default function Dashboard({
 
       // Fetch Places
       const placesRes = await fetch("/api/domru/places/all", { headers: proxyHeaders });
+      if (placesRes.status === 401 || placesRes.status === 403) {
+        onLogout();
+        return;
+      }
       if (!placesRes.ok) throw new Error("Не удалось загрузить объекты абонента");
       const placesRaw = await placesRes.json();
 
@@ -145,6 +149,10 @@ export default function Dashboard({
       // 1. Load Devices
       try {
         const devRes = await fetch(`/api/domru/devices/${selectedPlace.id}`, { headers: proxyHeaders });
+        if (devRes.status === 401 || devRes.status === 403) {
+          onLogout();
+          return;
+        }
         if (devRes.ok) {
           const devRaw = await devRes.json();
           realDeviceIds = devRaw.map((d: any) => d.id);

@@ -1,6 +1,8 @@
 import { Router } from "express";
+import crypto from "crypto";
 import { 
   getModules, 
+  saveModules,
   createModule, 
   deleteModule, 
   validateModuleToken,
@@ -8,12 +10,14 @@ import {
   getModuleStorageValue,
   setModuleStorageValue,
   deleteModuleStorageValue,
+  readModuleStorage,
   setModuleConnection,
   addPollingClient,
   setModuleSchema,
   setModuleConfigValues,
   dispatchModuleEvent,
-  setModuleStatus
+  setModuleStatus,
+  resetModuleIntegration
 } from "../modules-manager.js";
 import { handleManualOpen } from "../sip-manager.js";
 import { loadSavedTokens } from "../tokenStore.js";
@@ -44,6 +48,14 @@ router.post("/delete", (req, res) => {
   if (!id) return res.status(400).json({ error: "id is required" });
   const success = deleteModule(id);
   if (success) {
+    // Broadcast status change so UI re-fetches capabilities, modules, and people settings
+    import("../ws-manager.js").then(({ getIO }) => {
+      const io = getIO();
+      io?.emit("modules_status_changed");
+      io?.emit("auto_open_status_changed");
+      io?.emit("entity_status_updated");
+    }).catch(err => console.error("Error emitting events on delete:", err));
+
     res.json({ success: true });
   } else {
     res.status(404).json({ error: "Module not found" });
@@ -141,7 +153,7 @@ router.post("/me/entity-status", (req, res) => {
   if (!entityType || !entityId || !status) {
     return res.status(400).json({ error: "Missing required fields: entityType, entityId, status" });
   }
-  if (!["processing", "success", "error"].includes(status)) {
+  if (!["processing", "success", "error", "disabled"].includes(status)) {
     return res.status(400).json({ error: "Invalid status" });
   }
 
@@ -154,6 +166,43 @@ router.post("/me/entity-status", (req, res) => {
   });
 
   res.json({ success: true });
+});
+
+// External Module Endpoint: Get Module Metadata
+router.get("/me", (req, res) => {
+  const authHeader = req.headers["authorization"] || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.substring(7).trim() : String(req.query.token || "").trim();
+
+  const module = validateModuleToken(token);
+  if (!module) {
+    return res.status(403).json({ error: "Invalid or missing module token" });
+  }
+
+  const clientModuleId = String(req.query.id || "").trim();
+
+  if (module.isClaimed) {
+    if (!clientModuleId) {
+      return res.status(403).json({ error: "This token is already claimed by an active module instance. Please create a new module in the UI and obtain a new unique token." });
+    }
+    if (clientModuleId !== module.id) {
+      return res.status(403).json({ error: "Module ID mismatch: This token is claimed by another module instance." });
+    }
+  } else {
+    // Claim the module token
+    const modules = getModules();
+    const dbModule = modules.find(m => m.id === module.id);
+    if (dbModule) {
+      dbModule.isClaimed = true;
+      saveModules(modules);
+    }
+    module.isClaimed = true;
+  }
+
+  res.json({
+    id: module.id,
+    name: module.name,
+    token: module.token
+  });
 });
 
 // External Module Endpoint: Get Settings
@@ -188,6 +237,69 @@ router.post("/settings", (req, res) => {
   dispatchModuleEvent("settings_updated", values, id).catch(err => console.error("Error dispatching settings to webhook:", err));
   
   res.json({ success: true });
+});
+
+// UI Endpoint: Reset integrated module configuration and storage
+router.post("/reset", (req, res) => {
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ error: "id is required" });
+  
+  const success = resetModuleIntegration(id);
+  if (success) {
+    // Notify module about the reset
+    notifyModuleViaWebSocket(id, "settings_updated", {});
+    dispatchModuleEvent("settings_updated", {}, id).catch(err => console.error("Error dispatching reset settings to webhook:", err));
+    
+    // Disconnect the module from WebSocket so it reconnects and re-registers itself automatically
+    import("../ws-manager.js").then(({ disconnectModule }) => {
+      disconnectModule(id, "module_reset", "Интеграция модуля сброшена. Переподключение...");
+    }).catch(err => console.error("Error disconnecting module on reset:", err));
+
+    // Broadcast status change so UI re-fetches capabilities, modules, and people settings
+    import("../ws-manager.js").then(({ getIO }) => {
+      const io = getIO();
+      io?.emit("modules_status_changed");
+      io?.emit("auto_open_status_changed");
+      io?.emit("entity_status_updated");
+    }).catch(err => console.error("Error emitting events on reset:", err));
+    
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: "Module not found" });
+  }
+});
+
+// UI Endpoint: Toggle module enabled state
+router.post("/toggle-enabled", (req, res) => {
+  const { id, isEnabled } = req.body;
+  if (!id) return res.status(400).json({ error: "id is required" });
+  
+  const modules = getModules();
+  const dbModule = modules.find(m => m.id === id);
+  if (dbModule) {
+    dbModule.isEnabled = isEnabled !== false;
+    
+    // If disabling, forcefully disconnect its active websocket connections
+    if (!dbModule.isEnabled) {
+      import("../ws-manager.js").then(({ disconnectModule }) => {
+        disconnectModule(id, "module_disabled", "Модуль отключен в настройках домофона");
+      }).catch(err => console.error("Error disconnecting disabled module:", err));
+    }
+    
+    saveModules(modules);
+    
+    // Broadcast status change so UI re-fetches
+    import("../ws-manager.js").then(({ getIO }) => {
+      const io = getIO();
+      io?.emit("modules_status_changed");
+      io?.emit("auto_open_status_changed");
+      io?.emit("entity_status_updated");
+    }).catch(err => console.error("Error emitting events on toggle-enabled:", err));
+    
+    res.json({ success: true, isEnabled: dbModule.isEnabled });
+  } else {
+    res.status(404).json({ error: "Module not found" });
+  }
 });
 
 // External Module Endpoint: Action Open
@@ -426,14 +538,41 @@ router.get("/actions/people", async (req, res) => {
     const { getPeople } = await import("../people-manager.js");
     const people = getPeople();
     
-    // Return a safe subset of data
-    const safePeople = people.map((p: any) => ({
-      id: p.id,
-      name: p.name,
-      role: p.role,
-      enabled: p.enabled,
-      pluginSettings: p.pluginSettings || {}
-    }));
+    // Filter people: must be active (enabled !== false), role must support at least one capability of the module,
+    // and the specific capability must be toggled ON in pluginSettings.
+    const activePeople = people.filter((p: any) => {
+      if (p.enabled === false) return false;
+      if (!module.capabilities) return false;
+      
+      const supportedCaps = Object.entries(module.capabilities).filter(([_, cap]: [string, any]) => {
+        return !cap.supportedRoles || cap.supportedRoles.includes(p.role);
+      });
+      
+      if (supportedCaps.length === 0) return false;
+      
+      // Check if at least one of the supported capabilities is enabled in pluginSettings
+      return supportedCaps.some(([capName]) => p.pluginSettings?.[capName] === true);
+    });
+
+    // Read the module storage once to calculate image hashes
+    const storageData = await readModuleStorage(module.id);
+
+    // Return a safe subset of data, including calculated MD5 imageHash for cache validation
+    const safePeople = activePeople.map((p: any) => {
+      const photo = storageData[p.id];
+      let imageHash = "";
+      if (photo) {
+        imageHash = crypto.createHash("md5").update(String(photo)).digest("hex");
+      }
+      return {
+        id: p.id,
+        name: p.name,
+        role: p.role,
+        enabled: p.enabled,
+        pluginSettings: p.pluginSettings || {},
+        imageHash: imageHash
+      };
+    });
     
     res.json(safePeople);
   } catch (error: any) {
@@ -561,10 +700,21 @@ router.post("/storage/:moduleId/:key", async (req, res) => {
     console.log(`[STORAGE WRITE] Storing data...`);
     await setModuleStorageValue(moduleId, key, valueToStore);
     
+    // Set corresponding entity status to processing so the UI represents the state correctly
+    try {
+      const { setModuleEntityStatus } = await import("../modules-manager.js");
+      setModuleEntityStatus(moduleId, "person", key, "processing", "Ожидание синхронизации...");
+    } catch (err) {
+      console.error("Error setting entity status on write:", err);
+    }
+
     console.log(`[STORAGE WRITE] Emitting socket event module_data_updated...`);
     const io = req.app.get("io");
     if (io) {
       io.emit("module_data_updated", { moduleId, key });
+      io.of("/modules").emit("module_data_updated", { moduleId, key });
+      io.emit("entity_status_updated", { moduleId });
+      io.of("/modules").emit("entity_status_updated", { moduleId });
     }
 
     console.log(`[STORAGE WRITE] Success!`);
@@ -581,8 +731,17 @@ router.delete("/storage/:moduleId/:key", async (req, res) => {
     const { moduleId, key } = req.params;
     await deleteModuleStorageValue(moduleId, key);
     
+    // Delete corresponding entity status from the module's status list
+    try {
+      const { deleteModuleEntityStatus } = await import("../modules-manager.js");
+      deleteModuleEntityStatus(moduleId, "person", key);
+    } catch (err) {
+      console.error("Error deleting entity status on delete:", err);
+    }
+
     import("../ws-manager.js").then(({ dispatchModuleEvent }) => {
       dispatchModuleEvent("module_data_updated", { moduleId, key, action: "deleted" });
+      dispatchModuleEvent("entity_status_updated", { moduleId });
     });
     
     res.json({ success: true });

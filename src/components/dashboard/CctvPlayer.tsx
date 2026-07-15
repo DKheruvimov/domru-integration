@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { SmartDevice, SmartCamera, AppCredentials } from "../../types";
-import { Video, VideoOff, RefreshCw, Terminal, Lock, Unlock, PhoneForwarded, PhoneOff } from "lucide-react";
+import { Video, VideoOff, RefreshCw, Terminal, Lock, Unlock, PhoneForwarded, PhoneOff, Info } from "lucide-react";
 import AutoOpenConfigModal from "./AutoOpenConfigModal";
 import SipLogsViewer from "./SipLogsViewer";
 import { formatTimeInTimezone } from "../../lib/timezone";
@@ -62,6 +62,25 @@ export default function CctvPlayer({
   const [isTogglingAutoOpen, setIsTogglingAutoOpen] = useState<boolean>(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState<boolean>(false);
   const [localSnapshotTime, setLocalSnapshotTime] = useState(snapshotTime);
+
+  // Custom dialog state to bypass iframe constraints
+  const [dialog, setDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
+
+  const showCustomAlert = (title: string, message: string) => {
+    setDialog({
+      isOpen: true,
+      title,
+      message,
+    });
+  };
 
   useEffect(() => {
     if (playerMode === "snapshot") {
@@ -141,11 +160,11 @@ export default function CctvPlayer({
         setAutoOpenState(newState ? (data.expiresAt || true) : false);
       } else {
         const errData = await res.json();
-        alert(`Ошибка авто-открытия: ${errData.error || res.statusText}`);
+        showCustomAlert("Ошибка авто-открытия", errData.error || res.statusText);
       }
     } catch (err: any) {
       console.error(err);
-      alert(`Сетевая ошибка: ${err.message || err}`);
+      showCustomAlert("Сетевая ошибка", err.message || err);
     } finally {
       setIsTogglingAutoOpen(false);
     }
@@ -419,7 +438,7 @@ export default function CctvPlayer({
              <button
                onClick={() => {
                  if (autoOpenState) toggleAutoOpen(); // turn off
-                 else if (isGlobalAutoOpen) alert("Авто-открытие активировано расписанием из вкладки 'Люди'. Измените или удалите правило там, чтобы отключить.");
+                 else if (isGlobalAutoOpen) showCustomAlert("Авто-открытие", "Авто-открытие активировано расписанием из вкладки 'Люди'. Измените или удалите правило там, чтобы отключить.");
                  else setIsConfigModalOpen(true); // show modal
                }}
                disabled={isTogglingAutoOpen}
@@ -500,7 +519,7 @@ export default function CctvPlayer({
               className="w-full h-full object-cover"
               onError={() => {
                 addStreamLog("⛔ MJPEG поток недоступен");
-                handleError();
+                setHasStreamError(true);
               }}
             />
           ) : (
@@ -612,6 +631,32 @@ export default function CctvPlayer({
         onClose={() => setIsConfigModalOpen(false)}
         onEnable={(durationMinutes, maxOpens) => toggleAutoOpen(durationMinutes, maxOpens)}
       />
+
+      {dialog.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col relative p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-full bg-blue-500/10 text-blue-500">
+                <Info className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
+                {dialog.title}
+              </h3>
+            </div>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">
+              {dialog.message}
+            </p>
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setDialog({ ...dialog, isOpen: false })}
+                className="px-4 py-2 text-sm font-semibold text-white bg-zinc-900 hover:bg-zinc-850 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-xl shadow-md transition cursor-pointer"
+              >
+                ОК
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

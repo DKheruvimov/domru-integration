@@ -38,9 +38,16 @@ export default function App() {
 
   useEffect(() => {
     fetch("/api/settings")
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new TypeError("Received non-JSON response from server");
+        }
+        return res.json();
+      })
       .then(data => {
-        if (data.timezone) {
+        if (data && data.timezone) {
           setTimezoneState(data.timezone);
         }
       })

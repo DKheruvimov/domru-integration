@@ -80,9 +80,49 @@ export default function SettingsView({
   const [autoOpenDelayResidentMs, setAutoOpenDelayResidentMs] = useState<number>(0);
   const [autoOpenDelayGuestMs, setAutoOpenDelayGuestMs] = useState<number>(3000);
 
+  // Custom dialog state for alerts/confirms to bypass iframe constraints
+  const [dialog, setDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    isConfirm: boolean;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    isConfirm: false,
+  });
+
+  const showCustomAlert = (title: string, message: string) => {
+    setDialog({
+      isOpen: true,
+      title,
+      message,
+      isConfirm: false,
+    });
+  };
+
+  const showCustomConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setDialog({
+      isOpen: true,
+      title,
+      message,
+      isConfirm: true,
+      onConfirm,
+    });
+  };
+
   useEffect(() => {
     fetch("/api/settings")
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new TypeError("Received non-JSON response from server");
+        }
+        return res.json();
+      })
       .then(data => {
         if (data) {
           if (typeof data.autoOpenDelayResidentMs === "number") setAutoOpenDelayResidentMs(data.autoOpenDelayResidentMs);
@@ -113,19 +153,37 @@ export default function SettingsView({
   ]);
   const [guestCode, setGuestCode] = useState("1409");
 
-  const clearFaceIdData = async () => {
-    if (!window.confirm("Удалить все загруженные фотографии Face ID? Это действие необратимо.")) return;
-    try {
-      const res = await fetch("/api/plugins/face-id/storage", { method: "DELETE" });
-      if (res.ok) {
-        alert("Данные плагина очищены");
-      } else {
-        alert("Ошибка при очистке данных");
+  const clearModulesData = () => {
+    showCustomConfirm(
+      "Удаление данных плагинов",
+      "Удалить все загруженные фотографии всех плагинов? Это действие необратимо.",
+      async () => {
+        try {
+          const modRes = await fetch("/api/modules");
+          if (modRes.ok) {
+            const modules = await modRes.json();
+            let clearedCount = 0;
+            for (const m of modules) {
+              const keysRes = await fetch(`/api/modules/storage/${m.id}/keys`);
+              if (keysRes.ok) {
+                const keysData = await keysRes.json();
+                const keys = keysData.keys || [];
+                for (const key of keys) {
+                  await fetch(`/api/modules/storage/${m.id}/${key}`, { method: "DELETE" });
+                  clearedCount++;
+                }
+              }
+            }
+            showCustomAlert("Успех", `Данные плагинов очищены (удалено объектов: ${clearedCount})`);
+          } else {
+            showCustomAlert("Ошибка", "Ошибка при получении списка модулей");
+          }
+        } catch (e) {
+          console.error(e);
+          showCustomAlert("Ошибка", "Ошибка при очистке данных");
+        }
       }
-    } catch (e) {
-      console.error(e);
-      alert("Ошибка при очистке данных");
-    }
+    );
   };
 
   const toggleKey = (id: string) => {
@@ -639,15 +697,15 @@ export default function SettingsView({
                       Удаление данных плагинов
                     </span>
                     <span className="text-xs text-red-500/80 dark:text-red-400/80 font-semibold block leading-relaxed">
-                      Вы можете принудительно очистить все данные плагина Face ID, хранящиеся локально.
+                      Вы можете принудительно очистить все данные подключенных плагинов, хранящиеся локально.
                     </span>
                   </div>
                   <button
-                    onClick={clearFaceIdData}
+                    onClick={clearModulesData}
                     className="flex items-center justify-center gap-2 w-full sm:w-auto px-5 py-3 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-xl transition shadow-sm shadow-red-500/20 cursor-pointer self-start"
                   >
                     <Trash2 className="w-4 h-4" />
-                    <span>Очистить данные Face ID</span>
+                    <span>Очистить данные плагинов</span>
                   </button>
                 </div>
               </>
@@ -719,6 +777,52 @@ export default function SettingsView({
                   © 2026 Неофициальный клиент Умного Дома.
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dialog.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col relative p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-3 rounded-full ${dialog.isConfirm ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                <Info className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
+                {dialog.title}
+              </h3>
+            </div>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">
+              {dialog.message}
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              {dialog.isConfirm ? (
+                <>
+                  <button
+                    onClick={() => setDialog({ ...dialog, isOpen: false })}
+                    className="px-4 py-2 text-sm font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 rounded-xl bg-zinc-100 dark:bg-zinc-800 transition cursor-pointer"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDialog({ ...dialog, isOpen: false });
+                      if (dialog.onConfirm) dialog.onConfirm();
+                    }}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-md transition cursor-pointer"
+                  >
+                    Подтвердить
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setDialog({ ...dialog, isOpen: false })}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-zinc-900 hover:bg-zinc-850 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-xl shadow-md transition cursor-pointer"
+                >
+                  ОК
+                </button>
+              )}
             </div>
           </div>
         </div>

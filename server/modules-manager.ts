@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { getPeople, savePeople } from "./people-manager.js";
 
 const DATA_FILE = path.join(process.cwd(), "data", "modules.json");
 
@@ -21,7 +22,7 @@ export interface ModuleConfigField {
 export interface EntityStatus {
   entityType: string;
   entityId: string;
-  status: "processing" | "success" | "error";
+  status: "processing" | "success" | "error" | "disabled";
   message?: string;
   updatedAt: number;
 }
@@ -31,6 +32,8 @@ export interface ExternalModule {
   name: string;
   token: string;
   createdAt: number;
+  isClaimed?: boolean;
+  isEnabled?: boolean; // defaults to true
   capabilities?: Record<string, CapabilityConfig>;
   connection?: {
     type: "websocket" | "webhook" | "long_polling";
@@ -68,7 +71,7 @@ export function setModuleStatus(moduleId: string, status: "offline" | "warning" 
   saveModules(modules);
 }
 
-export function setModuleEntityStatus(moduleId: string, entityType: string, entityId: string, status: "processing" | "success" | "error", message?: string) {
+export function setModuleEntityStatus(moduleId: string, entityType: string, entityId: string, status: "processing" | "success" | "error" | "disabled", message?: string) {
   const modules = getModules();
   const mod = modules.find(m => m.id === moduleId);
   if (mod) {
@@ -87,6 +90,16 @@ export function setModuleEntityStatus(moduleId: string, entityType: string, enti
   }
 }
 
+export function deleteModuleEntityStatus(moduleId: string, entityType: string, entityId: string) {
+  const modules = getModules();
+  const mod = modules.find(m => m.id === moduleId);
+  if (mod && mod.entityStatuses) {
+    const key = `${entityType}_${entityId}`;
+    delete mod.entityStatuses[key];
+    saveModules(modules);
+  }
+}
+
 export function getModules(): ExternalModule[] {
   ensureDataDir();
   if (!fs.existsSync(DATA_FILE)) {
@@ -95,8 +108,90 @@ export function getModules(): ExternalModule[] {
   try {
     const content = fs.readFileSync(DATA_FILE, "utf-8");
     const parsed: ExternalModule[] = JSON.parse(content);
-    // Inject dynamic statuses
-    return parsed.map(m => {
+    
+    let anyPruned = false;
+    let people: any[] = [];
+    try {
+      people = getPeople();
+    } catch (e) {
+      // Prevent crash during circular imports or startup
+    }
+
+    const processed = parsed.map(m => {
+      // Clean up invalid entity statuses (e.g. deleted people or unsupported roles)
+      if (m.entityStatuses && people.length > 0) {
+        for (const key of Object.keys(m.entityStatuses)) {
+          if (key.startsWith("person_")) {
+            const pId = key.substring(7);
+            const p = people.find(item => item.id === pId);
+            if (!p) {
+              delete m.entityStatuses[key];
+              anyPruned = true;
+            } else if (m.capabilities) {
+              const supportsRole = Object.values(m.capabilities).some(cap => !cap.supportedRoles || cap.supportedRoles.includes(p.role));
+              if (!supportsRole) {
+                delete m.entityStatuses[key];
+                anyPruned = true;
+              }
+            }
+          }
+        }
+      }
+
+      // Automatically maintain entity statuses for disabled/unconfigured people
+      if (people.length > 0 && m.capabilities && m.isEnabled !== false) {
+        m.entityStatuses = m.entityStatuses || {};
+        for (const p of people) {
+          // Find all capabilities of this module that support the person's role
+          const supportedCaps = Object.entries(m.capabilities).filter(([_, cap]: [string, any]) => {
+            return !cap.supportedRoles || cap.supportedRoles.includes(p.role);
+          });
+          
+          if (supportedCaps.length > 0) {
+            const key = `person_${p.id}`;
+            const current = m.entityStatuses[key];
+            
+            if (p.enabled === false) {
+              if (!current || current.status !== "disabled" || current.message !== "Резидент отключен") {
+                m.entityStatuses[key] = {
+                  entityType: "person",
+                  entityId: p.id,
+                  status: "disabled",
+                  message: "Резидент отключен",
+                  updatedAt: Date.now()
+                };
+                anyPruned = true;
+              }
+            } else {
+              // Check if any of the supported capabilities are enabled for this person
+              const hasEnabledCap = supportedCaps.some(([capName]) => p.pluginSettings?.[capName] === true);
+              if (!hasEnabledCap) {
+                const firstCap = supportedCaps[0];
+                const capLabel = (firstCap[1] as any).label || firstCap[0];
+                const capMsg = capLabel.toLowerCase().includes("face") ? "Распознавание лиц выключено" : `${capLabel} выключено`;
+                
+                if (!current || current.status !== "disabled" || current.message !== capMsg) {
+                  m.entityStatuses[key] = {
+                    entityType: "person",
+                    entityId: p.id,
+                    status: "disabled",
+                    message: capMsg,
+                    updatedAt: Date.now()
+                  };
+                  anyPruned = true;
+                }
+              } else {
+                // It is enabled! If it was "disabled" previously, remove it so it starts fresh for the module
+                if (current && current.status === "disabled") {
+                  delete m.entityStatuses[key];
+                  anyPruned = true;
+                }
+              }
+            }
+          }
+        }
+      }
+
       const mem = moduleStatuses.get(m.id);
       if (mem) {
         m.status = mem.status;
@@ -111,6 +206,12 @@ export function getModules(): ExternalModule[] {
       }
       return m;
     });
+
+    if (anyPruned) {
+      fs.writeFileSync(DATA_FILE, JSON.stringify(processed, null, 2), "utf-8");
+    }
+
+    return processed;
   } catch (error) {
     console.error("Error reading modules.json:", error);
     return [];
@@ -144,20 +245,63 @@ export function createModule(name: string): ExternalModule {
 
 export function deleteModule(id: string): boolean {
   let modules = getModules();
-  const initialLength = modules.length;
-  modules = modules.filter(m => m.id !== id);
-  
-  if (modules.length !== initialLength) {
-    saveModules(modules);
-    return true;
+  const mod = modules.find(m => m.id === id);
+  if (!mod) return false;
+
+  // 1. Collect all capability names associated with this module
+  const capNames = mod.capabilities ? Object.keys(mod.capabilities) : [];
+
+  // 2. Completely delete the module's storage file from disk
+  const storageFile = path.join(MODULES_STORAGE_DIR, `${id}.json`);
+  if (fs.existsSync(storageFile)) {
+    try {
+      fs.unlinkSync(storageFile);
+    } catch (err) {
+      console.error(`Error deleting storage file on delete for module ${id}:`, err);
+    }
   }
-  return false;
+
+  // 3. Reset people's plugin settings for these capabilities
+  if (capNames.length > 0) {
+    try {
+      const people = getPeople();
+      let peopleChanged = false;
+      for (const person of people) {
+        if (person.pluginSettings) {
+          for (const capName of capNames) {
+            if (capName in person.pluginSettings) {
+              delete person.pluginSettings[capName];
+              peopleChanged = true;
+            }
+          }
+        }
+      }
+      if (peopleChanged) {
+        savePeople(people);
+      }
+    } catch (err) {
+      console.error(`Error resetting people plugin settings on module delete for ${id}:`, err);
+    }
+  }
+
+  // 4. Remove in-memory status
+  moduleStatuses.delete(id);
+
+  // 5. Save remaining modules list
+  modules = modules.filter(m => m.id !== id);
+  saveModules(modules);
+
+  return true;
 }
 
-export function validateModuleToken(token: string): ExternalModule | undefined {
+export function validateModuleToken(token: string, allowDisabled: boolean = false): ExternalModule | undefined {
   if (!token) return undefined;
   const modules = getModules();
-  return modules.find(m => m.token === token);
+  const mod = modules.find(m => m.token === token);
+  if (mod && mod.isEnabled === false && !allowDisabled) {
+    return undefined;
+  }
+  return mod;
 }
 
 // Capabilities
@@ -175,7 +319,7 @@ export function getAllModuleCapabilities(): Record<string, CapabilityConfig> {
   const modules = getModules();
   let allCaps: Record<string, CapabilityConfig> = {};
   for (const mod of modules) {
-    if (mod.capabilities) {
+    if (mod.isEnabled !== false && mod.capabilities) {
       allCaps = { ...allCaps, ...mod.capabilities };
     }
   }
@@ -209,6 +353,65 @@ export function setModuleConfigValues(moduleId: string, values: Record<string, a
     mod.configValues = values;
     saveModules(modules);
   }
+}
+
+export function resetModuleIntegration(moduleId: string): boolean {
+  const modules = getModules();
+  const mod = modules.find(m => m.id === moduleId);
+  if (mod) {
+    // 1. Collect all capability names associated with this module before deleting them
+    const capNames = mod.capabilities ? Object.keys(mod.capabilities) : [];
+
+    // 2. Clear module configuration, config schema, capabilities, and statuses
+    mod.configValues = {};
+    delete mod.configSchema;
+    delete mod.capabilities;
+    delete mod.entityStatuses;
+    delete mod.isClaimed;
+    
+    // Reset in-memory status
+    moduleStatuses.set(moduleId, { status: "offline", message: undefined });
+    mod.status = "offline";
+    mod.statusMessage = undefined;
+    
+    saveModules(modules);
+    
+    // 3. Completely delete the module's storage file from disk
+    const storageFile = path.join(MODULES_STORAGE_DIR, `${moduleId}.json`);
+    if (fs.existsSync(storageFile)) {
+      try {
+        fs.unlinkSync(storageFile);
+      } catch (err) {
+        console.error(`Error deleting storage file on reset for module ${moduleId}:`, err);
+      }
+    }
+    
+    // 4. Reset people's plugin settings for these capabilities
+    if (capNames.length > 0) {
+      try {
+        const people = getPeople();
+        let peopleChanged = false;
+        for (const person of people) {
+          if (person.pluginSettings) {
+            for (const capName of capNames) {
+              if (capName in person.pluginSettings) {
+                delete person.pluginSettings[capName];
+                peopleChanged = true;
+              }
+            }
+          }
+        }
+        if (peopleChanged) {
+          savePeople(people);
+        }
+      } catch (err) {
+        console.error(`Error resetting people plugin settings on module reset for ${moduleId}:`, err);
+      }
+    }
+    
+    return true;
+  }
+  return false;
 }
 
 // Event Dispatching & Long Polling
@@ -321,7 +524,7 @@ export async function enrichPeopleWithModuleExtensions(people: any[]): Promise<a
   // Pre-load storage keys for active modules to avoid sequential disk reads
   const moduleKeys: Record<string, string[]> = {};
   for (const m of modules) {
-    if (m.capabilities) {
+    if (m.isEnabled !== false && m.capabilities) {
       const data = await readModuleStorage(m.id);
       moduleKeys[m.id] = Object.keys(data);
     }
@@ -333,14 +536,15 @@ export async function enrichPeopleWithModuleExtensions(people: any[]): Promise<a
 
     // Check every registered capability
     for (const m of modules) {
+      if (m.isEnabled === false) continue;
       if (!m.capabilities) continue;
       for (const [capName, config] of Object.entries(m.capabilities)) {
         const isEnabled = !!(p.pluginSettings && p.pluginSettings[capName]);
         const keys = moduleKeys[m.id] || [];
         const hasData = keys.includes(p.id);
 
-        if (isEnabled) {
-          const entityStatus = m.entityStatuses?.[`person_${p.id}`];
+        const entityStatus = m.entityStatuses?.[`person_${p.id}`];
+        if (isEnabled || (entityStatus && (entityStatus.status === "disabled" || entityStatus.status === "error"))) {
           let color = hasData ? "success" : "warning";
           let label = config.label || capName;
           let message = undefined;
@@ -352,6 +556,8 @@ export async function enrichPeopleWithModuleExtensions(people: any[]): Promise<a
                 color = "error";
              } else if (entityStatus.status === "success") {
                 color = "success";
+             } else if (entityStatus.status === "disabled") {
+                color = "disabled";
              }
              message = entityStatus.message;
           }

@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
-import { Trash2, CheckSquare, Square, RefreshCw, ArchiveX, Camera } from "lucide-react";
+import { Trash2, CheckSquare, Square, RefreshCw, ArchiveX, Camera, Info } from "lucide-react";
 import type { StorageSnapshot, AppCredentials } from "../../types";
+import { getSocket } from "../../socket";
 
 export default function StorageView({ credentials }: { credentials?: AppCredentials }) {
-  const [activeTab, setActiveTab] = useState<"snapshots" | "faceId">("snapshots");
+  const [activeTab, setActiveTab] = useState<string>("snapshots");
   const [snapshots, setSnapshots] = useState<StorageSnapshot[]>([]);
-  const [faceIdKeys, setFaceIdKeys] = useState<string[]>([]);
+  const [moduleKeys, setModuleKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -13,7 +14,32 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
   const [previewSnapshot, setPreviewSnapshot] = useState<StorageSnapshot | null>(null);
   const [previewFaceId, setPreviewFaceId] = useState<string | null>(null);
   const [peopleNames, setPeopleNames] = useState<Record<string, string>>({});
-  const [faceModuleId, setFaceModuleId] = useState<string | null>(null);
+  const [modules, setModules] = useState<any[]>([]);
+  const [moduleCounts, setModuleCounts] = useState<Record<string, number>>({});
+
+  // Custom dialog state to bypass iframe constraints
+  const [dialog, setDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    isConfirm: boolean;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    isConfirm: false,
+  });
+
+  const showCustomConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setDialog({
+      isOpen: true,
+      title,
+      message,
+      isConfirm: true,
+      onConfirm,
+    });
+  };
 
   const loadSnapshots = async () => {
     setLoading(true);
@@ -32,22 +58,37 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
     }
   };
 
-  const loadFaceIdKeys = async () => {
+  const loadModulesAndKeys = async () => {
     setLoading(true);
     try {
       const modRes = await fetch("/api/modules");
       if (modRes.ok) {
-        const modules = await modRes.json();
-        const faceModule = modules.find((m: any) => m.capabilities?.FACE_RECOGNITION);
-        if (faceModule) {
-          setFaceModuleId(faceModule.id);
-          const res = await fetch(`/api/modules/storage/${faceModule.id}/keys`);
-          if (res.ok) {
-            const data = await res.json();
-            setFaceIdKeys(data.keys || []);
+        const data = await modRes.json();
+        const activeModules = (data || []).filter((m: any) => m.capabilities && Object.keys(m.capabilities).length > 0);
+        setModules(activeModules);
+        
+        const counts: Record<string, number> = {};
+        for (const m of activeModules) {
+          try {
+            const keysRes = await fetch(`/api/modules/storage/${m.id}/keys`);
+            if (keysRes.ok) {
+              const keysData = await keysRes.json();
+              counts[m.id] = (keysData.keys || []).length;
+              if (activeTab === m.id) {
+                setModuleKeys(keysData.keys || []);
+              }
+            }
+          } catch (e) {
+            console.error(e);
           }
-        } else {
-          setFaceIdKeys([]);
+        }
+        setModuleCounts(counts);
+        
+        if (activeTab === "snapshots") {
+          setModuleKeys([]);
+        } else if (!activeModules.find((m: any) => m.id === activeTab)) {
+          // If active tab module is no longer connected or has no capabilities
+          setActiveTab("snapshots");
         }
       }
     } catch (e) {
@@ -79,19 +120,26 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
 
   useEffect(() => {
     loadPeopleNames();
-    loadFaceIdKeys();
+    loadModulesAndKeys();
+    
+    const socket = getSocket();
+    socket.on("modules_status_changed", loadModulesAndKeys);
+    
+    return () => {
+      socket.off("modules_status_changed", loadModulesAndKeys);
+    };
   }, [credentials]);
 
   useEffect(() => {
     if (activeTab === "snapshots") {
       loadSnapshots();
     } else {
-      loadFaceIdKeys();
+      loadModulesAndKeys();
     }
     
     const interval = setInterval(() => {
       if (activeTab === "snapshots") loadSnapshots();
-      else loadFaceIdKeys();
+      else loadModulesAndKeys();
     }, 30000);
     return () => clearInterval(interval);
   }, [activeTab]);
@@ -110,7 +158,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
   };
 
   const toggleSelectAll = () => {
-    const targetList = activeTab === "snapshots" ? snapshots.map((s) => s.id) : faceIdKeys;
+    const targetList = activeTab === "snapshots" ? snapshots.map((s) => s.id) : moduleKeys;
     if (selectedIds.size === targetList.length) {
       setSelectedIds(new Set());
     } else {
@@ -118,40 +166,42 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (selectedIds.size === 0) return;
-    const confirm = window.confirm(`Удалить ${selectedIds.size} фото?`);
-    if (!confirm) return;
+    
+    showCustomConfirm(
+      "Удаление фото",
+      `Вы действительно хотите удалить выбранные фото (${selectedIds.size} шт.)?`,
+      async () => {
+        setDeleting(true);
+        try {
+          if (activeTab === "snapshots") {
+            const headers: HeadersInit = { "Content-Type": "application/json" };
+            if (credentials) {
+              headers["Authorization"] = `Bearer ${btoa(encodeURIComponent(JSON.stringify({ token: credentials.token, login: credentials.login, password: credentials.password })))}`;
+            }
 
-    setDeleting(true);
-    try {
-      if (activeTab === "snapshots") {
-        const headers: HeadersInit = { "Content-Type": "application/json" };
-        if (credentials) {
-          headers["Authorization"] = `Bearer ${btoa(encodeURIComponent(JSON.stringify({ token: credentials.token, login: credentials.login, password: credentials.password })))}`;
-        }
-
-        await fetch(`/api/domru/snapshots/delete?login=${encodeURIComponent(credentials?.login || "")}`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ ids: Array.from(selectedIds) })
-        });
-        await loadSnapshots();
-      } else {
-        if (faceModuleId) {
-          for (const id of Array.from(selectedIds)) {
-            await fetch(`/api/modules/storage/${faceModuleId}/${id}`, { method: "DELETE" });
+            await fetch(`/api/domru/snapshots/delete?login=${encodeURIComponent(credentials?.login || "")}`, {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ ids: Array.from(selectedIds) })
+            });
+            await loadSnapshots();
+          } else {
+            for (const id of Array.from(selectedIds)) {
+              await fetch(`/api/modules/storage/${activeTab}/${id}`, { method: "DELETE" });
+            }
+            await loadModulesAndKeys();
           }
-          await loadFaceIdKeys();
+          setSelectedIds(new Set());
+          setSelectionMode(false);
+        } catch (e) {
+          console.error("Failed to delete", e);
+        } finally {
+          setDeleting(false);
         }
       }
-      setSelectedIds(new Set());
-      setSelectionMode(false);
-    } catch (e) {
-      console.error("Failed to delete", e);
-    } finally {
-      setDeleting(false);
-    }
+    );
   };
 
   const grouped = useMemo(() => {
@@ -193,7 +243,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
         <div>
           <h2 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight mb-4">Хранилище</h2>
           
-          <div className="flex bg-zinc-100/50 dark:bg-zinc-800/50 p-1 rounded-xl w-fit border border-zinc-200/50 dark:border-zinc-700/50">
+          <div className="flex bg-zinc-100/50 dark:bg-zinc-800/50 p-1 rounded-xl w-fit border border-zinc-200/50 dark:border-zinc-700/50 flex-wrap gap-1">
             <button
               onClick={() => setActiveTab("snapshots")}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
@@ -204,17 +254,20 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
             >
               Снапшоты ({snapshots.length})
             </button>
-            <button
-              onClick={() => setActiveTab("faceId")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === "faceId"
-                  ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm"
-                  : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-              }`}
-            >
-              <Camera className="w-3.5 h-3.5" />
-              Face ID ({faceIdKeys.length})
-            </button>
+            {modules.map((m: any) => (
+              <button
+                key={m.id}
+                onClick={() => setActiveTab(m.id)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === m.id
+                    ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                }`}
+              >
+                <Camera className="w-3.5 h-3.5" />
+                {m.name} ({moduleCounts[m.id] || 0})
+              </button>
+            ))}
           </div>
         </div>
         
@@ -225,7 +278,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
                 onClick={toggleSelectAll}
                 className="px-3.5 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-300"
               >
-                {(activeTab === "snapshots" ? selectedIds.size === snapshots.length : selectedIds.size === faceIdKeys.length) ? "Снять выделение" : "Выбрать все"}
+                {(activeTab === "snapshots" ? selectedIds.size === snapshots.length : selectedIds.size === moduleKeys.length) ? "Снять выделение" : "Выбрать все"}
               </button>
               <button 
                 onClick={handleDelete}
@@ -339,18 +392,18 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
         )
       )}
 
-      {activeTab === "faceId" && (
-        loading && faceIdKeys.length === 0 ? (
+      {activeTab !== "snapshots" && (
+        loading && moduleKeys.length === 0 ? (
           <div className="flex items-center justify-center py-20 text-zinc-400">
             <RefreshCw className="w-6 h-6 animate-spin" />
           </div>
-        ) : faceIdKeys.length === 0 ? (
+        ) : moduleKeys.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center px-4 bg-white dark:bg-[#161b22] rounded-3xl border border-zinc-200 dark:border-zinc-800/60 shadow-xl shadow-zinc-200/20 dark:shadow-none animate-fade-in">
             <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800/50 rounded-2xl flex items-center justify-center mb-4">
               <ArchiveX className="w-8 h-8 text-zinc-400" />
             </div>
             <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Нет загруженных фото</h3>
-            <p className="text-sm text-zinc-500 font-medium mt-1">Здесь появятся фотографии жильцов для плагина Face ID.</p>
+            <p className="text-sm text-zinc-500 font-medium mt-1">Здесь появятся фотографии жильцов для модуля {modules.find(m => m.id === activeTab)?.name || "модуля"}.</p>
           </div>
         ) : (
           <div className="space-y-4 animate-fade-in">
@@ -358,7 +411,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
               Загруженные лица
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {faceIdKeys.map(key => {
+              {moduleKeys.map(key => {
                 const isSelected = selectedIds.has(key);
                 
                 return (
@@ -376,9 +429,9 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
                     }}
                   >
                     <img 
-                      src={`/api/modules/storage/${faceModuleId}/${key}`}
+                      src={`/api/modules/storage/${activeTab}/${key}`}
                       className={`w-full h-full object-cover transition-opacity ${deleting && isSelected ? 'opacity-50' : 'opacity-100'}`}
-                      alt="Face ID"
+                      alt={modules.find(m => m.id === activeTab)?.name || "Module data"}
                       loading="lazy"
                     />
                     
@@ -430,14 +483,14 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
         </div>
       )}
 
-      {/* Preview Modal for Face ID */}
-      {previewFaceId && (
+      {/* Preview Modal for Module Storage */}
+      {activeTab !== "snapshots" && previewFaceId && (
         <div 
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm cursor-zoom-out"
           onClick={() => setPreviewFaceId(null)}
         >
           <img 
-            src={`/api/modules/storage/${faceModuleId}/${previewFaceId}`}
+            src={`/api/modules/storage/${activeTab}/${previewFaceId}`}
             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-default"
             alt="Preview"
             onClick={(e) => e.stopPropagation()}
@@ -448,6 +501,52 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
           >
             <ArchiveX className="w-6 h-6 text-white" />
           </button>
+        </div>
+      )}
+
+      {dialog.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col relative p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-3 rounded-full ${dialog.isConfirm ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                <Info className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
+                {dialog.title}
+              </h3>
+            </div>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">
+              {dialog.message}
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              {dialog.isConfirm ? (
+                <>
+                  <button
+                    onClick={() => setDialog({ ...dialog, isOpen: false })}
+                    className="px-4 py-2 text-sm font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 rounded-xl bg-zinc-100 dark:bg-zinc-800 transition cursor-pointer"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDialog({ ...dialog, isOpen: false });
+                      if (dialog.onConfirm) dialog.onConfirm();
+                    }}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-[#e30613] hover:bg-[#c20510] rounded-xl shadow-md transition cursor-pointer"
+                  >
+                    Подтвердить
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setDialog({ ...dialog, isOpen: false })}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-zinc-900 hover:bg-zinc-850 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-xl shadow-md transition cursor-pointer"
+                >
+                  ОК
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

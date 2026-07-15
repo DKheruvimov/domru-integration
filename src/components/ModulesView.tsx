@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plug, Plus, Trash2, KeyRound, Clock, Activity, CheckCircle2, XCircle, Settings2, Save, AlertCircle, Copy, Check } from "lucide-react";
+import { Plug, Plus, Trash2, KeyRound, Clock, Activity, CheckCircle2, XCircle, Settings2, Save, AlertCircle, Copy, Check, RefreshCw, Info, Power, PowerOff } from "lucide-react";
 
 import { getSocket } from "../socket";
 
@@ -20,6 +20,7 @@ export interface ExternalModule {
   name: string;
   token: string;
   createdAt: number;
+  isEnabled?: boolean;
   connection?: {
     type: "websocket" | "webhook" | "long_polling";
     webhookUrl?: string;
@@ -48,19 +49,136 @@ export default function ModulesView() {
   const [editingModule, setEditingModule] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, any>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [people, setPeople] = useState<any[]>([]);
+
+  const fetchPeople = async () => {
+    try {
+      const saved = localStorage.getItem("domru_credentials");
+      const headers: Record<string, string> = {};
+      if (saved) {
+        const creds = JSON.parse(saved);
+        const authPayload = btoa(encodeURIComponent(JSON.stringify(creds)));
+        headers["Authorization"] = `Bearer ${authPayload}`;
+      }
+      const res = await fetch("/api/domru/people", { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setPeople(data);
+      }
+    } catch (e) {
+      console.error("Failed to load people", e);
+    }
+  };
+  
+  // Custom dialog state for alerts/confirms to bypass iframe constraints
+  const [dialog, setDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    isConfirm: boolean;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    isConfirm: false,
+  });
+
+  const showCustomAlert = (title: string, message: string) => {
+    setDialog({
+      isOpen: true,
+      title,
+      message,
+      isConfirm: false,
+    });
+  };
+
+  const showCustomConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setDialog({
+      isOpen: true,
+      title,
+      message,
+      isConfirm: true,
+      onConfirm,
+    });
+  };
+
+  const resetIntegration = (id: string) => {
+    showCustomConfirm(
+      "Сброс интеграции",
+      "Сбросить интеграцию модуля? Все его настройки, зарегистрированные возможности и сохраненный контент (например, фотографии) будут безвозвратно удалены из системы домофона.",
+      async () => {
+        try {
+          const res = await fetch("/api/modules/reset", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id })
+          });
+          if (res.ok) {
+            // Update local state: clear configValues and status/entityStatuses
+            setModules(prev => prev.map(m => m.id === id ? { 
+              ...m, 
+              configValues: {}, 
+              status: "offline", 
+              statusMessage: undefined,
+              entityStatuses: {},
+              capabilities: undefined
+            } : m));
+            setEditValues({});
+            setEditingModule(null);
+            showCustomAlert("Успех", "Интеграция модуля успешно сброшена. Все связанные данные и конфигурация очищены.");
+          } else {
+            showCustomAlert("Ошибка", "Не удалось сбросить интеграцию модуля.");
+          }
+        } catch (e) {
+          console.error("Failed to reset module integration", e);
+          showCustomAlert("Ошибка", "Произошла сетевая ошибка при сбросе интеграции.");
+        }
+      }
+    );
+  };
+
+  const toggleModuleEnabled = async (id: string, currentEnabled: boolean) => {
+    try {
+      const res = await fetch("/api/modules/toggle-enabled", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, isEnabled: !currentEnabled })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setModules(prev => prev.map(m => m.id === id ? { ...m, isEnabled: data.isEnabled } : m));
+      } else {
+        showCustomAlert("Ошибка", "Не удалось изменить статус активности модуля.");
+      }
+    } catch (e) {
+      console.error("Failed to toggle module status", e);
+      showCustomAlert("Ошибка", "Произошла сетевая ошибка при переключении статуса.");
+    }
+  };
 
   useEffect(() => {
     fetchModules();
+    fetchPeople();
     
     const socket = getSocket();
-    const handleStatusChanged = (activeIds: string[]) => setOnlineModules(activeIds);
+    const handleStatusChanged = (activeIds?: string[]) => {
+      if (activeIds && Array.isArray(activeIds)) {
+        setOnlineModules(activeIds);
+      } else {
+        fetchModules();
+      }
+    };
     const handleStateUpdated = (payload: { moduleId: string, status: string, message?: string }) => {
+      if (!payload || !payload.moduleId) return;
       setModules(prev => prev.map(m => m.id === payload.moduleId ? { ...m, status: payload.status as any, statusMessage: payload.message } : m));
     };
     const handleSchemaUpdated = (payload: { moduleId: string, schema: any }) => {
+      if (!payload || !payload.moduleId) return;
       setModules(prev => prev.map(m => m.id === payload.moduleId ? { ...m, configSchema: payload.schema } : m));
     };
     const handleEntityStatusUpdated = (payload: { moduleId: string, entityType: string, entityId: string, status: any, message?: string }) => {
+      if (!payload || !payload.moduleId) return;
       setModules(prev => prev.map(m => {
         if (m.id === payload.moduleId) {
           const key = `${payload.entityType}_${payload.entityId}`;
@@ -132,24 +250,28 @@ export default function ModulesView() {
     }
   };
 
-  const deleteModule = async (id: string) => {
-    if (!window.confirm("Вы уверены, что хотите удалить этот модуль?")) return;
-    
-    try {
-      const res = await fetch(`/api/modules/delete`, { 
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id })
-      });
-      if (res.ok) {
-        setModules(prev => prev.filter(m => m.id !== id));
-      } else {
-        alert("Ошибка удаления: " + await res.text());
+  const deleteModule = (id: string) => {
+    showCustomConfirm(
+      "Удаление модуля",
+      "Вы уверены, что хотите удалить этот модуль? Это действие полностью удалит его из списка подключенных.",
+      async () => {
+        try {
+          const res = await fetch(`/api/modules/delete`, { 
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id })
+          });
+          if (res.ok) {
+            setModules(prev => prev.filter(m => m.id !== id));
+          } else {
+            showCustomAlert("Ошибка", "Ошибка удаления: " + await res.text());
+          }
+        } catch (e) {
+          console.error("Failed to delete module", e);
+          showCustomAlert("Ошибка", "Ошибка сети при удалении");
+        }
       }
-    } catch (e) {
-      console.error("Failed to delete module", e);
-      alert("Ошибка сети при удалении");
-    }
+    );
   };
 
   const startEditing = (mod: ExternalModule) => {
@@ -168,6 +290,17 @@ export default function ModulesView() {
   };
 
   const getModuleStatus = (mod: ExternalModule, isOnline: boolean) => {
+    // If the module is explicitly disabled
+    if (mod.isEnabled === false) {
+      return {
+        state: "disabled",
+        label: "Выключен",
+        tooltip: "Модуль отключен в настройках ядра.",
+        icon: <PowerOff className="w-3 h-3 text-red-500" />,
+        className: "text-red-600 bg-red-50 dark:bg-red-950/20"
+      };
+    }
+
     // Removed the aggressive override here so that we trust mod.status (which the server maintains)
 
     // If module provided explicit status, use it
@@ -262,7 +395,7 @@ export default function ModulesView() {
         return val === undefined || val === null || val === "";
       });
       if (missingFields.length > 0) {
-        alert(`Пожалуйста, заполните обязательные поля: ${missingFields.map(f => f.label).join(", ")}`);
+        showCustomAlert("Заполните поля", `Пожалуйста, заполните обязательные поля: ${missingFields.map(f => f.label).join(", ")}`);
         return;
       }
     }
@@ -277,10 +410,11 @@ export default function ModulesView() {
         setModules(prev => prev.map(m => m.id === id ? { ...m, configValues: editValues } : m));
         setEditingModule(null);
       } else {
-        alert("Ошибка сохранения настроек");
+        showCustomAlert("Ошибка", "Ошибка сохранения настроек");
       }
     } catch (e) {
       console.error("Failed to save settings", e);
+      showCustomAlert("Ошибка", "Ошибка сети при сохранении настроек");
     }
   };
 
@@ -323,7 +457,7 @@ export default function ModulesView() {
       {/* Modules List */}
       <div className="space-y-3">
         {modules.map(mod => {
-          const isOnline = onlineModules.includes(mod.id);
+          const isOnline = (onlineModules || []).includes(mod.id);
           const status = getModuleStatus(mod, isOnline);
           
           return (
@@ -366,6 +500,21 @@ export default function ModulesView() {
                     {copiedId === mod.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </div>
+                <button
+                  onClick={() => toggleModuleEnabled(mod.id, mod.isEnabled !== false)}
+                  className={`p-2 rounded-lg transition-colors cursor-pointer ${
+                    mod.isEnabled !== false 
+                      ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20" 
+                      : "text-zinc-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                  }`}
+                  title={mod.isEnabled !== false ? "Выключить модуль" : "Включить модуль"}
+                >
+                  {mod.isEnabled !== false ? (
+                    <Power className="w-4 h-4 text-emerald-500" />
+                  ) : (
+                    <PowerOff className="w-4 h-4 text-zinc-400" />
+                  )}
+                </button>
                 <button
                   onClick={() => deleteModule(mod.id)}
                   className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
@@ -462,22 +611,34 @@ export default function ModulesView() {
                       </div>
                     )}
 
-                    <div className="flex justify-end pt-2 gap-2">
+                    <div className="flex justify-between items-center pt-2 gap-2">
                       <button
-                        onClick={() => setEditingModule(null)}
-                        className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-xs font-bold rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                        type="button"
+                        onClick={() => resetIntegration(mod.id)}
+                        className="px-4 py-2 text-red-500 hover:text-white hover:bg-red-500 border border-red-500/20 dark:border-red-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-transparent"
                       >
-                        Отмена
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Сбросить интеграцию
                       </button>
-                      {mod.configSchema && (
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => saveSettings(mod.id, mod.configSchema)}
-                          className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors flex items-center gap-2"
+                          type="button"
+                          onClick={() => setEditingModule(null)}
+                          className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-xs font-bold rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
                         >
-                          <Save className="w-3.5 h-3.5" />
-                          Сохранить настройки
+                          Отмена
                         </button>
-                      )}
+                        {mod.configSchema && (
+                          <button
+                            type="button"
+                            onClick={() => saveSettings(mod.id, mod.configSchema)}
+                            className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors flex items-center gap-2 cursor-pointer"
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                            Сохранить настройки
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -490,18 +651,26 @@ export default function ModulesView() {
                     Статусы обработки
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {Object.values(mod.entityStatuses).map((status) => (
+                    {Object.values(mod.entityStatuses).map((status: any) => (
                       <div key={`${status.entityType}_${status.entityId}`} className="flex flex-col gap-1 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/60 p-2.5 rounded-xl">
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate pr-2">
-                            {status.entityType === "person" ? `ID: ${status.entityId}` : `${status.entityType} ${status.entityId}`}
+                            {status.entityType === "person" ? (
+                              (() => {
+                                const p = people.find((item: any) => item.id === status.entityId);
+                                return p ? p.name : `Резидент (ID: ${status.entityId})`;
+                              })()
+                            ) : (
+                              `${status.entityType} ${status.entityId}`
+                            )}
                           </span>
                           <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0 ${
                             status.status === "success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
                             status.status === "error" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
+                            status.status === "disabled" ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800/40 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50" :
                             "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                           }`}>
-                            {status.status === "success" ? "Успех" : status.status === "error" ? "Ошибка" : "В процессе"}
+                            {status.status === "success" ? "Успех" : status.status === "error" ? "Ошибка" : status.status === "disabled" ? "Отключен" : "В процессе"}
                           </span>
                         </div>
                         {status.message && (
@@ -525,6 +694,52 @@ export default function ModulesView() {
           </div>
         )}
       </div>
+
+      {dialog.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col relative p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-3 rounded-full ${dialog.isConfirm ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                <Info className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
+                {dialog.title}
+              </h3>
+            </div>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">
+              {dialog.message}
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              {dialog.isConfirm ? (
+                <>
+                  <button
+                    onClick={() => setDialog({ ...dialog, isOpen: false })}
+                    className="px-4 py-2 text-sm font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 rounded-xl bg-zinc-100 dark:bg-zinc-800 transition cursor-pointer"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDialog({ ...dialog, isOpen: false });
+                      if (dialog.onConfirm) dialog.onConfirm();
+                    }}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-md transition cursor-pointer"
+                  >
+                    Подтвердить
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setDialog({ ...dialog, isOpen: false })}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-zinc-900 hover:bg-zinc-850 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-xl shadow-md transition cursor-pointer"
+                >
+                  ОК
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

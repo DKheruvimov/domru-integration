@@ -17,7 +17,8 @@ import {
   ToggleLeft,
   ToggleRight,
   Camera,
-  ImagePlus
+  ImagePlus,
+  Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getSocket } from "../../socket";
@@ -53,7 +54,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
 
   /** Returns list of capabilities that apply to the given role */
   const capabilitiesForRole = (r: string) =>
-    Object.entries(capabilities).filter(([name]) => isCapabilitySupportedForRole(name, r));
+    (Object.entries(capabilities) as [string, any][]).filter(([name]) => isCapabilitySupportedForRole(name, r));
 
   const [activeSubTab, setActiveSubTab] = useState<"schedules" | "pins">("schedules");
   const [people, setPeople] = useState<Person[]>([]);
@@ -80,6 +81,25 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
   const [schedules, setSchedules] = useState<ScheduleRule[]>([
     { id: "s1", days: [1, 2, 3, 4, 5], startTime: "18:00", endTime: "19:00" }
   ]);
+
+  // Custom dialog state to bypass iframe constraints
+  const [dialog, setDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
+
+  const showCustomAlert = (title: string, message: string) => {
+    setDialog({
+      isOpen: true,
+      title,
+      message,
+    });
+  };
 
   // Fetch people list
   const fetchPeople = async () => {
@@ -148,7 +168,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       const data = await res.json();
       setPeople(data.people);
     } catch (err: any) {
-      alert(err.message || "Ошибка при сохранении");
+      showCustomAlert("Ошибка сохранения", err.message || "Ошибка при сохранении");
     }
   };
 
@@ -209,7 +229,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
       // Populate generic plugin settings
       const ps: Record<string, boolean> = {};
       const me: Record<string, boolean> = {};
-      for (const [capName, capCfg] of Object.entries(capabilities)) {
+      for (const [capName, capCfg] of Object.entries(capabilities) as [string, any][]) {
         ps[capName] = !!person.pluginSettings?.[capName];
         if (capCfg.mediaEndpoint) {
           me[capName] = capabilityKeys[capName]?.includes(person.id) || false;
@@ -276,7 +296,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
   // Form Submit
   const handleSavePerson = () => {
     if (!name.trim()) {
-      alert("Пожалуйста, введите имя.");
+      showCustomAlert("Ввод данных", "Пожалуйста, введите имя.");
       return;
     }
 
@@ -305,7 +325,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
     };
 
     // Upload / delete media for each capability that declares a mediaEndpoint
-    for (const [capName, capCfg] of Object.entries(capabilities)) {
+    for (const [capName, capCfg] of Object.entries(capabilities) as [string, any][]) {
       if (!capCfg.mediaEndpoint) continue;
       const staged = mediaFilesStaged[capName];
       const existing = mediaFilesExisting[capName];
@@ -1121,6 +1141,32 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
           </div>
         )}
       </AnimatePresence>
+
+      {dialog.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col relative p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-full bg-blue-500/10 text-blue-500">
+                <Info className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
+                {dialog.title}
+              </h3>
+            </div>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">
+              {dialog.message}
+            </p>
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setDialog({ ...dialog, isOpen: false })}
+                className="px-4 py-2 text-sm font-semibold text-white bg-zinc-900 hover:bg-zinc-850 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-xl shadow-md transition cursor-pointer"
+              >
+                ОК
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

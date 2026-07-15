@@ -15,7 +15,8 @@ if (!tokenArg) {
 }
 
 const TOKEN = tokenArg.split("=")[1];
-const CORE_URL = "https://kheruvimov.ru"; // Для тестов локально
+const urlArg = process.argv.find(arg => arg.startsWith("--url="));
+const CORE_URL = urlArg ? urlArg.split("=")[1] : "http://localhost:3000";
 const SETTINGS_FILE = path.join(process.cwd(), "data", "mock-settings.json");
 
 console.log(`🚀 Запуск Mock-модуля с токеном: ${TOKEN}`);
@@ -41,6 +42,34 @@ function saveLocalSettings(data: any) {
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2));
   } catch (e) {
     console.error("Ошибка сохранения настроек:", e);
+  }
+}
+
+// Регистрация возможностей (Capabilities)
+async function registerCapabilities() {
+  console.log("Отправка возможностей (capabilities) в Ядро...");
+  const capPayload = {
+    capability: "FACE_RECOGNITION",
+    label: "Face ID",
+    supportedRoles: ["resident", "guest"],
+    mediaEndpoint: "/api/modules/storage/3dfca534-c16b-4872-95e2-c4a32394c16e"
+  };
+
+  try {
+    const res = await fetch(`${CORE_URL}/api/modules/actions/capabilities?token=${TOKEN}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(capPayload)
+    });
+    if (res.ok) {
+      console.log("✅ Возможность FACE_RECOGNITION успешно зарегистрирована!");
+    } else {
+      console.error("❌ Ошибка регистрации возможностей:", await res.json());
+    }
+  } catch (e) {
+    console.error("❌ Не удалось отправить возможности:", e);
   }
 }
 
@@ -77,6 +106,7 @@ async function registerSchema() {
     });
     if (res.ok) {
       console.log("✅ Схема успешно зарегистрирована! Откройте UI Ядра и нажмите на шестеренку.");
+      await registerCapabilities();
     } else {
       console.error("❌ Ошибка регистрации схемы:", await res.json());
     }

@@ -33,6 +33,7 @@ export interface Person {
     badges?: {
       label: string;
       color: "success" | "warning" | "neutral" | "error";
+      message?: string;
     }[]; // Additional badges rendered on card
     customBlocks?: {
       title: string;

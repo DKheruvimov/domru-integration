@@ -39,12 +39,17 @@ router.get("/people", requireDomruAuth, async (req, res) => {
   }
 });
 
-router.post("/people", requireDomruAuth, (req, res) => {
+router.post("/people", requireDomruAuth, async (req, res) => {
   try {
     const { people } = req.body;
     if (Array.isArray(people)) {
       const oldPeople = getPeople();
       savePeople(people);
+
+      // Notify external modules that people database changed
+      import("../ws-manager.js").then(({ dispatchModuleEvent }) => {
+        dispatchModuleEvent("people_updated", {});
+      }).catch(err => console.error("Error dispatching people_updated:", err));
 
       // Detect deleted temporary cards to clean up active SIP tasks
       const newIds = new Set(people.map((p: any) => p.id));
@@ -73,7 +78,8 @@ router.post("/people", requireDomruAuth, (req, res) => {
         }
       }
 
-      res.json({ status: "SUCCESS", people });
+      const enrichedPeople = await enrichPeopleWithModuleExtensions(people);
+      res.json({ status: "SUCCESS", people: enrichedPeople });
     } else {
       res.status(400).json({ error: "people must be an array" });
     }
@@ -82,7 +88,7 @@ router.post("/people", requireDomruAuth, (req, res) => {
   }
 });
 
-router.post("/people/toggle", requireDomruAuth, (req, res) => {
+router.post("/people/toggle", requireDomruAuth, async (req, res) => {
   try {
     const { id, enabled } = req.body;
     const people = getPeople();
@@ -90,6 +96,11 @@ router.post("/people/toggle", requireDomruAuth, (req, res) => {
     if (person) {
       person.enabled = enabled;
       savePeople(people);
+
+      // Notify external modules that people database changed
+      import("../ws-manager.js").then(({ dispatchModuleEvent }) => {
+        dispatchModuleEvent("people_updated", {});
+      }).catch(err => console.error("Error dispatching people_updated:", err));
 
       // If disabling a temporary/courier person, disable their active SIP task as well!
       if (!enabled && id.startsWith("temp-")) {
@@ -100,7 +111,9 @@ router.post("/people/toggle", requireDomruAuth, (req, res) => {
         }
       }
 
-      res.json({ status: "SUCCESS", person });
+      const enrichedPeople = await enrichPeopleWithModuleExtensions(people);
+      const enrichedPerson = enrichedPeople.find(p => p.id === id);
+      res.json({ status: "SUCCESS", person: enrichedPerson });
     } else {
       res.status(404).json({ error: "Person not found" });
     }
