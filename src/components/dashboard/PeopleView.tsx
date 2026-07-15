@@ -294,7 +294,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
   };
 
   // Form Submit
-  const handleSavePerson = async () => {
+  const handleSavePerson = () => {
     if (!name.trim()) {
       showCustomAlert("Ввод данных", "Пожалуйста, введите имя.");
       return;
@@ -325,42 +325,23 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
     };
 
     // Upload / delete media for each capability that declares a mediaEndpoint
-    const mediaPromises = [];
     for (const [capName, capCfg] of Object.entries(capabilities) as [string, any][]) {
       if (!capCfg.mediaEndpoint) continue;
       const staged = mediaFilesStaged[capName];
       const existing = mediaFilesExisting[capName];
       if (staged) {
         // Upload new file to plugin's own endpoint
-        mediaPromises.push(
-          fetch(`${capCfg.mediaEndpoint}/${newPerson.id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ base64Data: staged })
-          }).catch(err => {
-            console.error("Error uploading media for", capName, err);
-            throw new Error(`Не удалось загрузить фото: ${err.message}`);
-          })
-        );
+        fetch(`${capCfg.mediaEndpoint}/${newPerson.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base64Data: staged })
+        }).catch(console.error);
         setCapabilityKeys(prev => ({ ...prev, [capName]: [...(prev[capName] || []), newPerson.id] }));
       } else if (!existing && capabilityKeys[capName]?.includes(newPerson.id)) {
         // User cleared the file — delete from plugin storage
-        mediaPromises.push(
-          fetch(`${capCfg.mediaEndpoint}/${newPerson.id}`, { method: 'DELETE' })
-            .catch(err => console.error("Error deleting media for", capName, err))
-        );
+        fetch(`${capCfg.mediaEndpoint}/${newPerson.id}`, { method: 'DELETE' }).catch(console.error);
         setCapabilityKeys(prev => ({ ...prev, [capName]: (prev[capName] || []).filter(id => id !== newPerson.id) }));
       }
-    }
-    
-    // Wait for all media uploads/deletions to complete BEFORE saving the person
-    // This prevents race conditions where the module receives people_updated before the photo is in storage
-    try {
-      await Promise.all(mediaPromises);
-    } catch (e: any) {
-      setError(e.message);
-      setIsLoading(false);
-      return;
     }
 
     // If it's a temporary event and was edited, update its expiresAt based on the latest endTime
