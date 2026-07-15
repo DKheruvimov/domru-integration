@@ -4,7 +4,7 @@ import fs from "fs";
 import axios from "axios";
 import { WebSocket, WebSocketServer } from "ws";
 
-const GO2RTC_VERSION = "v1.9.4";
+const GO2RTC_VERSION = "v1.9.8";
 const BIN_DIR = path.join(process.cwd(), "bin");
 const CONFIG_FILE = path.join(process.cwd(), "go2rtc.yaml");
 
@@ -15,7 +15,7 @@ function getGo2RtcDownloadUrlAndFilename(): { url: string; filename: string } {
 
   let binaryName = "";
   if (platform === "win32") {
-    binaryName = "go2rtc_win64.exe";
+    binaryName = "go2rtc_win64.zip";
   } else if (platform === "darwin") {
     binaryName = arch === "arm64" ? "go2rtc_mac_arm64" : "go2rtc_mac_amd64";
   } else if (platform === "linux") {
