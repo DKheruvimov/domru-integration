@@ -294,7 +294,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
   };
 
   // Form Submit
-  const handleSavePerson = () => {
+  const handleSavePerson = async () => {
     if (!name.trim()) {
       showCustomAlert("Ввод данных", "Пожалуйста, введите имя.");
       return;
