@@ -641,10 +641,8 @@ router.get("/actions/storage/:key", async (req, res) => {
 router.get("/storage/:moduleId/keys", async (req, res) => {
   try {
     const { moduleId } = req.params;
-    import("../modules-manager.js").then(async ({ readModuleStorage }) => {
-      const data = await readModuleStorage(moduleId);
-      res.json({ keys: Object.keys(data) });
-    });
+    const data = await readModuleStorage(moduleId);
+    res.json({ keys: Object.keys(data) });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
