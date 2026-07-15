@@ -125,6 +125,7 @@ interface RingingCall {
   timeoutId: NodeJS.Timeout;
 }
 const ringingCalls = new Map<string, RingingCall>(); // login -> RingingCall
+const lastSnapshotTime = new Map<number, number>(); // deviceId -> timestamp
 
 const sipLogs: SipLog[] = [];
 
@@ -401,6 +402,14 @@ function buildAuthorizationString(
 }
 
 async function triggerSnapshotForLogin(login: string, placeId: number, deviceId: number) {
+  const now = Date.now();
+  const lastTime = lastSnapshotTime.get(deviceId) || 0;
+  if (now - lastTime < 10000) {
+    addSipLog(`[SIP] Пропуск дублирующего снапшота для устройства ${deviceId} (прошло всего ${now - lastTime}мс)`);
+    return;
+  }
+  lastSnapshotTime.set(deviceId, now);
+
   addSipLog(`[SIP] Triggering camera snapshot for place ${placeId}, device ${deviceId}...`);
   try {
     const tokens = loadSavedTokens();
