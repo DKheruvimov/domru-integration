@@ -46,6 +46,16 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  // Serve dynamic environment configuration to the frontend
+  app.get("/api/config.js", (req, res) => {
+    res.type("application/javascript");
+    res.send(`window.__CONFIG__ = ${JSON.stringify({
+      apiBaseUrl: process.env.API_BASE_URL || "",
+      oauthBaseUrl: process.env.OAUTH_BASE_URL || "",
+      tgBaseUrl: process.env.TG_BASE_URL || ""
+    })};`);
+  });
+
   // Mount modular route controllers
   app.use("/api/code", codeRoutes);
   app.use("/api/domru", domruRoutes);

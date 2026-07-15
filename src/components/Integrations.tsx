@@ -9,7 +9,14 @@ interface IntegrationsProps {
 export default function Integrations({ credentials }: IntegrationsProps) {
   const [activeTab, setActiveTab] = React.useState<"smarthome" | "dialogs">("smarthome");
   const [copiedField, setCopiedField] = React.useState<string | null>(null);
-  const [customDomain, setCustomDomain] = React.useState(window.location.host);
+  
+  const getInitialDomain = () => {
+    const oauthUrl = (window as any).__CONFIG__?.oauthBaseUrl || "";
+    if (oauthUrl) return oauthUrl.replace(/^https?:\/\//, "");
+    return window.location.host;
+  };
+  const [customDomain, setCustomDomain] = React.useState(getInitialDomain());
+  
   const [isTesting, setIsTesting] = React.useState(false);
   const [testResults, setTestResults] = React.useState<any>(null);
 
@@ -117,7 +124,7 @@ export default function Integrations({ credentials }: IntegrationsProps) {
           🌐 Настройка домена для интеграций
         </h5>
         <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed font-semibold">
-          Если ваш сервер работает за прокси-защитой (например, TurboFlare / Cloudflare), укажите здесь ваш бесшовный субдомен (например, <code>oauth.kheruvimov.ru</code>), созданный в обход прокси, чтобы избежать блокировок WAF со стороны Яндекса.
+          Если ваш сервер работает за прокси-защитой (например, TurboFlare / Cloudflare), укажите здесь ваш бесшовный субдомен (например, <code>oauth.{window.location.hostname.replace(/^(api|oauth)\./, "")}</code>), созданный в обход прокси, чтобы избежать блокировок WAF со стороны Яндекса.
         </p>
         <div className="flex items-center gap-3 pt-1">
           <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 shrink-0">Внешний адрес:</span>

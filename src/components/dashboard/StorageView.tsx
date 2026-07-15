@@ -7,11 +7,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
   const resolveUrl = (url: string): string => {
     if (!url) return "";
     if (url.startsWith("/")) {
-      let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
-      if (!apiBaseUrl && typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" && !window.location.hostname.endsWith(".run.app")) {
-        const baseDomain = window.location.hostname.replace(/^api\./, "");
-        apiBaseUrl = `https://api.${baseDomain}`;
-      }
+      const apiBaseUrl = (window as any).__CONFIG__?.apiBaseUrl || "";
       return `${apiBaseUrl}${url}`;
     }
     return url;

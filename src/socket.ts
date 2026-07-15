@@ -4,12 +4,7 @@ let socket: Socket | null = null;
 
 export const getSocket = (): Socket => {
   if (!socket) {
-    let apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-    if (!apiBaseUrl && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" && !window.location.hostname.endsWith(".run.app")) {
-      // Dynamically connect to api.domain.com if VITE_API_BASE_URL failed to inject
-      const baseDomain = window.location.hostname.replace(/^api\./, "");
-      apiBaseUrl = `https://api.${baseDomain}`;
-    }
+    const apiBaseUrl = (window as any).__CONFIG__?.apiBaseUrl || "";
     const socketUrl = apiBaseUrl ? apiBaseUrl.replace(/^http/, "ws") : undefined;
 
     // Connect directly to the dedicated subdomain for WebSockets and API to bypass WAF if configured
