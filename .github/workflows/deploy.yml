@@ -57,12 +57,18 @@ jobs:
             
             echo "==== Launching new container ===="
             # We map port 3100 on the host to 3000 in the container, mount data volume for token persistence, and specify Yandex & Google DNS
+            ENV_FILE=""
+            if [ -f /home/denis/apps/domru-integration/.env ]; then
+              ENV_FILE="--env-file /home/denis/apps/domru-integration/.env"
+            fi
+
             docker run -d \
               --name yandex-domru-intercom-bridge \
               --restart always \
               --dns 77.88.8.8 \
               --dns 8.8.8.8 \
               -p 3100:3000 \
+              $ENV_FILE \
               -v /home/denis/apps/domru-integration/data:/app/data \
               --log-opt max-size=10m --log-opt max-file=3 \
               dom-ru.cr.cloud.ru/yandex-domru-intercom-bridge:latest
