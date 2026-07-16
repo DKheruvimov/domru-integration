@@ -251,6 +251,11 @@ export async function checkAutoOpenRules(deviceId?: number): Promise<{ active: b
           // Find the module that registers this capability
           const owningModule = modules.find(m => m.capabilities && m.capabilities[capName]);
           if (owningModule) {
+            // Если модуль офлайн — не блокируем открытие по расписанию (graceful degradation).
+            // Дверь откроется только по расписанию, как если бы плагина не было.
+            if (owningModule.status === "offline") {
+              return false;
+            }
             const entityStatus = owningModule.entityStatuses?.[`person_${person.id}`];
             if (entityStatus && entityStatus.status === "error") {
               return false; // Skip plugins that are in error state
