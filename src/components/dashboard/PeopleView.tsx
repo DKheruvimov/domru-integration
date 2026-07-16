@@ -67,7 +67,8 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
 
   const [activeSubTab, setActiveSubTab] = useState<"schedules" | "pins">("schedules");
   const [people, setPeople] = useState<Person[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true); // полный загрузочный экран только при первом монтировании
+  const [isRefreshing, setIsRefreshing] = useState(false);        // тихое фоновое обновление
   const [error, setError] = useState<string | null>(null);
   const [showHelpText, setShowHelpText] = useState(false);
 
@@ -110,10 +111,16 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
     });
   };
 
-  // Fetch people list
-  const fetchPeople = async () => {
+  // Fetch people list.
+  // background=true используется для тихих фоновых обновлений (socket-события),
+  // чтобы не скрывать уже отображённый список надписью «Загрузка...».
+  const fetchPeople = async (background = false) => {
     try {
-      setIsLoading(true);
+      if (background) {
+        setIsRefreshing(true);
+      } else {
+        setIsInitialLoading(true);
+      }
       const res = await fetch("/api/domru/people", {
         headers: { ...proxyHeaders },
       });
@@ -123,16 +130,19 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
     } catch (err: any) {
       setError(err.message || "Не удалось загрузить людей");
     } finally {
-      setIsLoading(false);
+      setIsInitialLoading(false);
+      setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchPeople();
+    fetchPeople(); // первый вызов — показывает полный загрузочный экран
     
     const socket = getSocket();
-    socket.on("auto_open_status_changed", fetchPeople);
-    socket.on("entity_status_updated", fetchPeople);
+    // Фоновые события от плагинов и ядра — тихое обновление без скачков UI
+    const handleBackgroundRefresh = () => fetchPeople(true);
+    socket.on("auto_open_status_changed", handleBackgroundRefresh);
+    socket.on("entity_status_updated", handleBackgroundRefresh);
     
     const loadCaps = async () => {
       try {
@@ -160,8 +170,8 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
     loadCaps();
 
     return () => {
-      socket.off("auto_open_status_changed", fetchPeople);
-      socket.off("entity_status_updated", fetchPeople);
+      socket.off("auto_open_status_changed", handleBackgroundRefresh);
+      socket.off("entity_status_updated", handleBackgroundRefresh);
     };
   }, []);
 
@@ -703,7 +713,7 @@ export default function PeopleView({ pins, makeGuestPin, proxyHeaders, isDevMode
             </div>
           </div>
 
-          {isLoading ? (
+          {isInitialLoading ? (
             <div className="text-center py-12 text-xs text-zinc-400">Загрузка правил автооткрытия...</div>
           ) : error ? (
             <div className="p-4 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-2xl flex items-center gap-2 border border-red-100 dark:border-red-900/30">
