@@ -47,10 +47,14 @@ Content-Type: application/json
 `
 
 ### Способ Б: Подключение по WebSocket
-Если вашему скрипту проще держать постоянное соединение (например, локальные Python-скрипты), вы можете подключиться по протоколу WebSocket.
+Если вашему скрипту проще держать постоянное соединение (например, локальные Python-скрипты), вы можете подключиться по протоколу Socket.IO к выделенному пространству имён `/modules`.
 
 **URL для подключения:**
-ws://<адрес_ядра>/api/modules/ws?token=<ваш_токен>
+```
+wss://<адрес_ядра>/modules?token=<ваш_токен>&moduleId=<ваш_module_id>
+```
+
+> **Примечание:** Это пространство имён Socket.IO, а не обычный WebSocket-эндпоинт. Используйте клиентскую библиотеку Socket.IO.
 
 После успешного подключения Ядро начнет транслировать все события домофона в виде JSON-сообщений.
 
@@ -148,21 +152,31 @@ Content-Type: application/json
 
 ### Регистрация Возможности
 **Запрос:**
-POST /api/modules/me/register-capability
+```
+POST /api/modules/actions/capabilities
+```
 
-В заголовке: Authorization: Bearer <ваш_токен>
+В заголовке: Authorization: Bearer <ваш_токен> (или ?token=<токен>)  
 Content-Type: application/json
 
 **Тело:**
 ```json
 {
-  "name": "FACE_RECOGNITION",
+  "capability": "FACE_RECOGNITION",
   "label": "Распознавание лиц (Face ID)",
-  "description": "Автоматическое открытие двери на основе видеоанализа лица посетителя"
+  "supportedRoles": ["resident", "guest"],
+  "mediaEndpoint": "/api/modules/storage/<ваш_module_id>"
 }
 ```
 
-В случае успеха возможность регистрируется, и её статус немедленно синхронизируется с базой данных людей. Пользователи могут индивидуально активировать или деактивировать "FACE_RECOGNITION" для жильцов, гостей и курьеров.
+| Поле | Обязательное | Описание |
+|---|---|---|
+| `capability` | ✅ | Уникальный идентификатор в `UPPER_SNAKE_CASE` |
+| `label` | Нет | Человекочитаемое имя переключателя в UI |
+| `supportedRoles` | Нет | Список ролей, для которых показывать переключатель (`resident`, `guest`, `courier`). Если не указан — только `resident`. |
+| `mediaEndpoint` | Нет | Базовый URL хранилища медиафайлов, откуда UI будет загружать аватары. |
+
+В случае успеха возможность регистрируется, и её статус немедленно синхронизируется с базой данных людей. Пользователи могут индивидуально активировать или деактивировать "FACE_RECOGNITION" для жильцов и гостей.
 
 ---
 
@@ -249,7 +263,9 @@ DELETE /api/modules/storage/:moduleId/:key
 - `module_data_updated` — сигнализирует об обновлении локального хранилища модуля.
 
 ### События Модуля (Модуль -> Сервер)
-- `update_status` — передача текущего статуса модуля (замена HTTP POST `/api/modules/me/status`).
-- `update_entity_status` — передача статуса обработки человека (замена HTTP POST `/api/modules/me/entity-status`).
-- `action_open_door` — отправка запроса на открытие двери.
+- `update_status` — передача текущего статуса модуля. Альтернатива HTTP `POST /api/modules/me/status`.
+
+> **Важно:** Эндпоинты `update_entity_status` и `action_open_door` доступны **только через HTTP REST**, а не через WebSocket:
+> - Статус сущности: `POST /api/modules/me/entity-status`
+> - Открытие двери: `POST /api/modules/actions/open`
 
