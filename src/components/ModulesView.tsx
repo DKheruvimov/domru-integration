@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Plug, Plus, Trash2, KeyRound, Clock, Activity, CheckCircle2, XCircle, Settings2, Save, AlertCircle, Copy, Check, RefreshCw, Info, Power, PowerOff } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Plug, Plus, Trash2, KeyRound, Clock, Activity, CheckCircle2, XCircle, Settings2, Save, AlertCircle, Copy, Check, RefreshCw, Info, Power, PowerOff, ImagePlus, ToggleLeft, ToggleRight, User } from "lucide-react";
 
 import { getSocket } from "../socket";
 
@@ -21,6 +21,7 @@ export interface ExternalModule {
   token: string;
   createdAt: number;
   isEnabled?: boolean;
+  capabilities?: Record<string, { label?: string; supportedRoles?: string[]; mediaEndpoint?: string }>;
   connection?: {
     type: "websocket" | "webhook" | "long_polling";
     webhookUrl?: string;
@@ -418,6 +419,81 @@ export default function ModulesView() {
     }
   };
 
+  // ── Helpers для карточек людей в блоке «Статусы обработки» ──────────────
+
+  /** Получить первый capability этого модуля */
+  const getFirstCapKey = (mod: ExternalModule): string | null => {
+    const caps = (mod as any).capabilities;
+    if (!caps) return null;
+    const keys = Object.keys(caps);
+    return keys.length > 0 ? keys[0] : null;
+  };
+
+  /** Переключить capability для конкретного жильца */
+  const togglePersonCapability = async (person: any, capKey: string, currentValue: boolean) => {
+    try {
+      const saved = localStorage.getItem("domru_credentials");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (saved) {
+        const creds = JSON.parse(saved);
+        headers["Authorization"] = `Bearer ${btoa(encodeURIComponent(JSON.stringify(creds)))}`;
+      }
+      const updatedPeople = people.map((p: any) =>
+        p.id === person.id
+          ? { ...p, pluginSettings: { ...(p.pluginSettings || {}), [capKey]: !currentValue } }
+          : p
+      );
+      const res = await fetch("/api/domru/people", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ people: updatedPeople }),
+      });
+      if (res.ok) {
+        setPeople(updatedPeople);
+      } else {
+        showCustomAlert("Ошибка", "Не удалось сохранить настройки жильца.");
+      }
+    } catch (e) {
+      console.error("Failed to toggle person capability", e);
+      showCustomAlert("Ошибка", "Ошибка сети при сохранении настроек жильца.");
+    }
+  };
+
+  /** Загрузить фото для жильца в хранилище модуля */
+  const handlePersonPhotoUpload = async (moduleId: string, personId: string, file: File) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const base64Data = ev.target?.result as string;
+        const res = await fetch(`/api/modules/storage/${moduleId}/${personId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ base64Data }),
+        });
+        if (!res.ok) {
+          showCustomAlert("Ошибка", "Не удалось загрузить фотографию.");
+        }
+        // Принудительно перезагрузим аватар через cache-bust
+        setModules(prev => [...prev]);
+      };
+      reader.readAsDataURL(file);
+    } catch (e) {
+      console.error("Failed to upload photo", e);
+      showCustomAlert("Ошибка", "Ошибка при загрузке фотографии.");
+    }
+  };
+
+  /** Удалить фото жильца из хранилища модуля */
+  const handlePersonPhotoDelete = async (moduleId: string, personId: string) => {
+    try {
+      const res = await fetch(`/api/modules/storage/${moduleId}/${personId}`, { method: "DELETE" });
+      if (!res.ok) showCustomAlert("Ошибка", "Не удалось удалить фотографию.");
+      setModules(prev => [...prev]);
+    } catch (e) {
+      showCustomAlert("Ошибка", "Ошибка сети при удалении фотографии.");
+    }
+  };
+
   return (
     <div className="space-y-6 pb-6 animate-fade-in" id="modules_panel">
       {/* Intro Header */}
@@ -644,45 +720,138 @@ export default function ModulesView() {
                 </div>
               )}
               
-              {/* Entity Statuses Display */}
-              {mod.entityStatuses && Object.keys(mod.entityStatuses).length > 0 && (
-                <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800/50 w-full col-span-full">
-                  <div className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3">
-                    Статусы обработки
+              {/* Entity Statuses Display — enriched with photo + capability toggle */}
+              {mod.entityStatuses && Object.keys(mod.entityStatuses).length > 0 && (() => {
+                const capKey = getFirstCapKey(mod);
+                const hasMedia = !!(mod as any).capabilities?.[capKey ?? ""]?.mediaEndpoint;
+                return (
+                  <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800/50 w-full col-span-full">
+                    <div className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3">
+                      Статусы обработки
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {Object.values(mod.entityStatuses).map((status: any) => {
+                        const person = people.find((p: any) => p.id === status.entityId);
+                        const capEnabled = capKey ? !!(person?.pluginSettings?.[capKey]) : false;
+                        const photoUrl = hasMedia
+                          ? `/api/modules/storage/${mod.id}/${status.entityId}?t=${mod.entityStatuses?.[`${status.entityType}_${status.entityId}`]?.updatedAt ?? ""}`
+                          : null;
+
+                        return (
+                          <div
+                            key={`${status.entityType}_${status.entityId}`}
+                            className="flex items-start gap-3 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/60 p-3 rounded-xl"
+                          >
+                            {/* Avatar / Photo */}
+                            <div className="relative shrink-0 group">
+                              {photoUrl ? (
+                                <img
+                                  src={photoUrl}
+                                  alt={person?.name || status.entityId}
+                                  className="w-10 h-10 rounded-lg object-cover border border-zinc-200 dark:border-zinc-700"
+                                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center">
+                                  <User className="w-5 h-5 text-zinc-400" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Info block */}
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              {/* Name + status badge */}
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate">
+                                  {status.entityType === "person"
+                                    ? (person?.name || `Резидент (ID: ${status.entityId})`)
+                                    : `${status.entityType} ${status.entityId}`}
+                                </span>
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0 ${
+                                  status.status === "success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                                  status.status === "error" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
+                                  status.status === "disabled" ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800/40 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50" :
+                                  "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                }`}>
+                                  {status.status === "success" ? "Успех" : status.status === "error" ? "Ошибка" : status.status === "disabled" ? "Отключен" : "В процессе"}
+                                </span>
+                              </div>
+
+                              {/* Status message */}
+                              {status.message && (
+                                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-tight block">
+                                  {status.message}
+                                </span>
+                              )}
+
+                              {/* Controls: photo upload + capability toggle */}
+                              {status.entityType === "person" && (
+                                <div className="flex items-center gap-2 pt-0.5">
+                                  {/* Photo upload */}
+                                  {hasMedia && (
+                                    <>
+                                      <label
+                                        htmlFor={`photo-upload-${mod.id}-${status.entityId}`}
+                                        className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg cursor-pointer transition-colors"
+                                        title="Загрузить фото"
+                                      >
+                                        <ImagePlus className="w-3 h-3" />
+                                        Фото
+                                      </label>
+                                      <input
+                                        id={`photo-upload-${mod.id}-${status.entityId}`}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) handlePersonPhotoUpload(mod.id, status.entityId, file);
+                                          e.target.value = "";
+                                        }}
+                                      />
+                                      {photoUrl && (
+                                        <button
+                                          onClick={() => showCustomConfirm(
+                                            "Удалить фото",
+                                            `Удалить фотографию для ${person?.name || status.entityId}?`,
+                                            () => handlePersonPhotoDelete(mod.id, status.entityId)
+                                          )}
+                                          className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg cursor-pointer transition-colors"
+                                          title="Удалить фото"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+
+                                  {/* Capability toggle */}
+                                  {capKey && person && (
+                                    <button
+                                      onClick={() => togglePersonCapability(person, capKey, capEnabled)}
+                                      className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg cursor-pointer transition-colors ml-auto ${
+                                        capEnabled
+                                          ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
+                                          : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                      }`}
+                                      title={capEnabled ? "Выключить для этого жильца" : "Включить для этого жильца"}
+                                    >
+                                      {capEnabled
+                                        ? <ToggleRight className="w-3.5 h-3.5" />
+                                        : <ToggleLeft className="w-3.5 h-3.5" />}
+                                      {capEnabled ? "Вкл" : "Выкл"}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {Object.values(mod.entityStatuses).map((status: any) => (
-                      <div key={`${status.entityType}_${status.entityId}`} className="flex flex-col gap-1 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/60 p-2.5 rounded-xl">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate pr-2">
-                            {status.entityType === "person" ? (
-                              (() => {
-                                const p = people.find((item: any) => item.id === status.entityId);
-                                return p ? p.name : `Резидент (ID: ${status.entityId})`;
-                              })()
-                            ) : (
-                              `${status.entityType} ${status.entityId}`
-                            )}
-                          </span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0 ${
-                            status.status === "success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
-                            status.status === "error" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
-                            status.status === "disabled" ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800/40 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50" :
-                            "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                          }`}>
-                            {status.status === "success" ? "Успех" : status.status === "error" ? "Ошибка" : status.status === "disabled" ? "Отключен" : "В процессе"}
-                          </span>
-                        </div>
-                        {status.message && (
-                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-tight">
-                            {status.message}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           );
         })}

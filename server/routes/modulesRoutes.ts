@@ -1,5 +1,6 @@
 import { Router } from "express";
 import crypto from "crypto";
+import heicConvert from "heic-convert";
 import { 
   getModules, 
   saveModules,
@@ -627,7 +628,8 @@ router.post("/actions/storage/:key", async (req, res) => {
     const { data } = req.body;
     if (data === undefined) return res.status(400).json({ error: "Missing data" });
 
-    await setModuleStorageValue(module.id, key, data);
+    const valueToStore = await handleHeicConversion(data);
+    await setModuleStorageValue(module.id, key, valueToStore);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -694,7 +696,7 @@ router.post("/storage/:moduleId/:key", async (req, res) => {
     const { base64Data, data } = req.body;
     console.log(`[STORAGE WRITE] Body keys: ${Object.keys(req.body)}, base64Data type: ${typeof base64Data}, base64Data length: ${base64Data ? base64Data.length : 0}`);
     
-    const valueToStore = base64Data || data;
+    const valueToStore = await handleHeicConversion(base64Data || data);
     if (!valueToStore) {
       console.log(`[STORAGE WRITE] Failed: No data provided`);
       return res.status(400).json({ error: "No data provided" });
@@ -752,5 +754,48 @@ router.delete("/storage/:moduleId/:key", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Helper functions for HEIC/HEIF to JPEG conversion
+async function handleHeicConversion(value: string): Promise<string> {
+  if (typeof value !== "string" || !value.startsWith("data:")) {
+    return value;
+  }
+  const matches = value.match(/^data:([^;]+);base64,([\s\S]+)$/);
+  if (!matches || matches.length !== 3) {
+    return value;
+  }
+  const mimeType = matches[1];
+  const base64Str = matches[2];
+  const buffer = Buffer.from(base64Str, "base64");
+  
+  // Detect if it is HEIC/HEIF
+  const isHeic = mimeType.includes("heic") || mimeType.includes("heif") || isBufferHeic(buffer);
+  if (!isHeic) {
+    return value;
+  }
+  
+  console.log(`[HEIC CONVERT] HEIC/HEIF image detected. Converting to JPEG...`);
+  try {
+    const convertedBuffer = await heicConvert({
+      buffer,
+      format: 'JPEG',
+      quality: 0.8
+    });
+    const convertedBase64 = Buffer.from(convertedBuffer).toString("base64");
+    console.log(`[HEIC CONVERT] Success. Converted buffer size: ${convertedBuffer.length} bytes.`);
+    return `data:image/jpeg;base64,${convertedBase64}`;
+  } catch (err: any) {
+    console.error("[HEIC CONVERT] Conversion failed:", err);
+    return value; // Fallback to original
+  }
+}
+
+function isBufferHeic(buffer: Buffer): boolean {
+  if (buffer.length < 12) return false;
+  const ftyp = buffer.toString('ascii', 4, 8);
+  if (ftyp !== 'ftyp') return false;
+  const brand = buffer.toString('ascii', 8, 12);
+  return ['heic', 'heix', 'hevc', 'heim', 'heis', 'mif1', 'msf1'].includes(brand);
+}
 
 export default router;
