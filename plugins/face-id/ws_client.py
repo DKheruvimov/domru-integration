@@ -99,7 +99,10 @@ def sync_people_database():
                     log(f"👤 Person '{name}' ({person_id}) is already fully synced & unchanged. Keeping cached profile.", "SYNC")
                     new_db[person_id] = cached_entry
                     if biometrics.HAS_INSIGHTFACE:
-                        core_client.report_entity_status(person_id, "success", "База данных синхронизирована. Модуль активен.")
+                        if cached_entry.get("encoding") is None:
+                            core_client.report_entity_status(person_id, "error", "Лицо не обнаружено на фотографии")
+                        else:
+                            core_client.report_entity_status(person_id, "success", "База данных синхронизирована. Модуль активен.")
                     else:
                         core_client.report_entity_status(person_id, "success", "Синхронизировано (эмуляция Haar Cascade)")
                     continue
