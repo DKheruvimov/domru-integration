@@ -8,7 +8,7 @@ def fetch_module_id():
     cached_id = None
     if os.path.exists(settings.module_id_file):
         try:
-            with open(settings.module_id_file, "r") as f:
+            with open(settings.module_id_file, "r", encoding="utf-8-sig") as f:
                 cached_id = f.read().strip()
                 log(f"Found cached Module ID: {cached_id}", "INIT")
         except Exception as e:
