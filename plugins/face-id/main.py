@@ -1,6 +1,22 @@
 #!/usr/bin/env python3
 import os
+# Configure threading environment variables to prevent ONNX Runtime/BLAS deadlocks in background threads
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 import sys
+# Reconfigure standard streams to UTF-8 to prevent UnicodeEncodeError on Windows console
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 import argparse
 import requests
 import socketio
@@ -651,9 +667,12 @@ def main():
     t_conn = threading.Thread(target=connection_monitor, daemon=True)
     t_conn.start()
         
-    # Start command loop in a separate thread
-    t = threading.Thread(target=command_loop, daemon=True)
-    t.start()
+    # Start command loop in a separate thread if running in an interactive terminal
+    if sys.stdin and sys.stdin.isatty():
+        t = threading.Thread(target=command_loop, daemon=True)
+        t.start()
+    else:
+        log("No interactive terminal available (stdin is not a TTY). Running in background mode.", "SYS")
     
     # Keep main thread alive
     while True:
