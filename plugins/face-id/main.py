@@ -39,12 +39,15 @@ def trigger_sync():
             t = threading.Thread(target=sync_loop, daemon=True)
             t.start()
 
-# Try to import face_recognition
+# Try to import insightface
 try:
-    import face_recognition
-    HAS_FACE_RECOGNITION = True
+    from insightface.app import FaceAnalysis
+    HAS_INSIGHTFACE = True
 except ImportError:
-    HAS_FACE_RECOGNITION = False
+    HAS_INSIGHTFACE = False
+
+# Global FaceAnalysis instance
+face_app = None
 
 DEFAULT_TOKEN = "mod_006d444a104af28092c11312f7dda065d38adda378f136ab"
 DEFAULT_URL = "http://localhost:3000"
@@ -219,7 +222,7 @@ def sync_people_database():
                     # Keep the cached profile
                     new_db[person_id] = cached_entry
                     # Core status is reset on write or restart, so ensure it reflects SUCCESS state even if we skipped simulation
-                    if HAS_FACE_RECOGNITION:
+                    if HAS_INSIGHTFACE:
                         report_entity_status(person_id, "success", "База данных синхронизирована. Модуль активен.")
                     else:
                         report_entity_status(person_id, "success", "Синхронизировано (эмуляция Haar Cascade)")
@@ -252,18 +255,22 @@ def sync_people_database():
                     if img is not None:
                         encoding = None
                         # Phase 4: Face Analysis
-                        if HAS_FACE_RECOGNITION:
-                            report_entity_status(person_id, "processing", "Анализ биометрии (face_recognition)...")
-                            # Convert BGR (OpenCV) to RGB (face_recognition)
-                            rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                            encodings = face_recognition.face_encodings(rgb_img)
-                            if encodings:
-                                encoding = encodings[0]
-                                log(f"✅ Extracted face encoding for {name}", "SYNC")
-                                report_entity_status(person_id, "success", "База данных синхронизирована. Модуль активен.")
-                            else:
-                                log(f"⚠️ No faces found in photo for {name}", "WARN")
-                                report_entity_status(person_id, "error", "Лицо не обнаружено на фотографии")
+                        if HAS_INSIGHTFACE and face_app is not None:
+                            report_entity_status(person_id, "processing", "Анализ биометрии (InsightFace)...")
+                            try:
+                                faces = face_app.get(img)
+                                if faces:
+                                    # Pick the largest face in the photo
+                                    largest_face = max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
+                                    encoding = largest_face.embedding
+                                    log(f"✅ Extracted face embedding for {name}", "SYNC")
+                                    report_entity_status(person_id, "success", "База данных синхронизирована. Модуль активен.")
+                                else:
+                                    log(f"⚠️ No faces found in photo for {name}", "WARN")
+                                    report_entity_status(person_id, "error", "Лицо не обнаружено на фотографии")
+                            except Exception as ex:
+                                log(f"❌ InsightFace processing failed for {name}: {ex}", "ERROR")
+                                report_entity_status(person_id, "error", f"Ошибка анализа биометрии: {ex}")
                         else:
                             report_entity_status(person_id, "processing", "Определение структуры лица (Haar Cascade)...")
                             report_entity_status(person_id, "success", "Синхронизировано (эмуляция Haar Cascade)")
@@ -333,6 +340,9 @@ def trigger_door_open(device_id, person_id, person_name):
         log(f"❌ Exception sending door open command: {e}", "ERROR")
         report_entity_status(person_id, "error", f"Ошибка сети при открытии двери")
 
+def cosine_similarity(a, b):
+    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
 def process_recognition_from_image(image_bytes, device_id):
     """Detect faces and match against database."""
     nparr = np.frombuffer(image_bytes, np.uint8)
@@ -353,32 +363,42 @@ def process_recognition_from_image(image_bytes, device_id):
         log("No faces detected in the current snapshot frame.", "RECOGNITION")
         return
 
-    # 2. Precision Face Matching (if face_recognition package is present)
-    if HAS_FACE_RECOGNITION:
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        face_locations = face_recognition.face_locations(rgb_frame)
-        face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
-        
-        log(f"face_recognition found {len(face_encodings)} face encodings.", "RECOGNITION")
-        
-        for encoding in face_encodings:
-            # Match against each known person
-            for person_id, p_data in people_db.items():
-                known_encoding = p_data.get("encoding")
-                if known_encoding is None:
-                    continue
-                    
-                report_entity_status(person_id, "processing", "Сравнение биометрических данных...")
+    # 2. Precision Face Matching (using InsightFace)
+    if HAS_INSIGHTFACE and face_app is not None:
+        try:
+            faces_detected = face_app.get(frame)
+            log(f"InsightFace found {len(faces_detected)} face(s) in frame.", "RECOGNITION")
+            
+            for face in faces_detected:
+                encoding = face.embedding
                 
-                # Compare face encodings
-                matches = face_recognition.compare_faces([known_encoding], encoding, tolerance=0.6)
-                if matches[0]:
-                    name = p_data["name"]
-                    log(f"🌟 MATCH FOUND! Identified resident: {name} ({person_id})", "RECOGNITION")
-                    trigger_door_open(device_id, person_id, name)
+                # Match against each known person
+                best_id = None
+                best_name = None
+                best_sim = 0.0
+                
+                for person_id, p_data in people_db.items():
+                    known_encoding = p_data.get("encoding")
+                    if known_encoding is None:
+                        continue
+                        
+                    report_entity_status(person_id, "processing", "Сравнение биометрических данных...")
+                    
+                    sim = cosine_similarity(encoding, known_encoding)
+                    if sim > best_sim:
+                        best_sim = sim
+                        best_id = person_id
+                        best_name = p_data["name"]
+                
+                # Threshold for matching: 0.45 is standard for buffalo_l
+                if best_id and best_sim >= 0.45:
+                    log(f"🌟 MATCH FOUND! Identified resident: {best_name} ({best_id}) with similarity {best_sim:.4f}", "RECOGNITION")
+                    trigger_door_open(device_id, best_id, best_name)
                     return
-        
-        log("Precision matching done. No matched profile found in database.", "RECOGNITION")
+            
+            log("InsightFace matching done. No matched profile found in database.", "RECOGNITION")
+        except Exception as ex:
+            log(f"❌ InsightFace match failed: {ex}", "ERROR")
     else:
         # Smart Cascade Fallback: Match to the first active person in the database for simulation
         if people_db:
@@ -594,7 +614,7 @@ def connection_monitor():
         time.sleep(5)
 
 def main():
-    global args
+    global args, face_app, HAS_INSIGHTFACE
     parser = argparse.ArgumentParser(description="Face ID Integration Module")
     parser.add_argument("--token", default=DEFAULT_TOKEN, help="Module Authorization Token")
     parser.add_argument("--url", default=DEFAULT_URL, help="Core application base URL")
@@ -603,7 +623,19 @@ def main():
     log(f"Starting Face ID (Python) integration...", "INIT")
     log(f"Core URL: {args.url}", "INIT")
     log(f"Module Token: {args.token}", "INIT")
-    log(f"Face Recognition Lib available: {HAS_FACE_RECOGNITION}", "INIT")
+    log(f"InsightFace available: {HAS_INSIGHTFACE}", "INIT")
+    
+    if HAS_INSIGHTFACE:
+        log("Loading InsightFace buffalo_l model...", "INIT")
+        try:
+            face_app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
+            face_app.prepare(ctx_id=0, det_size=(320, 320))
+            log("✅ InsightFace loaded successfully!", "INIT")
+        except Exception as e:
+            log(f"❌ Failed to initialize InsightFace: {e}", "ERROR")
+            HAS_INSIGHTFACE = False
+    else:
+        log("⚠️ InsightFace not found. Falling back to Haar Cascade simulation.", "WARN")
     
     # Load persistent profiles cache from disk
     load_processed_cache()
