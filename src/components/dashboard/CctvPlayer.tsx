@@ -205,6 +205,12 @@ export default function CctvPlayer({
           iceServers: [{ urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] }]
         });
 
+        pc.oniceconnectionstatechange = () => {
+          if (pc) {
+            addStreamLog(`🧊 WebRTC ICE State: ${pc.iceConnectionState}`);
+          }
+        };
+
         pc.ontrack = (event) => {
           addStreamLog("▶ WebRTC: Получен медиа-трек потока!");
           try {
@@ -212,33 +218,25 @@ export default function CctvPlayer({
               ? event.streams[0]
               : new MediaStream([event.track]);
             video.srcObject = remoteStream;
+            video.play().catch(e => {
+              console.log("Autoplay check:", e);
+            });
           } catch (trackErr: any) {
             addStreamLog(`⛔ Ошибка привязки трека: ${trackErr.message}`);
           }
         };
 
         try {
-          const localTracks: MediaStreamTrack[] = [];
-          const videoTransceiver = pc.addTransceiver("video", { direction: "recvonly" });
-          if (videoTransceiver && videoTransceiver.receiver && videoTransceiver.receiver.track) {
-            localTracks.push(videoTransceiver.receiver.track);
-          }
-
+          pc.addTransceiver("video", { direction: "recvonly" });
           try {
-            const audioTransceiver = pc.addTransceiver("audio", { direction: "recvonly" });
-            if (audioTransceiver && audioTransceiver.receiver && audioTransceiver.receiver.track) {
-              localTracks.push(audioTransceiver.receiver.track);
-            }
+            pc.addTransceiver("audio", { direction: "recvonly" });
           } catch (audioErr) {
             addStreamLog("⚠️ Предупреждение WebRTC аудио: не удалось добавить ресивер.");
-          }
-
-          if (localTracks.length > 0) {
-            video.srcObject = new MediaStream(localTracks);
           }
         } catch (transceiverErr: any) {
           addStreamLog(`⚠️ addTransceiver не поддерживается: ${transceiverErr.message}. Ожидание ontrack.`);
         }
+
 
         let wsUrl = streamUrl;
         if (window.location.protocol === "https:" && wsUrl.startsWith("ws://")) {

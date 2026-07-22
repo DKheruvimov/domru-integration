@@ -5,6 +5,8 @@ rtsp:
   listen: "0.0.0.0:8554"
 webrtc:
   listen: "0.0.0.0:8555"
+  candidates:
+    - "stun:8555"
 srtp:
   listen: "0.0.0.0:8443"
 ffmpeg:

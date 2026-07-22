@@ -37,5 +37,7 @@ COPY --from=builder /app/server/views ./server/views
 
 EXPOSE 3000
 EXPOSE 5060/udp
+EXPOSE 8555
+EXPOSE 8555/udp
 
 CMD ["npm", "start"]
