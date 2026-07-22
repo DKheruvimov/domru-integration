@@ -193,14 +193,20 @@ router.get("/stream-go2rtc/:cameraId", async (req, res) => {
   const wsProtocol = protocol === "https" ? "wss" : "ws";
   const hostHeader = req.headers.host || `localhost:${PORT}`;
 
+  const settings = getSettings();
+  let streamHost = hostHeader;
+  if (settings && settings.customDomain) {
+    streamHost = settings.customDomain.replace(/^https?:\/\//, "").replace(/\/.*$/, "").trim();
+  }
+
   if (isDemo(req)) {
     const demoUrl = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
     const success = await registerStream(cameraId, demoUrl);
     return res.json({
       success,
       cameraId,
-      webrtcUrl: `${wsProtocol}://${hostHeader}/api/go2rtc/ws?src=${cameraId}`,
-      mseUrl: `${wsProtocol}://${hostHeader}/api/go2rtc/ws?src=${cameraId}&media=mse`,
+      webrtcUrl: `${wsProtocol}://${streamHost}/api/go2rtc/ws?src=${cameraId}`,
+      mseUrl: `${wsProtocol}://${streamHost}/api/go2rtc/ws?src=${cameraId}&media=mse`,
       hlsUrl: `${protocol}://${hostHeader}/api/domru/go2rtc-proxy/api/hls.m3u8?src=${cameraId}`,
       mjpegUrl: `${protocol}://${hostHeader}/api/domru/go2rtc-proxy/api/frame.mp4?src=${cameraId}`
     });
@@ -225,12 +231,13 @@ router.get("/stream-go2rtc/:cameraId", async (req, res) => {
       res.json({
         success,
         cameraId,
-        webrtcUrl: `${wsProtocol}://${hostHeader}/api/go2rtc/ws?src=${cameraId}`,
-        mseUrl: `${wsProtocol}://${hostHeader}/api/go2rtc/ws?src=${cameraId}&media=mse`,
+        webrtcUrl: `${wsProtocol}://${streamHost}/api/go2rtc/ws?src=${cameraId}`,
+        mseUrl: `${wsProtocol}://${streamHost}/api/go2rtc/ws?src=${cameraId}&media=mse`,
         hlsUrl: `${protocol}://${hostHeader}/api/domru/go2rtc-proxy/api/hls.m3u8?src=${cameraId}`,
         mjpegUrl: `${protocol}://${hostHeader}/api/domru/go2rtc-proxy/api/frame.mp4?src=${cameraId}`,
         originalUrl: originalUrl
       });
+
     } else {
       res.status(404).json({ error: "No stream found for camera" });
     }
