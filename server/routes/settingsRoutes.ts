@@ -1,14 +1,15 @@
 import { Router } from "express";
 import { getSettings, saveSettings } from "../settings-manager.js";
+import { requireDomruAuth } from "../domruClientHelper.js";
 
 const router = Router();
 
-router.get("/", (req, res) => {
+router.get("/", requireDomruAuth, (req, res) => {
   const settings = getSettings();
   res.json(settings);
 });
 
-router.post("/", (req, res) => {
+router.post("/", requireDomruAuth, (req, res) => {
   const newSettings = req.body;
   if (!newSettings || typeof newSettings !== "object") {
     return res.status(400).json({ error: "Invalid settings payload" });
@@ -33,7 +34,7 @@ router.post("/", (req, res) => {
   res.json(currentSettings);
 });
 
-router.post("/diagnostics/yandex", async (req, res) => {
+router.post("/diagnostics/yandex", requireDomruAuth, async (req, res) => {
   const { customDomain } = req.body;
   if (!customDomain) return res.status(400).json({ error: "Missing customDomain" });
 

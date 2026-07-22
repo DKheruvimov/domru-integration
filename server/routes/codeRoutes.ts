@@ -1,11 +1,12 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import { requireDomruAuth } from "../domruClientHelper.js";
 
 const router = express.Router();
 
 // Code inspection helper endpoints
-router.get("/list", (req, res) => {
+router.get("/list", requireDomruAuth, (req, res) => {
   const defaultFiles = [
     { path: "src/domru-api/client.ts", name: "client.ts", category: "core" },
     { path: "src/domru-api/index.ts", name: "index.ts", category: "core" },
@@ -26,7 +27,7 @@ router.get("/list", (req, res) => {
   res.json(defaultFiles);
 });
 
-router.get("/read", (req, res) => {
+router.get("/read", requireDomruAuth, (req, res) => {
   const filePath = req.query.path as string;
   if (!filePath) {
     return res.status(400).json({ error: "Missing path parameter" });

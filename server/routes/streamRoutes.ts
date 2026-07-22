@@ -23,6 +23,7 @@ import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice, getSipLogs, g
 import { getPeople, savePeople, addTemporaryAutoOpenPerson, removeTemporaryAutoOpenPerson, isScheduleActive } from "../people-manager.js";
 import { findSnapshotForEvent, getSnapshotPath } from "../snapshots-manager.js";
 import { getOpeningByOurService } from "../openings-manager.js";
+import { getSettings } from "../settings-manager.js";
 import fs from "fs";
 import { PORT } from "../config.js";
 
@@ -318,11 +319,65 @@ router.options("/stream-proxy*", (req, res) => {
   res.sendStatus(200);
 });
 
+function isAllowedStreamUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Block private/internal IP ranges and cloud metadata IPs
+    if (
+      hostname === "169.254.169.254" ||
+      hostname.startsWith("127.") ||
+      hostname === "localhost" ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("10.") ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+    ) {
+      // Allow local go2rtc / proxy ONLY if on expected ports (e.g., 1984, 8554, 8555, 3000, 3100)
+      if ((hostname === "127.0.0.1" || hostname === "localhost") && ["1984", "8554", "8555", "3000", "3100"].includes(parsed.port)) {
+        return true;
+      }
+      return false;
+    }
+
+    // Allow known Dom.ru / Er-Telecom video streaming domains
+    if (
+      hostname.endsWith(".ertelecom.ru") ||
+      hostname.endsWith(".domru.ru") ||
+      hostname.endsWith(".er-telecom.ru") ||
+      hostname.endsWith(".ertelecom.net")
+    ) {
+      return true;
+    }
+
+    // Check against dynamically configured customDomain from settings (including subdomains)
+    try {
+      const settings = getSettings();
+      if (settings && settings.customDomain) {
+        const customParsed = new URL(settings.customDomain.startsWith("http") ? settings.customDomain : `https://${settings.customDomain}`);
+        const customHost = customParsed.hostname.toLowerCase();
+        if (hostname === customHost || hostname.endsWith(`.${customHost}`)) {
+          return true;
+        }
+      }
+    } catch (e) {}
+
+
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
 // API Route: CORS/MixedContent secure proxy for domestic HLS/M3U8 streams
 router.get("/stream-proxy*", async (req, res) => {
   const targetUrl = req.query.url as string;
   if (!targetUrl) {
     return res.status(400).send("Parameter 'url' is required.");
+  }
+
+  if (!isAllowedStreamUrl(targetUrl)) {
+    return res.status(403).json({ error: "Access denied: target URL is not in the allowed stream domain list" });
   }
 
   // Extract auth parameters for downstream requests (e.g., segment key decryptions or sub-playlists)

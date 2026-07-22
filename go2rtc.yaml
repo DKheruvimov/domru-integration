@@ -12,4 +12,5 @@ ffmpeg:
   re: "-re -fflags nobuffer -flags low_delay -i {input}"
   hls_re: "-re -fflags nobuffer -flags low_delay -i {input}"
 streams:
-  "82869397": https://cctv-sa4-dmfn.ulu.vs.ertelecom.ru:18080/hls/a3383405/xly64E4QPUzsRbL3cjHy/playlist.m3u8
+  # Replace with your actual Dom.ru / RTSP camera stream URL
+  # "camera_id": "https://cctv-example.ertelecom.ru/hls/example/playlist.m3u8"

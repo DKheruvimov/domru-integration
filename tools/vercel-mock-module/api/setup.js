@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   }
 
   const TOKEN = process.env.CORE_TOKEN;
-  const CORE_URL = process.env.CORE_URL || "https://api.kheruvimov.ru";
+  const CORE_URL = process.env.CORE_URL || "https://api.yourdomain.com";
 
   if (!TOKEN) {
     return res.status(400).json({ error: "Environment variable CORE_TOKEN is missing in Vercel." });

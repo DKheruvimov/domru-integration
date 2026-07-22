@@ -36,5 +36,6 @@ COPY --from=builder /app/src/domru-api ./src/domru-api
 COPY --from=builder /app/server/views ./server/views
 
 EXPOSE 3000
+EXPOSE 5060/udp
 
 CMD ["npm", "start"]
