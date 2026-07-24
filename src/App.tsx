@@ -172,11 +172,14 @@ export default function App() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16 items-center">
                 {/* Brand / Logo (Dom.ru style) */}
-                <div className="flex items-center gap-2">
-                  <div className="bg-[#E30613] w-8 h-8 rounded-xl flex items-center justify-center shadow-md transform hover:rotate-6 transition-transform duration-300">
-                    <Home className="w-4.5 h-4.5 text-white" />
-                  </div>
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src="/logo.svg"
+                    alt="Дом.ру Умный Дом"
+                    className="w-8 h-8 rounded-xl shadow-md transform hover:scale-105 hover:rotate-3 transition-transform duration-300 object-contain"
+                  />
                   <div className="flex items-center gap-1.5">
+
                     <span className="font-display font-black text-xl tracking-tighter text-zinc-950 dark:text-white flex items-center gap-1">
                       дом
                       <span className="bg-[#E30613] text-white text-[11px] font-black px-1.5 py-0.5 rounded-full inline-flex items-center justify-center min-w-[22px] h-5 shadow-xs">
