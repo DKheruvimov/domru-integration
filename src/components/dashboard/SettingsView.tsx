@@ -28,7 +28,18 @@ import {
   HardDrive,
   Plug,
   Trash2,
+  Smartphone,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
+import {
+  getPushStatus,
+  subscribeToPush,
+  unsubscribeFromPush,
+  sendTestPush,
+  PushStatus,
+} from "../../utils/pushNotifications";
+
 
 declare const __APP_VERSION__: string;
 
@@ -79,6 +90,56 @@ export default function SettingsView({
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [autoOpenDelayResidentMs, setAutoOpenDelayResidentMs] = useState<number>(0);
   const [autoOpenDelayGuestMs, setAutoOpenDelayGuestMs] = useState<number>(3000);
+  const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
+  const [isPushLoading, setIsPushLoading] = useState(false);
+
+  const refreshPushStatus = async () => {
+    try {
+      const status = await getPushStatus(credentials);
+      setPushStatus(status);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (settingsTab === "notifications") {
+      refreshPushStatus();
+    }
+  }, [settingsTab, credentials]);
+
+  const handleTogglePush = async () => {
+    if (!credentials) return;
+    setIsPushLoading(true);
+    try {
+      if (pushStatus?.isSubscribed) {
+        await unsubscribeFromPush(credentials);
+        showCustomAlert("Уведомления отключены", "Устройство успешно отписано от пуш-уведомлений.");
+      } else {
+        await subscribeToPush(credentials);
+        showCustomAlert("Уведомления включены!", "Теперь вам будут приходить пуши на экран блокировки при звонке в домофон.");
+      }
+      await refreshPushStatus();
+    } catch (err: any) {
+      showCustomAlert("Ошибка Push-уведомлений", err.message || err);
+    } finally {
+      setIsPushLoading(false);
+    }
+  };
+
+  const handleTestPush = async () => {
+    if (!credentials) return;
+    setIsPushLoading(true);
+    try {
+      await sendTestPush(credentials);
+      showCustomAlert("Тестовый пуш отправлен!", "Проверьте экран блокировки или шторку уведомлений вашего устройства.");
+    } catch (err: any) {
+      showCustomAlert("Ошибка теста пуша", err.message || err);
+    } finally {
+      setIsPushLoading(false);
+    }
+  };
+
 
   // Custom dialog state for alerts/confirms to bypass iframe constraints
   const [dialog, setDialog] = useState<{
@@ -573,7 +634,84 @@ export default function SettingsView({
 
         {settingsTab === "notifications" && (
           <div className="space-y-6 animate-fade-in max-w-2xl">
+            {/* Web Push Card */}
             <div className="p-6 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-3xl space-y-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-5 h-5 text-[#e30613]" />
+                    <span className="text-base font-extrabold text-zinc-900 dark:text-white">
+                      Web Push Уведомления (PWA)
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold leading-relaxed">
+                    Мгновенные пуши на экран блокировки при звонке в домофон. Работают в России без VPN через официальные каналы iOS и Android.
+                  </p>
+                </div>
+                {pushStatus && (
+                  <span className={`text-xs px-3 py-1 rounded-full font-extrabold flex items-center gap-1.5 shrink-0 ${
+                    pushStatus.isSubscribed
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
+                  }`}>
+                    {pushStatus.isSubscribed ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Активно
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        Отключено
+                      </>
+                    )}
+                  </span>
+                )}
+              </div>
+
+              {pushStatus && !pushStatus.supported && (
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold leading-relaxed">
+                  Ваш текущий браузер не поддерживает Push API. Если вы используете iPhone, добавьте сайт на экран «Домой» через Safari (кнопка «Поделиться» ➔ «На экран "Домой"»).
+                </div>
+              )}
+
+              {pushStatus && pushStatus.permission === "denied" && (
+                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400 text-xs font-semibold leading-relaxed">
+                  Разрешение на уведомления заблокировано в настройках браузера. Разрешите уведомления для этого сайта в настройках вашего устройства.
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                <div className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold">
+                  Подключено устройств к вашему аккаунту: <span className="font-extrabold text-zinc-800 dark:text-zinc-200">{pushStatus?.subscriptionsCount || 0}</span>
+                </div>
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  {pushStatus?.isSubscribed && (
+                    <button
+                      onClick={handleTestPush}
+                      disabled={isPushLoading}
+                      className="flex-1 sm:flex-initial px-4 py-2.5 rounded-2xl text-xs font-bold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 transition disabled:opacity-50 cursor-pointer"
+                    >
+                      Тестовый пуш
+                    </button>
+                  )}
+                  <button
+                    onClick={handleTogglePush}
+                    disabled={isPushLoading || (pushStatus ? !pushStatus.supported : false)}
+                    className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-2xl text-xs font-bold transition shadow-sm cursor-pointer disabled:opacity-50 ${
+                      pushStatus?.isSubscribed
+                        ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                        : "bg-[#e30613] hover:bg-[#c10510] text-white"
+                    }`}
+                  >
+                    {isPushLoading ? "Обработка..." : pushStatus?.isSubscribed ? "Отключить на этом устройстве" : "Включить Push-уведомления"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-3xl space-y-6 shadow-sm">
+
               <div className="space-y-2 mb-6">
                 <span className="text-sm font-extrabold text-zinc-800 dark:text-white block">
                   Задержка перед автооткрытием (Жильцы)

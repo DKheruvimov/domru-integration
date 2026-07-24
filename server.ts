@@ -12,6 +12,7 @@ import yandexRoutes from "./server/routes/yandexRoutes.js";
 import yandexDialogs from "./server/routes/yandexDialogs.js";
 import settingsRoutes from "./server/routes/settingsRoutes.js";
 import modulesRoutes from "./server/routes/modulesRoutes.js";
+import pushRoutes from "./server/routes/pushRoutes.js";
 import { loadAndResumeActiveTasks } from "./server/sip-manager.js";
 import { initPermanentSipBindings } from "./server/sip-init.js";
 import { startGo2Rtc, handleWsProxy } from "./server/go2rtc-manager.js";
@@ -62,7 +63,9 @@ async function startServer() {
   app.use("/api/domru", domruRoutes);
   app.use("/api/settings", settingsRoutes);
   app.use("/api/modules", modulesRoutes);
+  app.use("/api/push", pushRoutes);
   app.use("/api/yandex/dialogs", yandexDialogs);
+
   app.use("/", yandexRoutes);
 
   // Initialize and mount plugins

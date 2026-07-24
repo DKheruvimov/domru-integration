@@ -11,6 +11,8 @@ import { DomruClient } from "../src/domru-api/index.js";
 import { loadSavedTokens } from "./tokenStore.js";
 import { getSettings } from "./settings-manager.js";
 import { broadcastAutoOpenStatusChanged, broadcastSipLogAdded, broadcastIncomingCall, broadcastCallEnded } from "./ws-manager.js";
+import { sendPushToAllSubscribers } from "./push-manager.js";
+
 
 
 export async function triggerDoorOpenForLogin(login: string, placeId: number, deviceId: number, details?: string): Promise<void> {
@@ -495,7 +497,26 @@ export function startSipServer() {
 
         broadcastIncomingCall(login, "Incoming SIP INVITE", snapshotPlaceId, snapshotDeviceId);
 
+        // Dispatch Web Push notification to all subscribed mobile/desktop devices
+        sendPushToAllSubscribers({
+          title: "🔔 Звонок в домофон",
+          body: "Входная дверь (нажмите для открытия)",
+          tag: `sip-call-${snapshotDeviceId || 'door'}`,
+          data: {
+            login,
+            placeId: snapshotPlaceId,
+            deviceId: snapshotDeviceId,
+            timestamp: new Date().toISOString(),
+          },
+          actions: [
+            { action: "open_door", title: "🚪 Открыть дверь" }
+          ]
+        }).catch((err) => {
+          console.error("[SIP] Push notification dispatch error:", err);
+        });
+
         if (snapshotPlaceId && snapshotDeviceId) {
+
           triggerSnapshotForLogin(login, snapshotPlaceId, snapshotDeviceId).catch((err) => {
             console.error("[SIP] Background snapshot failed:", err);
           });
