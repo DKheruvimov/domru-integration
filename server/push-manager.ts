@@ -11,12 +11,16 @@ export interface VapidKeys {
   privateKey: string;
 }
 
+import crypto from "crypto";
+
 export interface PushSubscriptionItem {
+  id: string;
   endpoint: string;
   keys: {
     p256dh: string;
     auth: string;
   };
+  userAgent?: string;
   createdAt: string;
 }
 
@@ -36,6 +40,10 @@ export interface PushPayload {
 
 let vapidKeys: VapidKeys | null = null;
 let subscriptions: PushSubscriptionItem[] = [];
+
+function generateSubscriptionId(endpoint: string): string {
+  return crypto.createHash("sha256").update(endpoint).digest("hex").substring(0, 16);
+}
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -73,7 +81,6 @@ function initVapidKeys(): VapidKeys {
     vapidKeys.privateKey
   );
 
-
   return vapidKeys;
 }
 
@@ -83,8 +90,18 @@ function loadSubscriptions(): PushSubscriptionItem[] {
   if (fs.existsSync(SUBSCRIPTIONS_FILE)) {
     try {
       const data = fs.readFileSync(SUBSCRIPTIONS_FILE, "utf-8");
-      subscriptions = JSON.parse(data);
-      if (!Array.isArray(subscriptions)) subscriptions = [];
+      const raw = JSON.parse(data);
+      if (Array.isArray(raw)) {
+        subscriptions = raw.map((item: any) => ({
+          id: item.id || generateSubscriptionId(item.endpoint),
+          endpoint: item.endpoint,
+          keys: item.keys,
+          userAgent: item.userAgent || "Неизвестное устройство",
+          createdAt: item.createdAt || new Date().toISOString(),
+        }));
+      } else {
+        subscriptions = [];
+      }
     } catch (e) {
       console.error("[PushManager] Error reading push subscriptions:", e);
       subscriptions = [];
@@ -111,26 +128,33 @@ export function getVapidPublicKey(): string {
   return vapidKeys.publicKey;
 }
 
-export function addSubscription(sub: { endpoint: string; keys: { p256dh: string; auth: string } }) {
+export function addSubscription(sub: { endpoint: string; keys: { p256dh: string; auth: string } }, userAgent?: string) {
   if (!sub || !sub.endpoint || !sub.keys) {
     throw new Error("Invalid subscription object");
   }
 
-  const existingIndex = subscriptions.findIndex((s) => s.endpoint === sub.endpoint);
+  const subId = generateSubscriptionId(sub.endpoint);
+  const existingIndex = subscriptions.findIndex((s) => s.endpoint === sub.endpoint || s.id === subId);
   const newItem: PushSubscriptionItem = {
+    id: subId,
     endpoint: sub.endpoint,
     keys: sub.keys,
+    userAgent: userAgent || "Неизвестное устройство",
     createdAt: new Date().toISOString(),
   };
 
   if (existingIndex >= 0) {
-    subscriptions[existingIndex] = newItem;
+    subscriptions[existingIndex] = {
+      ...subscriptions[existingIndex],
+      ...newItem,
+      createdAt: subscriptions[existingIndex].createdAt || newItem.createdAt
+    };
   } else {
     subscriptions.push(newItem);
   }
 
   saveSubscriptions();
-  console.log(`[PushManager] Added subscription (Total: ${subscriptions.length})`);
+  console.log(`[PushManager] Added subscription ${subId} (Total: ${subscriptions.length})`);
 }
 
 export function removeSubscription(endpoint: string) {
@@ -142,7 +166,34 @@ export function removeSubscription(endpoint: string) {
   }
 }
 
+export function removeSubscriptionById(id: string): boolean {
+  const initialCount = subscriptions.length;
+  subscriptions = subscriptions.filter((s) => s.id !== id);
+  if (subscriptions.length !== initialCount) {
+    saveSubscriptions();
+    console.log(`[PushManager] Removed subscription by ID ${id} (Total: ${subscriptions.length})`);
+    return true;
+  }
+  return false;
+}
+
+export function clearAllSubscriptions() {
+  subscriptions = [];
+  saveSubscriptions();
+  console.log("[PushManager] Cleared all push subscriptions.");
+}
+
+export function getSubscriptionsList() {
+  return subscriptions.map((s) => ({
+    id: s.id,
+    endpoint: s.endpoint,
+    userAgent: s.userAgent,
+    createdAt: s.createdAt,
+  }));
+}
+
 export function getSubscriptionsCount(): number {
+
   return subscriptions.length;
 }
 

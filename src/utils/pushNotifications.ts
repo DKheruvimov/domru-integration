@@ -155,6 +155,56 @@ export async function unsubscribeFromPush(credentials: AppCredentials): Promise<
   return true;
 }
 
+export interface PushDeviceItem {
+  id: string;
+  endpoint: string;
+  userAgent?: string;
+  createdAt: string;
+}
+
+export async function fetchPushSubscriptions(credentials: AppCredentials): Promise<PushDeviceItem[]> {
+  const authHeader = `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}`;
+  const res = await fetch("/api/push/subscriptions", {
+    headers: { Authorization: authHeader }
+  });
+
+  if (!res.ok) {
+    throw new Error("Не удалось получить список подключенных устройств");
+  }
+
+  return await res.json();
+}
+
+export async function deletePushSubscriptionById(credentials: AppCredentials, id: string): Promise<boolean> {
+  const authHeader = `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}`;
+  const res = await fetch(`/api/push/subscriptions/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: authHeader }
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Не удалось удалить устройство");
+  }
+
+  return true;
+}
+
+export async function clearAllPushSubscriptions(credentials: AppCredentials): Promise<boolean> {
+  const authHeader = `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}`;
+  const res = await fetch("/api/push/subscriptions/clear", {
+    method: "POST",
+    headers: { Authorization: authHeader }
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Не удалось очистить список устройств");
+  }
+
+  return true;
+}
+
 export async function sendTestPush(credentials: AppCredentials): Promise<boolean> {
   const authHeader = `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}`;
   const res = await fetch("/api/push/test", {
@@ -177,3 +227,4 @@ export async function sendTestPush(credentials: AppCredentials): Promise<boolean
 
   return true;
 }
+

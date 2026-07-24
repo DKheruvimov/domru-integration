@@ -37,8 +37,13 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
   sendTestPush,
+  fetchPushSubscriptions,
+  deletePushSubscriptionById,
+  clearAllPushSubscriptions,
   PushStatus,
+  PushDeviceItem,
 } from "../../utils/pushNotifications";
+
 
 
 declare const __APP_VERSION__: string;
@@ -91,12 +96,17 @@ export default function SettingsView({
   const [autoOpenDelayResidentMs, setAutoOpenDelayResidentMs] = useState<number>(0);
   const [autoOpenDelayGuestMs, setAutoOpenDelayGuestMs] = useState<number>(3000);
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
+  const [pushDevices, setPushDevices] = useState<PushDeviceItem[]>([]);
   const [isPushLoading, setIsPushLoading] = useState(false);
 
   const refreshPushStatus = async () => {
     try {
       const status = await getPushStatus(credentials);
       setPushStatus(status);
+      if (credentials) {
+        const devices = await fetchPushSubscriptions(credentials);
+        setPushDevices(devices);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -139,6 +149,35 @@ export default function SettingsView({
       setIsPushLoading(false);
     }
   };
+
+  const handleDeleteDevice = async (id: string) => {
+    if (!credentials) return;
+    setIsPushLoading(true);
+    try {
+      await deletePushSubscriptionById(credentials, id);
+      showCustomAlert("Устройство удалено", "Устройство успешно удалено из списка получателей пушей.");
+      await refreshPushStatus();
+    } catch (err: any) {
+      showCustomAlert("Ошибка удаления устройства", err.message || err);
+    } finally {
+      setIsPushLoading(false);
+    }
+  };
+
+  const handleClearAllDevices = async () => {
+    if (!credentials) return;
+    setIsPushLoading(true);
+    try {
+      await clearAllPushSubscriptions(credentials);
+      showCustomAlert("Список очищен", "Все устройства успешно удалены из списка пуш-уведомлений.");
+      await refreshPushStatus();
+    } catch (err: any) {
+      showCustomAlert("Ошибка очистки устройств", err.message || err);
+    } finally {
+      setIsPushLoading(false);
+    }
+  };
+
 
 
   // Custom dialog state for alerts/confirms to bypass iframe constraints
@@ -708,7 +747,64 @@ export default function SettingsView({
                   </button>
                 </div>
               </div>
+
+
+              {pushDevices.length > 0 && (
+                <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-zinc-700 dark:text-zinc-300">
+                      Подключенные устройства ({pushDevices.length})
+                    </span>
+                    {pushDevices.length > 1 && (
+                      <button
+                        onClick={handleClearAllDevices}
+                        disabled={isPushLoading}
+                        className="text-[11px] font-bold text-rose-500 hover:text-rose-600 dark:text-rose-400 transition cursor-pointer"
+                      >
+                        Очистить все
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {pushDevices.map((device) => {
+                      const isApple = device.userAgent?.includes("iPhone") || device.userAgent?.includes("iPad");
+                      const isAndroid = device.userAgent?.includes("Android");
+                      const label = isApple ? "Apple iPhone / iOS PWA" : isAndroid ? "Android Устройство" : "Веб-браузер";
+
+                      return (
+                        <div
+                          key={device.id}
+                          className="flex items-center justify-between p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/50 text-xs"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 pr-2">
+                            <div className="w-8 h-8 rounded-xl bg-zinc-200/60 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                              <Smartphone className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-extrabold text-zinc-800 dark:text-zinc-200 truncate">
+                                {label}
+                              </div>
+                              <div className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold truncate">
+                                Добавлено: {new Date(device.createdAt).toLocaleDateString("ru-RU")} {new Date(device.createdAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteDevice(device.id)}
+                            disabled={isPushLoading}
+                            title="Удалить это устройство"
+                            className="p-2 rounded-xl text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer shrink-0 disabled:opacity-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
+
 
             <div className="p-6 bg-white dark:bg-[#161b22] border border-zinc-200 dark:border-zinc-800/60 rounded-3xl space-y-6 shadow-sm">
 

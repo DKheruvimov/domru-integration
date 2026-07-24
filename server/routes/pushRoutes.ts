@@ -3,6 +3,9 @@ import {
   getVapidPublicKey,
   addSubscription,
   removeSubscription,
+  removeSubscriptionById,
+  clearAllSubscriptions,
+  getSubscriptionsList,
   getSubscriptionsCount,
   sendPushToAllSubscribers,
 } from "../push-manager.js";
@@ -28,6 +31,11 @@ router.get("/status", requireDomruAuth, (req, res) => {
   });
 });
 
+// Protected: Get full list of registered push devices
+router.get("/subscriptions", requireDomruAuth, (req, res) => {
+  res.json(getSubscriptionsList());
+});
+
 // Protected: Subscribe a device to Web Push
 router.post("/subscribe", requireDomruAuth, (req, res) => {
   const subscription = req.body;
@@ -35,15 +43,17 @@ router.post("/subscribe", requireDomruAuth, (req, res) => {
     return res.status(400).json({ error: "Invalid PushSubscription payload" });
   }
 
+  const userAgent = req.headers["user-agent"] || "Неизвестное устройство";
+
   try {
-    addSubscription(subscription);
+    addSubscription(subscription, userAgent);
     res.json({ success: true, subscriptionsCount: getSubscriptionsCount() });
   } catch (e: any) {
     res.status(500).json({ error: e.message || "Failed to add push subscription" });
   }
 });
 
-// Protected: Unsubscribe a device
+// Protected: Unsubscribe a device by endpoint
 router.post("/unsubscribe", requireDomruAuth, (req, res) => {
   const { endpoint } = req.body;
   if (!endpoint) {
@@ -55,6 +65,30 @@ router.post("/unsubscribe", requireDomruAuth, (req, res) => {
     res.json({ success: true, subscriptionsCount: getSubscriptionsCount() });
   } catch (e: any) {
     res.status(500).json({ error: e.message || "Failed to remove subscription" });
+  }
+});
+
+// Protected: Delete a specific device subscription by ID
+router.delete("/subscriptions/:id", requireDomruAuth, (req, res) => {
+  const { id } = req.params;
+  try {
+    const success = removeSubscriptionById(id);
+    if (!success) {
+      return res.status(404).json({ error: "Device subscription not found" });
+    }
+    res.json({ success: true, subscriptionsCount: getSubscriptionsCount() });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to delete subscription" });
+  }
+});
+
+// Protected: Clear all device subscriptions
+router.post("/subscriptions/clear", requireDomruAuth, (req, res) => {
+  try {
+    clearAllSubscriptions();
+    res.json({ success: true, subscriptionsCount: 0 });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to clear subscriptions" });
   }
 });
 
@@ -77,3 +111,4 @@ router.post("/test", requireDomruAuth, async (req, res) => {
 });
 
 export default router;
+
