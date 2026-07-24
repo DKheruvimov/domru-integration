@@ -111,7 +111,8 @@ export async function subscribeToPush(credentials: AppCredentials): Promise<bool
     applicationServerKey
   });
 
-  // 3. Send subscription object to backend
+  // 3. Send subscription object to backend (use explicit toJSON() for Safari/iOS compatibility)
+  const subPayload = subscription.toJSON ? subscription.toJSON() : subscription;
   const authHeader = `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}`;
   const subRes = await fetch("/api/push/subscribe", {
     method: "POST",
@@ -119,8 +120,9 @@ export async function subscribeToPush(credentials: AppCredentials): Promise<bool
       "Content-Type": "application/json",
       Authorization: authHeader
     },
-    body: JSON.stringify(subscription)
+    body: JSON.stringify(subPayload)
   });
+
 
   if (!subRes.ok) {
     const err = await subRes.json().catch(() => ({}));

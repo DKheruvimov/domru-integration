@@ -66,12 +66,13 @@ function initVapidKeys(): VapidKeys {
     console.log("[PushManager] Generated new VAPID keys.");
   }
 
-  // Set web-push VAPID details
+  // Set web-push VAPID details (must be a valid URL or mailto URI for Apple APNs compliance)
   webpush.setVapidDetails(
-    "mailto:admin@domru-bridge.local",
+    "https://github.com/DKheruvimov/domru-integration",
     vapidKeys.publicKey,
     vapidKeys.privateKey
   );
+
 
   return vapidKeys;
 }
