@@ -82,6 +82,24 @@ router.delete("/subscriptions/:id", requireDomruAuth, (req, res) => {
   }
 });
 
+// Protected: Delete a specific device subscription by ID (POST fallback for WAF / Proxy compatibility)
+router.post("/subscriptions/delete", requireDomruAuth, (req, res) => {
+  const { id } = req.body;
+  if (!id) {
+    return res.status(400).json({ error: "Missing device ID" });
+  }
+  try {
+    const success = removeSubscriptionById(id);
+    if (!success) {
+      return res.status(404).json({ error: "Device subscription not found" });
+    }
+    res.json({ success: true, subscriptionsCount: getSubscriptionsCount() });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to delete subscription" });
+  }
+});
+
+
 // Protected: Clear all device subscriptions
 router.post("/subscriptions/clear", requireDomruAuth, (req, res) => {
   try {

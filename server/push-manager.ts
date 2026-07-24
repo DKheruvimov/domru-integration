@@ -99,6 +99,8 @@ function loadSubscriptions(): PushSubscriptionItem[] {
           userAgent: item.userAgent || "Неизвестное устройство",
           createdAt: item.createdAt || new Date().toISOString(),
         }));
+        saveSubscriptions();
+
       } else {
         subscriptions = [];
       }

@@ -177,9 +177,13 @@ export async function fetchPushSubscriptions(credentials: AppCredentials): Promi
 
 export async function deletePushSubscriptionById(credentials: AppCredentials, id: string): Promise<boolean> {
   const authHeader = `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}`;
-  const res = await fetch(`/api/push/subscriptions/${id}`, {
-    method: "DELETE",
-    headers: { Authorization: authHeader }
+  const res = await fetch("/api/push/subscriptions/delete", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authHeader
+    },
+    body: JSON.stringify({ id })
   });
 
   if (!res.ok) {
@@ -189,6 +193,7 @@ export async function deletePushSubscriptionById(credentials: AppCredentials, id
 
   return true;
 }
+
 
 export async function clearAllPushSubscriptions(credentials: AppCredentials): Promise<boolean> {
   const authHeader = `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}`;
