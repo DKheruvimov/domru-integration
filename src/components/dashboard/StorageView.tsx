@@ -67,8 +67,8 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
     }
   };
 
-  const loadModulesAndKeys = async () => {
-    setLoading(true);
+  const loadModulesAndKeys = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const modRes = await fetch("/api/modules");
       if (modRes.ok) {
@@ -103,7 +103,7 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -130,12 +130,12 @@ export default function StorageView({ credentials }: { credentials?: AppCredenti
   useEffect(() => {
     loadPeopleNames();
     loadModulesAndKeys();
-    
+    const handleModulesStatusChanged = () => loadModulesAndKeys(true);
     const socket = getSocket();
-    socket.on("modules_status_changed", loadModulesAndKeys);
+    socket.on("modules_status_changed", handleModulesStatusChanged);
     
     return () => {
-      socket.off("modules_status_changed", loadModulesAndKeys);
+      socket.off("modules_status_changed", handleModulesStatusChanged);
     };
   }, [credentials]);
 

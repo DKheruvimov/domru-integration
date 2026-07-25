@@ -183,7 +183,6 @@ def sync_people_database():
 def on_connect():
     log("🔗 Connected to Core WebSocket server!", "WS")
     sio.emit("update_status", {"status": "online", "message": "Face ID модуль активен"}, namespace="/modules")
-    core_client.register_capabilities()
     trigger_sync()
 
 @sio.on("people_updated", namespace="/modules")

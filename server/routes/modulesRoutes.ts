@@ -471,7 +471,7 @@ router.get("/actions/snapshot/:placeId/:deviceId", async (req, res) => {
 
     res.set("Content-Type", "image/jpeg");
     res.set("Cache-Control", "no-store");
-    res.send(snapshotBuffer);
+    res.send(Buffer.from(snapshotBuffer));
   } catch (error: any) {
     console.error("Module Snapshot Error:", error);
     res.status(500).json({ error: error.message || "Failed to get snapshot" });
