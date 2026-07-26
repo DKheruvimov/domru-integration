@@ -468,7 +468,14 @@ const handleSnapshotAction = async (req: express.Request, res: express.Response)
   let placeId = Number(req.params.placeId || 0);
   
   try {
-    const client = await getModuleDomruClient();
+    let client = getDomruInstance(req);
+    if (!client.token) {
+      const modClient = await getModuleDomruClient();
+      if (modClient) {
+        client = modClient;
+      }
+    }
+
     if (!client) {
       return res.status(500).json({ error: "No configured Dom.ru accounts found on server" });
     }
@@ -522,8 +529,14 @@ router.get("/actions/stream/:deviceId", async (req, res) => {
 
   const { deviceId } = req.params;
   
-  try {
-    const client = await getModuleDomruClient();
+    let client = getDomruInstance(req);
+    if (!client.token) {
+      const modClient = await getModuleDomruClient();
+      if (modClient) {
+        client = modClient;
+      }
+    }
+
     if (!client) {
       return res.status(500).json({ error: "No configured Dom.ru accounts found on server" });
     }
