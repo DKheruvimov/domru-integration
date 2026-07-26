@@ -157,3 +157,100 @@ def handle_incoming_call(device_id, place_id):
     except Exception as e:
         log(f"❌ Error fetching fallback snapshot: {e}", "ERROR")
 
+def run_live_demo(device_id):
+    """Run interactive continuous visual Demo Mode in an OpenCV window."""
+    log(f"🚀 Starting Interactive Live Demo Mode for device {device_id}...", "DEMO")
+    
+    stream_info = core_client.fetch_stream_info(device_id)
+    mjpeg_url = stream_info.get("mjpegUrl") if stream_info else None
+    
+    if not mjpeg_url:
+        log("❌ Unable to fetch MJPEG stream URL for demo mode.", "ERROR")
+        return
+
+    log(f"🎥 Connecting live stream: {mjpeg_url}", "DEMO")
+    log("💡 Instructions: A visual window will open. Press 'ESC' or 'Q' in the video window to stop Demo Mode.", "DEMO")
+    
+    cap = cv2.VideoCapture(mjpeg_url)
+    if not cap.isOpened():
+        log("❌ Failed to open video capture stream for demo mode.", "ERROR")
+        return
+
+    window_name = f"Face ID Live Demo - Device {device_id}"
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(window_name, 960, 540)
+    
+    fps_start_time = time.time()
+    fps_frame_count = 0
+    fps = 0.0
+
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                time.sleep(0.05)
+                continue
+
+            fps_frame_count += 1
+            if time.time() - fps_start_time >= 1.0:
+                fps = fps_frame_count / (time.time() - fps_start_time)
+                fps_frame_count = 0
+                fps_start_time = time.time()
+
+            # Analyze frame using InsightFace
+            if HAS_INSIGHTFACE and face_app is not None:
+                try:
+                    faces = face_app.get(frame)
+                    for face in faces:
+                        bbox = face.bbox.astype(int)
+                        kps = face.kps.astype(int) if face.kps is not None else []
+                        encoding = face.embedding
+                        
+                        best_name = "Unknown"
+                        best_sim = 0.0
+                        
+                        for person_id, p_data in db.people_db.items():
+                            known_encoding = p_data.get("encoding")
+                            if known_encoding is not None:
+                                sim = cosine_similarity(encoding, known_encoding)
+                                if sim > best_sim:
+                                    best_sim = sim
+                                    best_name = p_data.get("name", "Resident")
+
+                        is_match = best_sim >= 0.45
+                        box_color = (0, 255, 0) if is_match else (0, 0, 255) # Green for match, Red for unknown
+                        
+                        # Draw bounding box around face
+                        cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), box_color, 2)
+                        
+                        # Draw 5 facial landmark points
+                        for pt in kps:
+                            cv2.circle(frame, (pt[0], pt[1]), 3, (255, 255, 0), -1)
+
+                        # Draw Label & Similarity Percentage
+                        label_text = f"{best_name}: {best_sim*100:.1f}%" if is_match else f"Unknown: {best_sim*100:.1f}%"
+                        
+                        # Label background box
+                        (w, h), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                        cv2.rectangle(frame, (bbox[0], bbox[1] - 25), (bbox[0] + w + 10, bbox[1]), box_color, -1)
+                        cv2.putText(frame, label_text, (bbox[0] + 5, bbox[1] - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                except Exception as e:
+                    pass
+
+            # Overlay Status Banner
+            cv2.rectangle(frame, (0, 0), (frame.shape[1], 35), (0, 0, 0), -1)
+            cv2.putText(frame, f"LIVE DEMO | FPS: {fps:.1f} | Profiles in DB: {len(db.people_db)} | Press ESC to Exit", 
+                        (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 1)
+
+            cv2.imshow(window_name, frame)
+            
+            key = cv2.waitKey(1) & 0xFF
+            if key == 27 or key == ord('q') or key == ord('Q'):
+                break
+
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+        log("⏹️ Demo Mode stopped.", "DEMO")
+
+

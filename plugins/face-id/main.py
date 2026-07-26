@@ -44,6 +44,12 @@ def main():
         t_cli.start()
     else:
         log("No interactive terminal available (stdin is not a TTY). Running in background mode.", "SYS")
+        
+    # 9. Start Live Demo Mode immediately if --demo argument was provided
+    if config.settings.demo_device_id:
+        log(f"Auto-launching Live Visual Demo Mode for device {config.settings.demo_device_id}...", "DEMO")
+        t_demo = threading.Thread(target=biometrics.run_live_demo, args=(config.settings.demo_device_id,), daemon=True)
+        t_demo.start()
     
     # 9. Keep main thread alive
     try:

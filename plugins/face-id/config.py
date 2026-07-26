@@ -24,6 +24,7 @@ class Settings:
         self.token = "mod_006d444a104af28092c11312f7dda065d38adda378f136ab"
         self.url = "http://localhost:3000"
         self.module_id = "42627e35-57ad-4ed1-8c66-6aa9fccaf4f2"
+        self.demo_device_id = None
         
         # Paths
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -36,8 +37,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Face ID Integration Module")
     parser.add_argument("--token", default=settings.token, help="Module Authorization Token")
     parser.add_argument("--url", default=settings.url, help="Core application base URL")
+    parser.add_argument("--demo", default=None, help="Device ID to launch Live Interactive Demo Mode immediately")
     parsed = parser.parse_args()
     
     settings.token = parsed.token
     settings.url = parsed.url
+    settings.demo_device_id = parsed.demo
     return parsed

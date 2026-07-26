@@ -15,6 +15,7 @@ def command_loop():
     print("Commands:")
     print("  sync           - Force synchronizing database of faces")
     print("  status         - Show current database & connection status")
+    print("  demo <dev_id>  - Launch Live Interactive Visual Demo Mode")
     print("  trigger <dev_id> <place_id> - Simulate incoming call on device")
     print("  open <dev_id> <person_id>   - Open door manually for a person")
     print("  help           - Show list of commands")
@@ -35,9 +36,16 @@ def command_loop():
                 ws_client.sio.disconnect()
                 os._exit(0)
             elif cmd == "help":
-                print("Commands: sync, status, trigger <dev_id> <place_id>, open <dev_id> <person_id>, exit")
+                print("Commands: sync, status, demo <dev_id>, trigger <dev_id> <place_id>, open <dev_id> <person_id>, exit")
             elif cmd == "sync":
                 ws_client.sync_people_database()
+            elif cmd == "demo":
+                if len(parts) < 2:
+                    print("Usage: demo <device_id>")
+                    continue
+                dev_id = parts[1]
+                t = threading.Thread(target=biometrics.run_live_demo, args=(dev_id,), daemon=True)
+                t.start()
             elif cmd == "status":
                 print(f"Core URL: {settings.url}")
                 print(f"Token: {settings.token}")
