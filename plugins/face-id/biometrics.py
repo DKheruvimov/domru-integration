@@ -21,17 +21,42 @@ import os
 import sys
 
 # Haar cascade for fallback face detection
-cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml' if hasattr(cv2, 'data') and hasattr(cv2.data, 'haarcascades') else ''
 if not os.path.exists(cascade_path) and getattr(sys, 'frozen', False):
     alt_path = os.path.join(sys._MEIPASS, 'cv2', 'data', 'haarcascade_frontalface_default.xml')
     if os.path.exists(alt_path):
         cascade_path = alt_path
-face_cascade = cv2.CascadeClassifier(cascade_path)
+
+if hasattr(cv2, 'CascadeClassifier') and cascade_path and os.path.exists(cascade_path):
+    face_cascade = cv2.CascadeClassifier(cascade_path)
+else:
+    face_cascade = None
 
 def init_engine():
     """Initialize the InsightFace models."""
     global face_app, HAS_INSIGHTFACE
     if HAS_INSIGHTFACE:
+        # Ensure meanshape_68.pkl is accessible in _internal/objects/ if running under PyInstaller
+        if getattr(sys, 'frozen', False):
+            try:
+                meipass = sys._MEIPASS
+                target_objects_dir = os.path.join(meipass, "objects")
+                target_file = os.path.join(target_objects_dir, "meanshape_68.pkl")
+                if not os.path.exists(target_file):
+                    os.makedirs(target_objects_dir, exist_ok=True)
+                    source_candidates = [
+                        os.path.join(meipass, "insightface", "data", "objects", "meanshape_68.pkl"),
+                        os.path.join(meipass, "insightface", "thirdparty", "face3d", "mesh", "objects", "meanshape_68.pkl")
+                    ]
+                    for source_file in source_candidates:
+                        if os.path.exists(source_file):
+                            import shutil
+                            shutil.copy(source_file, target_file)
+                            log("✅ Auto-mapped meanshape_68.pkl into _internal/objects/ directory.", "INIT")
+                            break
+            except Exception as e:
+                log(f"Warning mapping meanshape_68.pkl: {e}", "WARN")
+
         log("Loading InsightFace buffalo_l model...", "INIT")
         try:
             face_app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
@@ -153,6 +178,10 @@ def handle_incoming_call(device_id, place_id):
     # Step 2. Fallback to Snapshot if Stream was unavailable or failed
     log("📸 Running snapshot fallback...", "EVENT")
     snapshot_url = f"{settings.url}/api/modules/actions/snapshot/{place_id}/{device_id}?token={settings.token}"
+    if getattr(settings, 'login', None):
+        snapshot_url += f"&login={requests.utils.quote(settings.login)}"
+    if getattr(settings, 'password', None):
+        snapshot_url += f"&password={requests.utils.quote(settings.password)}"
     try:
         res = requests.get(snapshot_url, timeout=5)
         if res.status_code == 200 and len(res.content) > 0:
@@ -191,35 +220,70 @@ def run_live_demo(device_id):
     window_name = f"Face ID Live Demo - Device {device_id}"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(window_name, 960, 540)
+
+    snapshot_url = f"{settings.url}/api/modules/actions/snapshot/{device_id}?token={settings.token}"
+    if getattr(settings, 'login', None):
+        snapshot_url += f"&login={requests.utils.quote(settings.login)}"
+    if getattr(settings, 'password', None):
+        snapshot_url += f"&password={requests.utils.quote(settings.password)}"
+
+    import threading
+    frame_lock = threading.Lock()
+    latest_frame = [None]
+    demo_active = [True]
+
+    def snapshot_worker():
+        while demo_active[0]:
+            try:
+                res = requests.get(snapshot_url, timeout=2.5)
+                if res.status_code == 200 and len(res.content) > 0:
+                    nparr = np.frombuffer(res.content, np.uint8)
+                    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    if img is not None:
+                        with frame_lock:
+                            latest_frame[0] = img
+            except Exception:
+                pass
+            time.sleep(0.08)
+
+    if use_snapshot_mode:
+        worker = threading.Thread(target=snapshot_worker, daemon=True)
+        worker.start()
     
     fps_start_time = time.time()
     fps_frame_count = 0
     fps = 0.0
 
-    snapshot_url = f"{settings.url}/api/modules/actions/snapshot/{device_id}?token={settings.token}"
-
     try:
         while True:
+            # Process Windows HighGUI events continuously without blocking
+            key = cv2.waitKey(20) & 0xFF
+            if key == 27 or key == ord('q') or key == ord('Q'):
+                break
+
+            # Check if user closed the window by clicking the 'X' button
+            try:
+                if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
+                    break
+            except Exception:
+                pass
+
             frame = None
             if not use_snapshot_mode and cap is not None:
                 ret, frame = cap.read()
-                if not ret or frame is None:
-                    time.sleep(0.05)
-                    continue
             else:
-                try:
-                    res = requests.get(snapshot_url, timeout=3)
-                    if res.status_code == 200 and len(res.content) > 0:
-                        nparr = np.frombuffer(res.content, np.uint8)
-                        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                    else:
-                        time.sleep(0.3)
-                        continue
-                except Exception as e:
-                    time.sleep(0.5)
-                    continue
+                with frame_lock:
+                    if latest_frame[0] is not None:
+                        frame = latest_frame[0].copy()
 
             if frame is None:
+                # Render smooth loading screen placeholder while waiting for initial camera frame
+                placeholder = np.zeros((540, 960, 3), dtype=np.uint8)
+                cv2.putText(placeholder, "Connecting to camera stream...", (260, 260), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.85, (0, 255, 255), 2)
+                cv2.putText(placeholder, f"Device ID: {device_id} | Mode: Live Snapshots", (290, 310), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (180, 180, 180), 1)
+                cv2.imshow(window_name, placeholder)
                 continue
 
             fps_frame_count += 1
@@ -275,12 +339,9 @@ def run_live_demo(device_id):
                         (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 1)
 
             cv2.imshow(window_name, frame)
-            
-            key = cv2.waitKey(1) & 0xFF
-            if key == 27 or key == ord('q') or key == ord('Q'):
-                break
 
     finally:
+        demo_active[0] = False
         if cap is not None:
             cap.release()
         cv2.destroyAllWindows()

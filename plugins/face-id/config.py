@@ -25,6 +25,8 @@ class Settings:
         self.url = "http://localhost:3000"
         self.module_id = "42627e35-57ad-4ed1-8c66-6aa9fccaf4f2"
         self.demo_device_id = None
+        self.login = None
+        self.password = None
         
         # Paths
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -38,9 +40,13 @@ def parse_args():
     parser.add_argument("--token", default=settings.token, help="Module Authorization Token")
     parser.add_argument("--url", default=settings.url, help="Core application base URL")
     parser.add_argument("--demo", default=None, help="Device ID to launch Live Interactive Demo Mode immediately")
+    parser.add_argument("--login", default=None, help="Dom.ru Account Login/Phone")
+    parser.add_argument("--password", default=None, help="Dom.ru Account Password")
     parsed = parser.parse_args()
     
     settings.token = parsed.token
     settings.url = parsed.url
     settings.demo_device_id = parsed.demo
+    settings.login = parsed.login
+    settings.password = parsed.password
     return parsed
