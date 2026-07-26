@@ -117,3 +117,17 @@ def fetch_photo(person_id):
     if photo_res.status_code == 200:
         return photo_res.content
     return None
+
+def fetch_stream_info(device_id):
+    """Fetch video stream info (including mjpegUrl) from Core for a device."""
+    stream_url = f"{settings.url}/api/modules/actions/stream/{device_id}?token={settings.token}"
+    try:
+        res = requests.get(stream_url, timeout=5)
+        if res.ok:
+            return res.json()
+        else:
+            log(f"⚠️ Core rejected stream info request: {res.text}", "WARN")
+    except Exception as e:
+        log(f"❌ Failed to fetch stream info: {e}", "ERROR")
+    return None
+

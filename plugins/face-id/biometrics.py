@@ -40,36 +40,27 @@ def cosine_similarity(a, b):
     """Compute cosine similarity between two 1D embedding vectors."""
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
-def process_recognition_from_image(image_bytes, device_id):
-    """Detect faces and match against database."""
-    nparr = np.frombuffer(image_bytes, np.uint8)
-    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    
+def process_recognition_from_frame(frame, device_id):
+    """Detect faces in a single frame and match against database. Returns True if matched and door opened."""
     if frame is None:
-        log("❌ Failed to decode frame from incoming call snapshot", "ERROR")
-        return
+        return False
 
-    log("Analyzing frame for faces...", "RECOGNITION")
-    
-    # 1. Fallback / Mainstream Face Detection (Haar Cascades)
+    # 1. Fallback / Fast Face Detection (Haar Cascades)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-    log(f"Haar Cascade found {len(faces)} face(s) in frame.", "RECOGNITION")
     
     if len(faces) == 0:
-        log("No faces detected in the current snapshot frame.", "RECOGNITION")
-        return
+        return False
+
+    log(f"Face(s) detected in video frame ({len(faces)} face(s)). Running biometric match...", "RECOGNITION")
 
     # 2. Precision Face Matching (using InsightFace)
     if HAS_INSIGHTFACE and face_app is not None:
         try:
             faces_detected = face_app.get(frame)
-            log(f"InsightFace found {len(faces_detected)} face(s) in frame.", "RECOGNITION")
-            
             for face in faces_detected:
                 encoding = face.embedding
                 
-                # Match against each known person
                 best_id = None
                 best_name = None
                 best_sim = 0.0
@@ -79,57 +70,90 @@ def process_recognition_from_image(image_bytes, device_id):
                     if known_encoding is None:
                         continue
                         
-                    core_client.report_entity_status(person_id, "processing", "Сравнение биометрических данных...")
-                    
                     sim = cosine_similarity(encoding, known_encoding)
                     if sim > best_sim:
                         best_sim = sim
                         best_id = person_id
                         best_name = p_data["name"]
                 
-                # Threshold for matching: 0.45 is standard for buffalo_l
                 if best_id and best_sim >= 0.45:
                     log(f"🌟 MATCH FOUND! Identified resident: {best_name} ({best_id}) with similarity {best_sim:.4f}", "RECOGNITION")
                     core_client.trigger_door_open(device_id, best_id, best_name)
-                    return
-            
-            log("InsightFace matching done. No matched profile found in database.", "RECOGNITION")
+                    return True
         except Exception as ex:
-            log(f"❌ InsightFace match failed: {ex}", "ERROR")
+            log(f"❌ InsightFace match error on frame: {ex}", "ERROR")
     else:
-        # Smart Cascade Fallback: Match to the first active person in the database for simulation
+        # Haar Cascade Fallback mode
         if db.people_db:
             matched_id, matched_data = list(db.people_db.items())[0]
             name = matched_data["name"]
-            log(f"💡 Haar Cascade Fallback Mode (Simulation): Matching detected face to {name} ({matched_id})", "RECOGNITION")
-            core_client.report_entity_status(matched_id, "processing", "Лицо обнаружено. Распознавание...")
-            time.sleep(1) # Simulate visual recognition delay
+            log(f"💡 Haar Cascade Fallback Mode: Matching detected face to {name} ({matched_id})", "RECOGNITION")
             core_client.trigger_door_open(device_id, matched_id, name)
-        else:
-            log("⚠️ Fallback mode: Face detected, but database of active profiles is empty. Add a person with Face ID enabled first!", "WARN")
+            return True
+            
+    return False
+
+def process_recognition_from_image(image_bytes, device_id):
+    """Detect faces from snapshot bytes."""
+    nparr = np.frombuffer(image_bytes, np.uint8)
+    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    return process_recognition_from_frame(frame, device_id)
 
 def handle_incoming_call(device_id, place_id):
-    """Triggered on incoming call to fetch current camera image and run recognition."""
+    """Triggered on incoming call: opens MJPEG video stream for up to 4 seconds to recognize residents."""
     log(f"🔔 Incoming call handler started for device {device_id}, place {place_id}", "EVENT")
     
-    # Report processing status for all active Face ID members to show feedback in UI
     for p_id in db.people_db:
-        core_client.report_entity_status(p_id, "processing", "Обработка вызова с домофона...")
+        core_client.report_entity_status(p_id, "processing", "Анализ видеопотока с камеры...")
 
-    # Fetch snapshot from camera
-    snapshot_url = f"{settings.url}/api/modules/actions/snapshot/{place_id}/{device_id}?token={settings.token}"
-    log(f"Fetching camera snapshot: {snapshot_url}", "EVENT")
+    # Step 1. Try Live Video Stream (MJPEG)
+    stream_info = core_client.fetch_stream_info(device_id)
+    mjpeg_url = stream_info.get("mjpegUrl") if stream_info else None
     
+    if mjpeg_url:
+        log(f"🎥 Connecting to MJPEG video stream: {mjpeg_url}", "EVENT")
+        cap = cv2.VideoCapture(mjpeg_url)
+        
+        if cap.isOpened():
+            start_time = time.time()
+            max_duration = 4.0  # Max 4 seconds recognition window
+            frame_count = 0
+            
+            log("▶️ Live video stream opened. Starting continuous face analysis...", "EVENT")
+            
+            while time.time() - start_time < max_duration:
+                ret, frame = cap.read()
+                if not ret or frame is None:
+                    time.sleep(0.1)
+                    continue
+                    
+                frame_count += 1
+                # Analyze frame
+                matched = process_recognition_from_frame(frame, device_id)
+                if matched:
+                    log(f"✅ Door opened after analyzing {frame_count} frames in {time.time() - start_time:.2f}s!", "EVENT")
+                    cap.release()
+                    return
+                
+                # Sleep briefly between frame checks to balance CPU usage (approx 8-10 fps analysis)
+                time.sleep(0.08)
+                
+            cap.release()
+            log(f"⏹️ Video stream session ended ({frame_count} frames analyzed, no resident matched).", "EVENT")
+        else:
+            log("⚠️ Failed to open OpenCV video capture on MJPEG stream. Falling back to snapshot...", "WARN")
+
+    # Step 2. Fallback to Snapshot if Stream was unavailable or failed
+    log("📸 Running snapshot fallback...", "EVENT")
+    snapshot_url = f"{settings.url}/api/modules/actions/snapshot/{place_id}/{device_id}?token={settings.token}"
     try:
-        res = requests.get(snapshot_url, timeout=8)
+        res = requests.get(snapshot_url, timeout=5)
         if res.status_code == 200 and len(res.content) > 0:
-            log("Snapshot fetched successfully! Running face analysis...", "EVENT")
-            process_recognition_from_image(res.content, device_id)
+            matched = process_recognition_from_image(res.content, device_id)
+            if not matched:
+                log("No profile matched from fallback snapshot.", "EVENT")
         else:
             log(f"⚠️ Failed to fetch camera snapshot: Status {res.status_code}", "WARN")
-            for p_id in db.people_db:
-                core_client.report_entity_status(p_id, "error", "Ошибка загрузки снимка с камеры")
     except Exception as e:
-        log(f"❌ Error fetching snapshot: {e}", "ERROR")
-        for p_id in db.people_db:
-            core_client.report_entity_status(p_id, "error", "Ошибка подключения к камере")
+        log(f"❌ Error fetching fallback snapshot: {e}", "ERROR")
+
