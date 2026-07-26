@@ -433,7 +433,7 @@ router.get("/actions/poll", async (req, res) => {
 });
 
 // Helper function to get an authenticated DomruClient
-function getModuleDomruClient(): DomruClient | null {
+async function getModuleDomruClient(): Promise<DomruClient | null> {
   const tokens = loadSavedTokens();
   const accounts = Object.values(tokens);
   if (accounts.length === 0) return null;
@@ -443,16 +443,13 @@ function getModuleDomruClient(): DomruClient | null {
     login: creds.login,
     password: creds.password,
     refreshToken: creds.refreshToken,
-    operatorId: creds.operatorId || 41,
-    accessToken: creds.token
+    operatorId: creds.operatorId || 41
   });
 
-  if (creds.token) {
-    const ctx = (client as any).ctx;
-    if (ctx) {
-      ctx.accessToken = creds.token;
-      ctx.accessTokenExpiresAt = Date.now() + 60 * 60 * 1000;
-    }
+  try {
+    await client.authenticate();
+  } catch (err) {
+    console.warn("Module DomruClient authentication notice:", err);
   }
 
   return client;
@@ -471,7 +468,7 @@ const handleSnapshotAction = async (req: express.Request, res: express.Response)
   let placeId = Number(req.params.placeId || 0);
   
   try {
-    const client = getModuleDomruClient();
+    const client = await getModuleDomruClient();
     if (!client) {
       return res.status(500).json({ error: "No configured Dom.ru accounts found on server" });
     }
@@ -526,7 +523,7 @@ router.get("/actions/stream/:deviceId", async (req, res) => {
   const { deviceId } = req.params;
   
   try {
-    const client = getModuleDomruClient();
+    const client = await getModuleDomruClient();
     if (!client) {
       return res.status(500).json({ error: "No configured Dom.ru accounts found on server" });
     }
