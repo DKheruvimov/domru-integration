@@ -171,18 +171,23 @@ def run_live_demo(device_id):
     stream_info = core_client.fetch_stream_info(device_id)
     mjpeg_url = stream_info.get("mjpegUrl") if stream_info else None
     
-    if not mjpeg_url:
-        log("❌ Unable to fetch MJPEG stream URL for demo mode.", "ERROR")
-        return
+    cap = None
+    use_snapshot_mode = False
 
-    log(f"🎥 Connecting live stream: {mjpeg_url}", "DEMO")
+    if mjpeg_url:
+        cap = cv2.VideoCapture(mjpeg_url)
+        if not cap.isOpened():
+            log("⚠️ MJPEG stream connection failed. Falling back to Live Snapshot Polling mode...", "WARN")
+            cap = None
+            use_snapshot_mode = True
+        else:
+            log(f"🎥 Connected to live MJPEG stream: {mjpeg_url}", "DEMO")
+    else:
+        log("ℹ️ No continuous MJPEG stream found. Using Live Snapshot Polling mode...", "DEMO")
+        use_snapshot_mode = True
+
     log("💡 Instructions: A visual window will open. Press 'ESC' or 'Q' in the video window to stop Demo Mode.", "DEMO")
     
-    cap = cv2.VideoCapture(mjpeg_url)
-    if not cap.isOpened():
-        log("❌ Failed to open video capture stream for demo mode.", "ERROR")
-        return
-
     window_name = f"Face ID Live Demo - Device {device_id}"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(window_name, 960, 540)
@@ -191,11 +196,30 @@ def run_live_demo(device_id):
     fps_frame_count = 0
     fps = 0.0
 
+    snapshot_url = f"{settings.url}/api/modules/actions/snapshot/{device_id}?token={settings.token}"
+
     try:
         while True:
-            ret, frame = cap.read()
-            if not ret or frame is None:
-                time.sleep(0.05)
+            frame = None
+            if not use_snapshot_mode and cap is not None:
+                ret, frame = cap.read()
+                if not ret or frame is None:
+                    time.sleep(0.05)
+                    continue
+            else:
+                try:
+                    res = requests.get(snapshot_url, timeout=3)
+                    if res.status_code == 200 and len(res.content) > 0:
+                        nparr = np.frombuffer(res.content, np.uint8)
+                        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    else:
+                        time.sleep(0.3)
+                        continue
+                except Exception as e:
+                    time.sleep(0.5)
+                    continue
+
+            if frame is None:
                 continue
 
             fps_frame_count += 1
@@ -245,8 +269,9 @@ def run_live_demo(device_id):
                     pass
 
             # Overlay Status Banner
+            mode_label = "LIVE STREAM" if not use_snapshot_mode else "LIVE SNAPSHOTS"
             cv2.rectangle(frame, (0, 0), (frame.shape[1], 35), (0, 0, 0), -1)
-            cv2.putText(frame, f"LIVE DEMO | FPS: {fps:.1f} | Profiles in DB: {len(db.people_db)} | Press ESC to Exit", 
+            cv2.putText(frame, f"LIVE DEMO ({mode_label}) | FPS: {fps:.1f} | Profiles in DB: {len(db.people_db)} | Press ESC to Exit", 
                         (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 1)
 
             cv2.imshow(window_name, frame)
@@ -256,7 +281,8 @@ def run_live_demo(device_id):
                 break
 
     finally:
-        cap.release()
+        if cap is not None:
+            cap.release()
         cv2.destroyAllWindows()
         log("⏹️ Demo Mode stopped.", "DEMO")
 

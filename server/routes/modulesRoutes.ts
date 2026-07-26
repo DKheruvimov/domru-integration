@@ -458,8 +458,8 @@ function getModuleDomruClient(): DomruClient | null {
   return client;
 }
 
-// External Module Endpoint: Action Snapshot
-router.get("/actions/snapshot/:placeId/:deviceId", async (req, res) => {
+// External Module Endpoint: Action Snapshot (with optional placeId resolution)
+const handleSnapshotAction = async (req: express.Request, res: express.Response) => {
   const token = String(req.query.token || "").trim();
   const module = validateModuleToken(token);
   
@@ -467,7 +467,8 @@ router.get("/actions/snapshot/:placeId/:deviceId", async (req, res) => {
     return res.status(403).json({ error: "Invalid or missing module token" });
   }
 
-  const { placeId, deviceId } = req.params;
+  const deviceId = Number(req.params.deviceId);
+  let placeId = Number(req.params.placeId || 0);
   
   try {
     const client = getModuleDomruClient();
@@ -475,7 +476,23 @@ router.get("/actions/snapshot/:placeId/:deviceId", async (req, res) => {
       return res.status(500).json({ error: "No configured Dom.ru accounts found on server" });
     }
 
-    const snapshotBuffer = await client.getSnapshot(Number(placeId), Number(deviceId));
+    if (!placeId) {
+      // Resolve placeId from subscriber places
+      try {
+        const places = await client.getSubscriberPlaces();
+        for (const p of places) {
+          const devs = await client.getDevices(p.id);
+          if (devs.some((d: any) => Number(d.id) === deviceId)) {
+            placeId = p.id;
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn("Could not resolve placeId for deviceId:", deviceId, e);
+      }
+    }
+
+    const snapshotBuffer = await client.getSnapshot(placeId, deviceId);
     if (!snapshotBuffer || snapshotBuffer.length === 0) {
       return res.status(404).send("Failed to retrieve snapshot");
     }
@@ -487,7 +504,10 @@ router.get("/actions/snapshot/:placeId/:deviceId", async (req, res) => {
     console.error("Module Snapshot Error:", error);
     res.status(500).json({ error: error.message || "Failed to get snapshot" });
   }
-});
+};
+
+router.get("/actions/snapshot/:placeId/:deviceId", handleSnapshotAction);
+router.get("/actions/snapshot/:deviceId", handleSnapshotAction);
 
 // External Module Endpoint: Action Stream
 router.get("/actions/stream/:deviceId", async (req, res) => {
