@@ -17,8 +17,15 @@ except ImportError:
 # Global FaceAnalysis instance
 face_app = None
 
+import os
+import sys
+
 # Haar cascade for fallback face detection
 cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+if not os.path.exists(cascade_path) and getattr(sys, 'frozen', False):
+    alt_path = os.path.join(sys._MEIPASS, 'cv2', 'data', 'haarcascade_frontalface_default.xml')
+    if os.path.exists(alt_path):
+        cascade_path = alt_path
 face_cascade = cv2.CascadeClassifier(cascade_path)
 
 def init_engine():

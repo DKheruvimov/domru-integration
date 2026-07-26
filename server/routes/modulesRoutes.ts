@@ -500,7 +500,27 @@ router.get("/actions/stream/:deviceId", async (req, res) => {
       await client.authenticate();
     }
 
-    const stream = await client.getStreamUrl(deviceId);
+    let targetCameraId = deviceId;
+    let stream = await client.getStreamUrl(targetCameraId);
+    
+    if (!stream || !stream.url) {
+      // If direct deviceId lookup fails, resolve externalCameraId from subscriber places
+      try {
+        const places = await client.getSubscriberPlaces();
+        for (const place of places) {
+          const devices = await client.getDevices(place.id);
+          const matchedDev = devices.find((d: any) => String(d.id) === String(deviceId));
+          if (matchedDev && matchedDev.externalCameraId) {
+            targetCameraId = matchedDev.externalCameraId;
+            stream = await client.getStreamUrl(targetCameraId);
+            if (stream && stream.url) break;
+          }
+        }
+      } catch (err) {
+        console.warn("Could not resolve camera ID for device:", deviceId, err);
+      }
+    }
+
     if (!stream || !stream.url) {
       return res.status(404).json({ error: "No stream found for camera" });
     }
