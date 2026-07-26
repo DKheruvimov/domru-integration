@@ -477,14 +477,19 @@ const handleSnapshotAction = async (req: express.Request, res: express.Response)
     }
 
     if (!placeId) {
-      // Resolve placeId from subscriber places
       try {
         const places = await client.getSubscriberPlaces();
-        for (const p of places) {
-          const devs = await client.getDevices(p.id);
-          if (devs.some((d: any) => Number(d.id) === deviceId)) {
-            placeId = p.id;
-            break;
+        if (places && places.length > 0) {
+          for (const p of places) {
+            const devs = await client.getDevices(p.id).catch(() => []);
+            if (devs.some((d: any) => String(d.id) === String(deviceId))) {
+              placeId = p.id;
+              break;
+            }
+          }
+          // Fallback to first place ID if specific device search yielded no match
+          if (!placeId && places[0] && places[0].id) {
+            placeId = places[0].id;
           }
         }
       } catch (e) {
