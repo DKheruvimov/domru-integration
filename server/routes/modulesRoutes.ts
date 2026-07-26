@@ -439,12 +439,23 @@ function getModuleDomruClient(): DomruClient | null {
   if (accounts.length === 0) return null;
   
   const creds = accounts[0];
-  return new DomruClient({
+  const client = new DomruClient({
     login: creds.login,
     password: creds.password,
     refreshToken: creds.refreshToken,
-    operatorId: creds.operatorId || 41
+    operatorId: creds.operatorId || 41,
+    accessToken: creds.token
   });
+
+  if (creds.token) {
+    const ctx = (client as any).ctx;
+    if (ctx) {
+      ctx.accessToken = creds.token;
+      ctx.accessTokenExpiresAt = Date.now() + 60 * 60 * 1000;
+    }
+  }
+
+  return client;
 }
 
 // External Module Endpoint: Action Snapshot
@@ -495,16 +506,11 @@ router.get("/actions/stream/:deviceId", async (req, res) => {
       return res.status(500).json({ error: "No configured Dom.ru accounts found on server" });
     }
 
-    // Attempting to auto-authenticate to ensure valid token for stream URL
-    if (!client.token) {
-      await client.authenticate();
-    }
-
     let targetCameraId = deviceId;
-    let stream = await client.getStreamUrl(targetCameraId);
+    let stream = await client.getStreamUrl(targetCameraId).catch(() => null);
     
     if (!stream || !stream.url) {
-      // If direct deviceId lookup fails, resolve externalCameraId from subscriber places
+      // 1. Check all devices across subscriber places to find externalCameraId matching deviceId
       try {
         const places = await client.getSubscriberPlaces();
         for (const place of places) {
@@ -512,12 +518,28 @@ router.get("/actions/stream/:deviceId", async (req, res) => {
           const matchedDev = devices.find((d: any) => String(d.id) === String(deviceId));
           if (matchedDev && matchedDev.externalCameraId) {
             targetCameraId = matchedDev.externalCameraId;
-            stream = await client.getStreamUrl(targetCameraId);
+            stream = await client.getStreamUrl(targetCameraId).catch(() => null);
             if (stream && stream.url) break;
           }
         }
       } catch (err) {
-        console.warn("Could not resolve camera ID for device:", deviceId, err);
+        console.warn("Could not resolve camera ID from devices for:", deviceId, err);
+      }
+    }
+
+    if (!stream || !stream.url) {
+      // 2. Check all Forpost CCTV cameras for the account
+      try {
+        const cameras = await client.getCameras();
+        if (cameras && cameras.length > 0) {
+          const cam = cameras.find((c: any) => String(c.id) === String(deviceId)) || cameras[0];
+          if (cam && cam.id) {
+            targetCameraId = String(cam.id);
+            stream = await client.getStreamUrl(targetCameraId).catch(() => null);
+          }
+        }
+      } catch (err) {
+        console.warn("Could not resolve camera ID from getCameras for:", deviceId, err);
       }
     }
 
