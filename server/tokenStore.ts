@@ -33,9 +33,14 @@ export function saveTokens(tokens: Record<string, SavedCredentials>) {
 }
 
 export function registerCredentials(creds: SavedCredentials): string {
-  const tokenKey = crypto.randomUUID();
+  const tokenKey = creds.login || creds.phone || "primary_account";
   const tokens = loadSavedTokens();
-  tokens[tokenKey] = creds;
+  const merged = {
+    ...(tokens[tokenKey] || {}),
+    ...creds
+  };
+  tokens[tokenKey] = merged;
+  tokens["primary_account"] = merged;
   saveTokens(tokens);
   return tokenKey;
 }

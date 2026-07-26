@@ -22,6 +22,7 @@ import { enableAutoOpen, disableAutoOpen, disableAutoOpenByDevice, getSipLogs, g
 import { getPeople, savePeople, addTemporaryAutoOpenPerson, removeTemporaryAutoOpenPerson, isScheduleActive } from "../people-manager.js";
 import { findSnapshotForEvent, getSnapshotPath } from "../snapshots-manager.js";
 import { getOpeningByOurService } from "../openings-manager.js";
+import { registerCredentials } from "../tokenStore.js";
 import fs from "fs";
 
 const router = express.Router();
@@ -137,6 +138,17 @@ router.post("/sms/confirm", async (req, res) => {
 
   try {
     const response = await confirmSmsCode(cleanPhone, code, account);
+    if (response && response.accessToken) {
+      registerCredentials({
+        login: cleanPhone,
+        phone: cleanPhone,
+        token: response.accessToken,
+        refreshToken: response.refreshToken,
+        operatorId: response.operatorId,
+        accountId: account.accountId,
+        subscriberId: account.subscriberId
+      });
+    }
     res.json({
       success: true,
       token: response.accessToken,

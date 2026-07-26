@@ -95,6 +95,18 @@ export const getDomruInstance = (req: express.Request) => {
     }
   }
 
+  if (token || refreshToken || password) {
+    try {
+      registerCredentials({
+        login: login || "primary_account",
+        phone: login,
+        token: token,
+        refreshToken: refreshToken,
+        operatorId: operatorId || 41
+      });
+    } catch (e) {}
+  }
+
   return client;
 };
 
