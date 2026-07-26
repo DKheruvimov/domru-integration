@@ -529,6 +529,7 @@ router.get("/actions/stream/:deviceId", async (req, res) => {
 
   const { deviceId } = req.params;
   
+  try {
     let client = getDomruInstance(req);
     if (!client.token) {
       const modClient = await getModuleDomruClient();
