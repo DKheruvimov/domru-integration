@@ -185,16 +185,16 @@ export default function CallScreen({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black text-white flex flex-col justify-between overflow-hidden select-none animate-fade-in">
-      {/* Top Header Bar */}
-      <div className="absolute top-0 left-0 right-0 z-20 p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/50 to-transparent flex items-center justify-between pointer-events-auto">
+    <div className="fixed inset-0 z-50 bg-[#0B0F12] text-white flex flex-col justify-between overflow-hidden select-none animate-fade-in">
+      {/* Top Header Bar Overlay */}
+      <div className="absolute top-0 left-0 right-0 z-30 p-4 sm:p-5 bg-gradient-to-b from-black/90 via-black/60 to-transparent flex items-center justify-between pointer-events-auto">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-rose-600/90 flex items-center justify-center shadow-lg shadow-rose-900/50 animate-pulse">
-            <Volume2 className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 rounded-2xl bg-rose-600 flex items-center justify-center shadow-lg shadow-rose-900/40 animate-pulse">
+            <Volume2 className="w-4 h-4 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-black tracking-tight text-white">
+              <h2 className="text-base font-black tracking-tight text-white">
                 {isTest ? "🧪 Тестовый звонок" : "🔔 Звонок в домофон"}
               </h2>
               {isTest && (
@@ -211,18 +211,19 @@ export default function CallScreen({
 
         <button
           onClick={onClose}
-          className="w-10 h-10 rounded-2xl bg-zinc-800/80 hover:bg-zinc-700/80 border border-zinc-700/50 flex items-center justify-center text-zinc-300 hover:text-white transition cursor-pointer backdrop-blur-md"
+          className="w-9 h-9 rounded-2xl bg-zinc-800/80 hover:bg-zinc-700/80 border border-zinc-700/50 flex items-center justify-center text-zinc-300 hover:text-white transition cursor-pointer backdrop-blur-md"
           title="Закрыть экран звонка"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Main CctvPlayer Video Section */}
-      <div className="relative flex-1 w-full h-full bg-zinc-950 flex flex-col items-center justify-center overflow-y-auto p-4 pt-20 pb-32">
+      {/* Main Full-Width Video Stream Container (Borderless like Yandex) */}
+      <div className="relative flex-1 w-full bg-black flex flex-col items-center justify-start overflow-y-auto pt-16 pb-32">
         {activeCameraId && credentials ? (
-          <div className="w-full max-w-lg flex flex-col items-center gap-4">
-            <div className="w-full rounded-3xl overflow-hidden shadow-2xl border border-zinc-800/80">
+          <div className="w-full flex flex-col items-center">
+            {/* Seamless Borderless Video Box */}
+            <div className="w-full bg-black border-y border-zinc-800/50">
               <CctvPlayer
                 activeCamera={activeCameraId}
                 devices={devices}
@@ -246,15 +247,18 @@ export default function CallScreen({
                 openingDoorId={opening ? deviceId : null}
                 triggerOpenDoor={() => handleOpenDoor()}
                 isDevModeEnabled={isDevModeEnabled}
+                isCallScreen={true}
               />
+
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-3 text-zinc-500 p-6 text-center max-w-md w-full">
+          <div className="flex flex-col items-center justify-center flex-1 gap-3 text-zinc-500 p-6 text-center w-full">
             <ShieldAlert className="w-12 h-12 text-rose-500 mb-1 animate-pulse" />
             <span className="text-sm font-bold text-zinc-300">Загрузка трансляции с ядра...</span>
           </div>
         )}
+
 
 
         {/* Success Overlay Flash */}

@@ -29,6 +29,7 @@ interface CctvPlayerProps {
   openingDoorId: number | null;
   triggerOpenDoor: (id: number) => void;
   isDevModeEnabled?: boolean;
+  isCallScreen?: boolean;
 }
 
 export default function CctvPlayer({
@@ -54,7 +55,9 @@ export default function CctvPlayer({
   openingDoorId,
   triggerOpenDoor,
   isDevModeEnabled = false,
+  isCallScreen = false,
 }: CctvPlayerProps) {
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const [autoOpenState, setAutoOpenState] = useState<number | boolean>(false);
@@ -376,29 +379,35 @@ export default function CctvPlayer({
 
   return (
     <div
-      className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4 sm:p-6 rounded-[2rem] shadow-xl flex flex-col space-y-4 animate-fade-in max-w-3xl mx-auto"
+      className={
+        isCallScreen
+          ? "w-full flex flex-col gap-3 font-mono bg-transparent p-0 border-0 rounded-none shadow-none"
+          : "space-y-4 p-4 sm:p-5 font-mono bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-xl"
+      }
       id="cctv_visualizer"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Video className="w-4 h-4 text-[#E30613] animate-pulse" />
-          <span className="font-extrabold text-sm text-zinc-900 dark:text-white">
-            {cameras.find((c) => c.id === activeCamera)?.name ||
-              matchingDevice?.name ||
-              "Просмотр видеопотока"}
-          </span>
+      {!isCallScreen && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Video className="w-4 h-4 text-[#E30613] animate-pulse" />
+            <span className="font-extrabold text-sm text-zinc-900 dark:text-white">
+              {cameras.find((c) => c.id === activeCamera)?.name ||
+                matchingDevice?.name ||
+                "Просмотр видеопотока"}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="px-3.5 py-1.5 bg-[#E30613]/10 text-[#E30613] font-bold rounded-xl hover:bg-[#E30613]/20 transition text-xs cursor-pointer"
+            id="close_cctv_btn"
+          >
+            <VideoOff className="w-3.5 h-3.5 inline mr-1" />
+            Закрыть
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="px-3.5 py-1.5 bg-[#E30613]/10 text-[#E30613] font-bold rounded-xl hover:bg-[#E30613]/20 transition text-xs cursor-pointer"
-          id="close_cctv_btn"
-        >
-          <VideoOff className="w-3.5 h-3.5 inline mr-1" />
-          Закрыть
-        </button>
-      </div>
+      )}
 
-      {matchingDevice && (
+      {matchingDevice && !isCallScreen && (
         <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 p-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-700 text-xs">
           <div className="flex gap-1.5">
             <button
@@ -430,7 +439,13 @@ export default function CctvPlayer({
         </div>
       )}
 
-      <div className="aspect-video w-full bg-zinc-100 dark:bg-zinc-950 rounded-2xl overflow-hidden relative flex items-center justify-center border border-zinc-200 dark:border-zinc-800 group">
+      <div
+        className={
+          isCallScreen
+            ? "aspect-video w-full bg-black rounded-none overflow-hidden relative flex items-center justify-center border-0 shadow-2xl"
+            : "aspect-video w-full bg-zinc-100 dark:bg-zinc-950 rounded-2xl overflow-hidden relative flex items-center justify-center border border-zinc-200 dark:border-zinc-800 group"
+        }
+      >
         {matchingDevice && matchingDevice.allowOpen && (
           <div className="absolute top-3 right-3 z-20 flex items-center gap-2 opacity-100 transition-opacity">
              <button
