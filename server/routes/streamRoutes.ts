@@ -226,12 +226,13 @@ router.get("/call-stream-active", async (req, res) => {
     res.json({
       success: true,
       cameraId: String(selectedCamera.id),
-      placeId: selectedCamera.placeId || 0,
+      placeId: (selectedCamera as any).placeId || 0,
       deviceId: 0,
       url: proxiedUrl,
       type: stream.type || "hls",
       originalUrl: stream.url,
     });
+
   } catch (err: any) {
     handleClientError(err, res);
   }

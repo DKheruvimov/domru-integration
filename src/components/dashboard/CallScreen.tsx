@@ -49,8 +49,19 @@ export default function CallScreen({
     setStreamLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
   };
 
-  const proxyHeaders: Record<string, string> = credentials
-    ? { Authorization: `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}` }
+  // Helper to retrieve saved credentials from localStorage if prop is pending
+  const getEffectiveCredentials = (): AppCredentials | null => {
+    if (credentials) return credentials;
+    try {
+      const saved = localStorage.getItem("domru_credentials");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  };
+
+  const effCreds = getEffectiveCredentials();
+  const proxyHeaders: Record<string, string> = effCreds
+    ? { Authorization: `Bearer ${btoa(encodeURIComponent(JSON.stringify(effCreds)))}` }
     : {};
 
   // Direct kernel stream resolution
@@ -58,14 +69,13 @@ export default function CallScreen({
     let isMounted = true;
 
     async function loadKernelActiveCallStream() {
-      if (!credentials) return;
-
       try {
         setLoadingStream(true);
         addStreamLog("Запрос активного потока вызова у ядра сервера...");
 
         const queryCam = cameraId ? `?cameraId=${cameraId}` : "";
         const res = await fetch(`/api/domru/call-stream-active${queryCam}`, { headers: proxyHeaders });
+
         
         if (!res.ok) {
           throw new Error(`Ошибка ядра: ${res.status}`);
