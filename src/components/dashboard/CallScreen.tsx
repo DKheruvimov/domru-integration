@@ -87,10 +87,13 @@ export default function CallScreen({
           const camRaw: SmartCamera[] = await camRes.json();
           setCameras(camRaw);
 
-          if ((!activeCameraId || activeCameraId === "0") && camRaw.length > 0) {
+          // Force set the first camera's real UUID if current activeCameraId is invalid/empty/zero
+          const currentValid = activeCameraId && activeCameraId !== "0" && activeCameraId !== "undefined";
+          if (!currentValid && camRaw.length > 0) {
             setActiveCameraId(String(camRaw[0].id));
           }
         }
+
       } catch (e) {
         console.error("[CallScreen] Error loading cameras/devices:", e);
       }
