@@ -88,8 +88,14 @@ export default function CallScreen({
         addStreamLog(`🔑 Авторизация: ${effCreds ? "найдена (" + (effCreds.operatorId || "OK") + ")" : "отсутствует"}`);
         addStreamLog("🛰️ Отправка запроса к /api/domru/call-stream-active...");
 
+        const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
         const queryCam = cameraId ? `?cameraId=${cameraId}` : "";
-        const res = await fetch(`/api/domru/call-stream-active${queryCam}`, { headers: proxyHeaders });
+        const queryTS = searchParams.get("timestamp") ? `${queryCam ? "&" : "?"}timestamp=${searchParams.get("timestamp")}` : "";
+        const queryEvt = searchParams.get("eventId") ? `${queryCam || queryTS ? "&" : "?"}eventId=${searchParams.get("eventId")}` : "";
+        const fullQuery = `${queryCam}${queryTS}${queryEvt}`;
+
+        const res = await fetch(`/api/domru/call-stream-active${fullQuery}`, { headers: proxyHeaders });
+
         
         addStreamLog(`📡 Ответ сервера: HTTP ${res.status} ${res.statusText}`);
 

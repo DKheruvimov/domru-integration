@@ -498,7 +498,8 @@ export function startSipServer() {
         broadcastIncomingCall(login, "Incoming SIP INVITE", snapshotPlaceId, snapshotDeviceId);
 
         // Dispatch Web Push notification to all subscribed mobile/desktop devices
-        const callUrl = `/?call=true&placeId=${snapshotPlaceId || 0}&deviceId=${snapshotDeviceId || 0}`;
+        const callTimestamp = Date.now();
+        const callUrl = `/?call=true&placeId=${snapshotPlaceId || 0}&deviceId=${snapshotDeviceId || 0}&timestamp=${callTimestamp}`;
 
         sendPushToAllSubscribers({
           title: "🔔 Звонок в домофон",
@@ -509,13 +510,14 @@ export function startSipServer() {
             login,
             placeId: snapshotPlaceId,
             deviceId: snapshotDeviceId,
-            timestamp: new Date().toISOString(),
+            timestamp: callTimestamp,
           },
           actions: [
             { action: "open_app", title: "📺 Видеовызов" },
             { action: "open_door", title: "🚪 Открыть дверь" }
           ]
         }).catch((err) => {
+
           console.error("[SIP] Push notification dispatch error:", err);
         });
 

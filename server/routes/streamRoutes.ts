@@ -250,34 +250,43 @@ router.get("/call-stream-active", async (req, res) => {
 
     const proxiedUrl = getProxiedStreamUrl(req, stream.url, client);
 
-    // Fetch latest call event for contextual display on CallScreen
+    // Fetch latest or requested event by eventId / timestamp for contextual display on CallScreen
     let latestEvent: any = null;
     try {
+      const targetEventId = req.query.eventId ? String(req.query.eventId) : null;
+      const targetTimestamp = req.query.timestamp ? Number(req.query.timestamp) : null;
+
       const places = await client.getSubscriberPlaces().catch(() => []);
       const placeIds = places.map((p: any) => p.place?.id || p.id).filter(Boolean);
       if (placeIds.length > 0) {
         const events = await client.getEvents(placeIds, 1).catch(() => []);
         if (events && events.length > 0) {
-          const firstEvent = events[0];
-          const rawTime = firstEvent.occurredAt || firstEvent.timestamp;
-          let eventTimeMs = rawTime ? (typeof rawTime === "number" ? (rawTime < 100000000000 ? rawTime * 1000 : rawTime) : new Date(rawTime).getTime()) : Date.now();
+          let matchedEvent = events[0];
+          if (targetEventId) {
+            const found = events.find((e: any) => String(e.id) === targetEventId);
+            if (found) matchedEvent = found;
+          }
+
+          const rawTime = matchedEvent.occurredAt || matchedEvent.timestamp;
+          let eventTimeMs = targetTimestamp || (rawTime ? (typeof rawTime === "number" ? (rawTime < 100000000000 ? rawTime * 1000 : rawTime) : new Date(rawTime).getTime()) : Date.now());
           
           const snapshot = findSnapshotForEvent(placeIds[0], eventTimeMs);
           const opening = getOpeningByOurService(placeIds[0], eventTimeMs);
 
           latestEvent = {
-            id: firstEvent.id || String(eventTimeMs),
+            id: matchedEvent.id || String(eventTimeMs),
             timestamp: eventTimeMs,
-            name: firstEvent.name || firstEvent.title || "Вызов принят",
-            deviceName: firstEvent.device?.name || firstEvent.source?.name || "Входная дверь",
-            sipSnapshotUrl: snapshot ? `/api/domru/snapshots/${snapshot.fileName}` : (firstEvent.snapshotUrl || null),
+            name: matchedEvent.name || matchedEvent.title || "Вызов принят",
+            deviceName: matchedEvent.device?.name || matchedEvent.source?.name || "Входная дверь",
+            sipSnapshotUrl: snapshot ? `/api/domru/snapshots/${snapshot.fileName}` : (matchedEvent.snapshotUrl || null),
             openedByOurService: opening ? { type: opening.type, details: opening.details } : null,
           };
         }
       }
     } catch (evErr) {
-      console.warn("[CallStreamActive] Failed to load latest event context:", evErr);
+      console.warn("[CallStreamActive] Failed to load event context:", evErr);
     }
+
 
     res.json({
       success: true,
