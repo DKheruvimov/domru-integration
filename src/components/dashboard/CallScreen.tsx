@@ -106,9 +106,9 @@ export default function CallScreen({
   }, [placeId, credentials, selectedPlace]);
 
 
-  // 2. Load stream when activeCameraId changes
+  // 2. Load stream when activeCameraId or credentials change
   useEffect(() => {
-    if (!activeCameraId || activeCameraId === "0") {
+    if (!activeCameraId || activeCameraId === "0" || !credentials) {
       setStreamUrl(null);
       setStreamType(null);
       return;
@@ -153,7 +153,8 @@ export default function CallScreen({
     };
 
     fetchStream();
-  }, [activeCameraId, useWebRTC]);
+  }, [activeCameraId, useWebRTC, credentials]);
+
 
   // 3. Open door handler
   const handleOpenDoor = async () => {
