@@ -59,40 +59,40 @@ export default function CallScreen({
       if (!credentials) return;
 
       try {
-        let targetPlaceId = placeId || selectedPlace?.id || 0;
-
-        // If placeId is 0 (generic call or test push), fetch places to find the first place
-        if (!targetPlaceId) {
-          const placesRes = await fetch("/api/domru/places/all", { headers: proxyHeaders });
-          if (placesRes.ok) {
-            const placesRaw = await placesRes.json();
-            if (placesRaw && placesRaw.length > 0) {
-              targetPlaceId = placesRaw[0].place?.id || placesRaw[0].id || 0;
-            }
-          }
-        }
-
-        if (!targetPlaceId) return;
-
-        // Fetch devices for the target place
-        const devRes = await fetch(`/api/domru/devices/${targetPlaceId}`, { headers: proxyHeaders });
-        if (devRes.ok && isMounted) {
-          const devRaw = await devRes.json();
-          setDevices(devRaw);
-        }
-
-        // Fetch cameras for the account
+        // 1. Always fetch account cameras first
         const camRes = await fetch(`/api/domru/cameras`, { headers: proxyHeaders });
         if (camRes.ok && isMounted) {
           const camRaw: SmartCamera[] = await camRes.json();
           setCameras(camRaw);
 
-          // Force set the first camera's real UUID if current activeCameraId is invalid/empty/zero
           const currentValid = activeCameraId && activeCameraId !== "0" && activeCameraId !== "undefined";
           if (!currentValid && camRaw.length > 0) {
             setActiveCameraId(String(camRaw[0].id));
           }
         }
+
+        // 2. Resolve placeId if missing
+        let targetPlaceId = placeId || selectedPlace?.id || 0;
+        if (!targetPlaceId) {
+          const placesRes = await fetch("/api/domru/places/all", { headers: proxyHeaders });
+          if (placesRes.ok) {
+            const placesRaw = await placesRes.json();
+            if (placesRaw && placesRaw.length > 0) {
+              const p = placesRaw[0];
+              targetPlaceId = p.place?.id || p.id || p.placeId || 0;
+            }
+          }
+        }
+
+        // 3. Fetch devices for place if available
+        if (targetPlaceId) {
+          const devRes = await fetch(`/api/domru/devices/${targetPlaceId}`, { headers: proxyHeaders });
+          if (devRes.ok && isMounted) {
+            const devRaw = await devRes.json();
+            setDevices(devRaw);
+          }
+        }
+
 
       } catch (e) {
         console.error("[CallScreen] Error loading cameras/devices:", e);
