@@ -51,6 +51,8 @@ export default function CallScreen({
     ? { Authorization: `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}` }
     : {};
 
+  const [resolvedPlaceId, setResolvedPlaceId] = useState<number>(placeId || selectedPlace?.id || 0);
+
   // 1. Fetch cameras & devices for this placeId if not provided
   useEffect(() => {
     let isMounted = true;
@@ -67,12 +69,16 @@ export default function CallScreen({
 
           const currentValid = activeCameraId && activeCameraId !== "0" && activeCameraId !== "undefined";
           if (!currentValid && camRaw.length > 0) {
-            setActiveCameraId(String(camRaw[0].id));
+            const firstCam = camRaw[0];
+            setActiveCameraId(String(firstCam.id));
+            if (firstCam.placeId && !resolvedPlaceId) {
+              setResolvedPlaceId(firstCam.placeId);
+            }
           }
         }
 
         // 2. Resolve placeId if missing
-        let targetPlaceId = placeId || selectedPlace?.id || 0;
+        let targetPlaceId = placeId || selectedPlace?.id || resolvedPlaceId || 0;
         if (!targetPlaceId) {
           const placesRes = await fetch("/api/domru/places/all", { headers: proxyHeaders });
           if (placesRes.ok) {
@@ -80,6 +86,7 @@ export default function CallScreen({
             if (placesRaw && placesRaw.length > 0) {
               const p = placesRaw[0];
               targetPlaceId = p.place?.id || p.id || p.placeId || 0;
+              if (isMounted) setResolvedPlaceId(targetPlaceId);
             }
           }
         }
@@ -92,8 +99,6 @@ export default function CallScreen({
             setDevices(devRaw);
           }
         }
-
-
       } catch (e) {
         console.error("[CallScreen] Error loading cameras/devices:", e);
       }
@@ -104,6 +109,7 @@ export default function CallScreen({
       isMounted = false;
     };
   }, [placeId, credentials, selectedPlace]);
+
 
 
   // 2. Load stream when activeCameraId or credentials change
@@ -260,7 +266,8 @@ export default function CallScreen({
               setStreamLogs={setStreamLogs}
               addStreamLog={addStreamLog}
               onClose={onClose}
-              selectedPlaceId={placeId || selectedPlace?.id}
+              selectedPlaceId={resolvedPlaceId || placeId || selectedPlace?.id}
+
               openingDoorId={opening ? deviceId : null}
               triggerOpenDoor={() => handleOpenDoor()}
             />
