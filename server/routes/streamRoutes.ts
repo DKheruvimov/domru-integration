@@ -188,8 +188,7 @@ router.get("/stream/:cameraId", async (req, res) => {
 
 
 // API Route: Active Call Stream resolver for PWA CallScreen
-router.get("/call-stream-active", requireDomruAuth, async (req, res) => {
-
+router.get("/call-stream-active", async (req, res) => {
   try {
     if (isDemo(req)) {
       return res.json({
@@ -237,6 +236,7 @@ router.get("/call-stream-active", requireDomruAuth, async (req, res) => {
     handleClientError(err, res);
   }
 });
+
 
 
 // API Route: Video Stream URL with automatic go2rtc registration and proxying
