@@ -114,33 +114,7 @@ router.post("/subscriptions/clear", requireDomruAuth, (req, res) => {
 // Protected: Send a test push notification
 router.post("/test", requireDomruAuth, async (req, res) => {
   try {
-    let placeId = 0;
-    let deviceId = 0;
-    let cameraId = 0;
-
-    if (!isDemo(req)) {
-      try {
-        const client = getDomruInstance(req);
-        const places = await client.getSubscriberPlaces();
-        if (places && places.length > 0) {
-          placeId = places[0].id;
-          const devices = await client.getDevices(placeId);
-          if (devices && devices.length > 0) {
-            deviceId = devices[0].id;
-          }
-          const cameras = await client.getCameras();
-          if (cameras && cameras.length > 0) {
-            cameraId = Number(cameras[0].id) || 0;
-          }
-        }
-      } catch (e) {
-        console.error("[PushRoutes] Error resolving real camera for test push:", e);
-      }
-    }
-
-    const testUrl = `/?call=true&placeId=${placeId}&deviceId=${deviceId}&cameraId=${cameraId}&isTest=true`;
-
-
+    const testUrl = "/?call=true&isTest=true";
 
     const result = await sendPushToAllSubscribers({
       title: "🔔 Тестовый звонок в домофон",
@@ -148,9 +122,6 @@ router.post("/test", requireDomruAuth, async (req, res) => {
       tag: "test-push",
       data: {
         url: testUrl,
-        placeId,
-        deviceId,
-        cameraId,
         isTest: true,
         timestamp: new Date().toISOString(),
       },
@@ -165,5 +136,6 @@ router.post("/test", requireDomruAuth, async (req, res) => {
 });
 
 export default router;
+
 
 

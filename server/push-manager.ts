@@ -76,10 +76,11 @@ function initVapidKeys(): VapidKeys {
 
   // Set web-push VAPID details (must be a valid URL or mailto URI for Apple APNs compliance)
   webpush.setVapidDetails(
-    "https://github.com/DKheruvimov/domru-integration",
+    "https://github.com/domru-integration/domru-integration",
     vapidKeys.publicKey,
     vapidKeys.privateKey
   );
+
 
   return vapidKeys;
 }

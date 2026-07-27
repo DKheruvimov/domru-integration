@@ -56,24 +56,38 @@ export default function CallScreen({
     let isMounted = true;
 
     async function loadPlaceDetails() {
-      const targetPlaceId = placeId || selectedPlace?.id || 0;
-      if (!targetPlaceId || !credentials) return;
+      if (!credentials) return;
 
       try {
-        // Fetch devices
+        let targetPlaceId = placeId || selectedPlace?.id || 0;
+
+        // If placeId is 0 (generic call or test push), fetch places to find the first place
+        if (!targetPlaceId) {
+          const placesRes = await fetch("/api/domru/places/all", { headers: proxyHeaders });
+          if (placesRes.ok) {
+            const placesRaw = await placesRes.json();
+            if (placesRaw && placesRaw.length > 0) {
+              targetPlaceId = placesRaw[0].place?.id || placesRaw[0].id || 0;
+            }
+          }
+        }
+
+        if (!targetPlaceId) return;
+
+        // Fetch devices for the target place
         const devRes = await fetch(`/api/domru/devices/${targetPlaceId}`, { headers: proxyHeaders });
         if (devRes.ok && isMounted) {
           const devRaw = await devRes.json();
           setDevices(devRaw);
         }
 
-        // Fetch cameras
+        // Fetch cameras for the account
         const camRes = await fetch(`/api/domru/cameras`, { headers: proxyHeaders });
         if (camRes.ok && isMounted) {
           const camRaw: SmartCamera[] = await camRes.json();
           setCameras(camRaw);
 
-          if (!activeCameraId && camRaw.length > 0) {
+          if ((!activeCameraId || activeCameraId === "0") && camRaw.length > 0) {
             setActiveCameraId(String(camRaw[0].id));
           }
         }
@@ -87,6 +101,7 @@ export default function CallScreen({
       isMounted = false;
     };
   }, [placeId, credentials, selectedPlace]);
+
 
   // 2. Load stream when activeCameraId changes
   useEffect(() => {
