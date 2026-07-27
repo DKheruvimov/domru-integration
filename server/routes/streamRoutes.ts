@@ -186,6 +186,59 @@ router.get("/stream/:cameraId", async (req, res) => {
   }
 });
 
+
+// API Route: Active Call Stream resolver for PWA CallScreen
+router.get("/call-stream-active", requireDomruAuth, async (req, res) => {
+
+  try {
+    if (isDemo(req)) {
+      return res.json({
+        success: true,
+        cameraId: "demo-camera",
+        placeId: 1,
+        deviceId: 1,
+        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+        type: "hls",
+      });
+    }
+
+    const client = getDomruInstance(req);
+    const cameras = await client.getCameras();
+
+    if (!cameras || cameras.length === 0) {
+      return res.status(404).json({ error: "No cameras found for user account" });
+    }
+
+    const requestedCameraId = req.query.cameraId ? String(req.query.cameraId) : null;
+    let selectedCamera = cameras[0];
+
+    if (requestedCameraId && requestedCameraId !== "0" && requestedCameraId !== "undefined") {
+      const matched = cameras.find((c: any) => String(c.id) === requestedCameraId);
+      if (matched) selectedCamera = matched;
+    }
+
+    const stream = await client.getStreamUrl(String(selectedCamera.id));
+    if (!stream || !stream.url) {
+      return res.status(404).json({ error: "Failed to fetch stream URL for active call camera" });
+    }
+
+    const proxiedUrl = getProxiedStreamUrl(req, stream.url, client);
+
+    res.json({
+      success: true,
+      cameraId: String(selectedCamera.id),
+      placeId: selectedCamera.placeId || 0,
+      deviceId: 0,
+      url: proxiedUrl,
+      type: stream.type || "hls",
+      originalUrl: stream.url,
+    });
+  } catch (err: any) {
+    handleClientError(err, res);
+  }
+});
+
+
 // API Route: Video Stream URL with automatic go2rtc registration and proxying
 router.get("/stream-go2rtc/:cameraId", async (req, res) => {
   const { cameraId } = req.params;

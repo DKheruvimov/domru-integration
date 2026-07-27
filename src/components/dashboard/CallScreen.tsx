@@ -28,10 +28,12 @@ export default function CallScreen({
   const [opened, setOpened] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Stream & Player state matching CctvPlayer
+  // Active stream details resolved directly from kernel endpoint
   const [activeCameraId, setActiveCameraId] = useState<string>(
     cameraId && cameraId > 0 ? String(cameraId) : ""
   );
+  const [resolvedPlaceId, setResolvedPlaceId] = useState<number>(placeId || selectedPlace?.id || 0);
+
   const [cameras, setCameras] = useState<SmartCamera[]>([]);
   const [devices, setDevices] = useState<SmartDevice[]>([]);
   const [playerMode, setPlayerMode] = useState<"stream" | "snapshot">("stream");
@@ -39,7 +41,7 @@ export default function CallScreen({
   const [forceHlsJS, setForceHlsJS] = useState(false);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [streamType, setStreamType] = useState<string | null>(null);
-  const [loadingStream, setLoadingStream] = useState(false);
+  const [loadingStream, setLoadingStream] = useState(true);
   const [streamLogs, setStreamLogs] = useState<string[]>([]);
   const [snapshotTime] = useState<number>(Date.now());
 
@@ -51,118 +53,63 @@ export default function CallScreen({
     ? { Authorization: `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}` }
     : {};
 
-  const [resolvedPlaceId, setResolvedPlaceId] = useState<number>(placeId || selectedPlace?.id || 0);
-
-  // 1. Fetch cameras & devices for this placeId if not provided
+  // Direct kernel stream resolution
   useEffect(() => {
     let isMounted = true;
 
-    async function loadPlaceDetails() {
+    async function loadKernelActiveCallStream() {
       if (!credentials) return;
 
       try {
-        // 1. Always fetch account cameras first
-        const camRes = await fetch(`/api/domru/cameras`, { headers: proxyHeaders });
-        if (camRes.ok && isMounted) {
-          const camRaw: SmartCamera[] = await camRes.json();
-          setCameras(camRaw);
+        setLoadingStream(true);
+        addStreamLog("Запрос активного потока вызова у ядра сервера...");
 
-          const currentValid = activeCameraId && activeCameraId !== "0" && activeCameraId !== "undefined";
-          if (!currentValid && camRaw.length > 0) {
-            const firstCam = camRaw[0];
-            setActiveCameraId(String(firstCam.id));
-            if (firstCam.placeId && !resolvedPlaceId) {
-              setResolvedPlaceId(firstCam.placeId);
-            }
-          }
+        const queryCam = cameraId ? `?cameraId=${cameraId}` : "";
+        const res = await fetch(`/api/domru/call-stream-active${queryCam}`, { headers: proxyHeaders });
+        
+        if (!res.ok) {
+          throw new Error(`Ошибка ядра: ${res.status}`);
         }
 
-        // 2. Resolve placeId if missing
-        let targetPlaceId = placeId || selectedPlace?.id || resolvedPlaceId || 0;
-        if (!targetPlaceId) {
-          const placesRes = await fetch("/api/domru/places/all", { headers: proxyHeaders });
-          if (placesRes.ok) {
-            const placesRaw = await placesRes.json();
-            if (placesRaw && placesRaw.length > 0) {
-              const p = placesRaw[0];
-              targetPlaceId = p.place?.id || p.id || p.placeId || 0;
-              if (isMounted) setResolvedPlaceId(targetPlaceId);
-            }
-          }
-        }
+        const data = await res.json();
+        if (data && data.url && isMounted) {
+          setStreamUrl(data.url);
+          setStreamType(data.type || "hls");
+          setActiveCameraId(data.cameraId);
+          if (data.placeId) setResolvedPlaceId(data.placeId);
+          setHasStreamError(false);
 
-        // 3. Fetch devices for place if available
-        if (targetPlaceId) {
-          const devRes = await fetch(`/api/domru/devices/${targetPlaceId}`, { headers: proxyHeaders });
-          if (devRes.ok && isMounted) {
-            const devRaw = await devRes.json();
-            setDevices(devRaw);
-          }
+          // Construct fallback camera object for CctvPlayer
+          const mockCam: SmartCamera = {
+            id: data.cameraId,
+            name: "Камера вызова домофона",
+            placeId: data.placeId || 0,
+            allowVideo: true,
+          };
+          setCameras([mockCam]);
+
+          addStreamLog(`✅ Поток получен напрямую от ядра! Camera: ${data.cameraId}`);
+        } else {
+          throw new Error("Сервер не вернул активный поток");
         }
-      } catch (e) {
-        console.error("[CallScreen] Error loading cameras/devices:", e);
+      } catch (err: any) {
+        console.error("[CallScreen] Kernel active stream error:", err);
+        if (isMounted) {
+          addStreamLog(`⛔ Сбой получения потока вызова: ${err.message}`);
+          setHasStreamError(true);
+        }
+      } finally {
+        if (isMounted) setLoadingStream(false);
       }
     }
 
-    loadPlaceDetails();
+    loadKernelActiveCallStream();
     return () => {
       isMounted = false;
     };
-  }, [placeId, credentials, selectedPlace]);
+  }, [cameraId, credentials]);
 
-
-
-  // 2. Load stream when activeCameraId or credentials change
-  useEffect(() => {
-    if (!activeCameraId || activeCameraId === "0" || !credentials) {
-      setStreamUrl(null);
-      setStreamType(null);
-      return;
-    }
-
-    setPlayerMode("stream");
-    setHasStreamError(false);
-
-    const fetchStream = async () => {
-      try {
-        setLoadingStream(true);
-        setStreamLogs([]);
-        addStreamLog(`Запрос URL потока для камеры ${activeCameraId}...`);
-
-        if (useWebRTC) {
-          addStreamLog(`⚠️ Используется WebRTC (режим без задержек)`);
-          const res = await fetch(`/api/domru/stream-go2rtc/${activeCameraId}`, { headers: proxyHeaders });
-          if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status} ${res.statusText}`);
-          const data = await res.json();
-          if (!data || !data.webrtcUrl) throw new Error("Сервер не вернул WebRTC URL.");
-          addStreamLog(`[WebRTC] Камера зарегистрирована в go2rtc.`);
-          setStreamUrl(data.webrtcUrl);
-          setStreamType("go2rtc");
-        } else {
-          const res = await fetch(`/api/domru/stream/${activeCameraId}`, { headers: proxyHeaders });
-          if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status} ${res.statusText}`);
-          const data = await res.json();
-          if (!data || !data.url) throw new Error("Сервер не вернул URL потока.");
-          addStreamLog(`[HLS] Камера зарегистрирована! URL: ${data.url}`);
-          setStreamUrl(data.url);
-          setStreamType("hls");
-        }
-      } catch (err: any) {
-        console.error(err);
-        addStreamLog(`⛔ Сбой получения потока: ${err.message}`);
-        setStreamUrl(null);
-        setStreamType(null);
-        setHasStreamError(true);
-      } finally {
-        setLoadingStream(false);
-      }
-    };
-
-    fetchStream();
-  }, [activeCameraId, useWebRTC, credentials]);
-
-
-  // 3. Open door handler
+  // Open door handler
   const handleOpenDoor = async () => {
     if (opening || opened) return;
     setOpening(true);
@@ -188,7 +135,7 @@ export default function CallScreen({
           ...proxyHeaders,
         },
         body: JSON.stringify({
-          placeId: placeId || selectedPlace?.id || 0,
+          placeId: placeId || resolvedPlaceId || selectedPlace?.id || 0,
           deviceId: targetDeviceId,
         }),
       });
@@ -223,7 +170,7 @@ export default function CallScreen({
                 {isTest ? "🧪 Тестовый звонок" : "🔔 Звонок в домофон"}
               </h2>
               {isTest && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber500/20 text-amber-400 border border-amber-500/30">
                   TEST
                 </span>
               )}
@@ -267,7 +214,6 @@ export default function CallScreen({
               addStreamLog={addStreamLog}
               onClose={onClose}
               selectedPlaceId={resolvedPlaceId || placeId || selectedPlace?.id}
-
               openingDoorId={opening ? deviceId : null}
               triggerOpenDoor={() => handleOpenDoor()}
             />
@@ -275,7 +221,7 @@ export default function CallScreen({
         ) : (
           <div className="flex flex-col items-center gap-2 text-zinc-500 p-6 text-center">
             <ShieldAlert className="w-12 h-12 text-zinc-600 mb-2" />
-            <span className="text-sm font-bold text-zinc-300">Подключение трансляции...</span>
+            <span className="text-sm font-bold text-zinc-300">Загрузка трансляции с ядра...</span>
           </div>
         )}
 
