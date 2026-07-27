@@ -30,6 +30,8 @@ export default function CallScreen({
   const [opening, setOpening] = useState(false);
   const [opened, setOpened] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDevLogs, setShowDevLogs] = useState(false);
+
 
   // Active stream details resolved directly from kernel endpoint
   const [activeCameraId, setActiveCameraId] = useState<string>(
@@ -188,7 +190,7 @@ export default function CallScreen({
                 {isTest ? "🧪 Тестовый звонок" : "🔔 Звонок в домофон"}
               </h2>
               {isTest && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber500/20 text-amber-400 border border-amber-500/30">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-400 border border-amber-500/30">
                   TEST
                 </span>
               )}
@@ -209,59 +211,72 @@ export default function CallScreen({
       </div>
 
       {/* Main CctvPlayer Video Section */}
-      <div className="relative flex-1 w-full h-full bg-zinc-950 flex items-center justify-center overflow-hidden">
+      <div className="relative flex-1 w-full h-full bg-zinc-950 flex flex-col items-center justify-center overflow-y-auto p-4 pt-20 pb-32">
         {activeCameraId && credentials ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <CctvPlayer
-              activeCamera={activeCameraId}
-              devices={devices}
-              cameras={cameras}
-              credentials={credentials}
-              snapshotTime={snapshotTime}
-              playerMode={playerMode}
-              setPlayerMode={setPlayerMode}
-              hasStreamError={hasStreamError}
-              setHasStreamError={setHasStreamError}
-              forceHlsJS={forceHlsJS}
-              setForceHlsJS={setForceHlsJS}
-              streamUrl={streamUrl}
-              streamType={streamType}
-              loadingStream={loadingStream}
-              streamLogs={streamLogs}
-              setStreamLogs={setStreamLogs}
-              addStreamLog={addStreamLog}
-              onClose={onClose}
-              selectedPlaceId={resolvedPlaceId || placeId || selectedPlace?.id}
-              openingDoorId={opening ? deviceId : null}
-              triggerOpenDoor={() => handleOpenDoor()}
-            />
+          <div className="w-full max-w-lg flex flex-col items-center gap-4">
+            <div className="w-full rounded-3xl overflow-hidden shadow-2xl border border-zinc-800/80">
+              <CctvPlayer
+                activeCamera={activeCameraId}
+                devices={devices}
+                cameras={cameras}
+                credentials={credentials}
+                snapshotTime={snapshotTime}
+                playerMode={playerMode}
+                setPlayerMode={setPlayerMode}
+                hasStreamError={hasStreamError}
+                setHasStreamError={setHasStreamError}
+                forceHlsJS={forceHlsJS}
+                setForceHlsJS={setForceHlsJS}
+                streamUrl={streamUrl}
+                streamType={streamType}
+                loadingStream={loadingStream}
+                streamLogs={streamLogs}
+                setStreamLogs={setStreamLogs}
+                addStreamLog={addStreamLog}
+                onClose={onClose}
+                selectedPlaceId={resolvedPlaceId || placeId || selectedPlace?.id}
+                openingDoorId={opening ? deviceId : null}
+                triggerOpenDoor={() => handleOpenDoor()}
+                isDevModeEnabled={isDevModeEnabled}
+              />
+            </div>
+
+            {/* Dev Mode Collapsible Diagnostic Logs */}
+            {isDevModeEnabled && (
+              <div className="w-full bg-zinc-900/90 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg transition-all">
+                <button
+                  onClick={() => setShowDevLogs(!showDevLogs)}
+                  className="w-full px-4 py-2.5 flex items-center justify-between text-xs font-bold text-rose-400 hover:bg-zinc-800/50 transition cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <span>🛠️ Диагностика подключения (Dev)</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">({streamLogs.length} событий)</span>
+                  </span>
+                  <span className="text-zinc-400 text-xs">{showDevLogs ? "▲ Свернуть" : "▼ Раскрыть"}</span>
+                </button>
+
+                {showDevLogs && (
+                  <div className="p-3 border-t border-zinc-800/80 font-mono text-[11px] text-zinc-300 max-h-48 overflow-y-auto space-y-1.5 bg-black/40">
+                    {streamLogs.length > 0 ? (
+                      streamLogs.map((log, idx) => (
+                        <div key={idx} className="leading-tight break-all">
+                          {log}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-zinc-500 italic">Инициализация плеера...</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 text-zinc-500 p-6 text-center max-w-md w-full">
             <ShieldAlert className="w-12 h-12 text-rose-500 mb-1 animate-pulse" />
             <span className="text-sm font-bold text-zinc-300">Загрузка трансляции с ядра...</span>
-            
-            {/* Live Client Diagnostic Log Box (Only displayed when Dev Mode is enabled) */}
-            {isDevModeEnabled && (
-              <div className="w-full bg-zinc-900/90 border border-zinc-800 rounded-2xl p-3 text-left font-mono text-[11px] text-zinc-300 max-h-48 overflow-y-auto space-y-1.5 shadow-inner">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-rose-400 border-b border-zinc-800 pb-1 mb-1">
-                  🛠️ Диагностика подключения (Dev):
-                </div>
-                {streamLogs.length > 0 ? (
-                  streamLogs.map((log, idx) => (
-                    <div key={idx} className="leading-tight break-all">
-                      {log}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-zinc-500 italic">Инициализация веб-клиента...</div>
-                )}
-              </div>
-            )}
-
           </div>
         )}
-
 
         {/* Success Overlay Flash */}
         {opened && (
