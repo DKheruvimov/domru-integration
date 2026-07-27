@@ -292,6 +292,7 @@ export default function App() {
           isTest={callParams.isTest}
           credentials={credentials || undefined}
           useWebRTC={useWebRTC}
+          isDevModeEnabled={isDevModeEnabled}
           onClose={() => {
             setCallParams(null);
             // Clear URL search params without page reload
@@ -301,6 +302,7 @@ export default function App() {
           }}
         />
       )}
+
     </div>
   );
 }

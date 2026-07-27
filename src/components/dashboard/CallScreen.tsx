@@ -10,6 +10,7 @@ interface CallScreenProps {
   isTest?: boolean;
   credentials?: AppCredentials;
   useWebRTC?: boolean;
+  isDevModeEnabled?: boolean;
   onClose: () => void;
   selectedPlace?: SmartPlace | null;
 }
@@ -21,9 +22,11 @@ export default function CallScreen({
   isTest = false,
   credentials,
   useWebRTC = false,
+  isDevModeEnabled = false,
   onClose,
   selectedPlace,
 }: CallScreenProps) {
+
   const [opening, setOpening] = useState(false);
   const [opened, setOpened] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -238,21 +241,24 @@ export default function CallScreen({
             <ShieldAlert className="w-12 h-12 text-rose-500 mb-1 animate-pulse" />
             <span className="text-sm font-bold text-zinc-300">Загрузка трансляции с ядра...</span>
             
-            {/* Live Client Diagnostic Log Box */}
-            <div className="w-full bg-zinc-900/90 border border-zinc-800 rounded-2xl p-3 text-left font-mono text-[11px] text-zinc-300 max-h-48 overflow-y-auto space-y-1.5 shadow-inner">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-rose-400 border-b border-zinc-800 pb-1 mb-1">
-                🛠️ Диагностика подключения:
+            {/* Live Client Diagnostic Log Box (Only displayed when Dev Mode is enabled) */}
+            {isDevModeEnabled && (
+              <div className="w-full bg-zinc-900/90 border border-zinc-800 rounded-2xl p-3 text-left font-mono text-[11px] text-zinc-300 max-h-48 overflow-y-auto space-y-1.5 shadow-inner">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-rose-400 border-b border-zinc-800 pb-1 mb-1">
+                  🛠️ Диагностика подключения (Dev):
+                </div>
+                {streamLogs.length > 0 ? (
+                  streamLogs.map((log, idx) => (
+                    <div key={idx} className="leading-tight break-all">
+                      {log}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-zinc-500 italic">Инициализация веб-клиента...</div>
+                )}
               </div>
-              {streamLogs.length > 0 ? (
-                streamLogs.map((log, idx) => (
-                  <div key={idx} className="leading-tight break-all">
-                    {log}
-                  </div>
-                ))
-              ) : (
-                <div className="text-zinc-500 italic">Инициализация веб-клиента...</div>
-              )}
-            </div>
+            )}
+
           </div>
         )}
 
