@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SmartPlace, AppCredentials, SmartDevice, SmartCamera } from "../../types";
 import CctvPlayer from "./CctvPlayer";
 import { X, Lock, Unlock, Volume2, ShieldAlert, CheckCircle2 } from "lucide-react";
@@ -26,12 +26,11 @@ export default function CallScreen({
   onClose,
   selectedPlace,
 }: CallScreenProps) {
-
   const [opening, setOpening] = useState(false);
   const [opened, setOpened] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDevLogs, setShowDevLogs] = useState(false);
-
+  const fetchedRef = useRef(false);
 
   // Active stream details resolved directly from kernel endpoint
   const [activeCameraId, setActiveCameraId] = useState<string>(
@@ -51,7 +50,11 @@ export default function CallScreen({
   const [snapshotTime] = useState<number>(Date.now());
 
   const addStreamLog = (msg: string) => {
-    setStreamLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+    setStreamLogs((prev) => {
+      // Prevent duplicate logging if exact message already pushed
+      if (prev.length > 0 && prev[prev.length - 1].includes(msg)) return prev;
+      return [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`];
+    });
   };
 
   // Helper to retrieve saved credentials from localStorage if prop is pending
@@ -69,8 +72,11 @@ export default function CallScreen({
     ? { Authorization: `Bearer ${btoa(encodeURIComponent(JSON.stringify(effCreds)))}` }
     : {};
 
-  // Direct kernel stream resolution
+  // Direct kernel stream resolution (runs strictly once)
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
     let isMounted = true;
 
     async function loadKernelActiveCallStream() {
@@ -78,6 +84,7 @@ export default function CallScreen({
         setLoadingStream(true);
         addStreamLog(`🔑 Авторизация: ${effCreds ? "найдена (" + (effCreds.operatorId || "OK") + ")" : "отсутствует"}`);
         addStreamLog("🛰️ Отправка запроса к /api/domru/call-stream-active...");
+
 
         const queryCam = cameraId ? `?cameraId=${cameraId}` : "";
         const res = await fetch(`/api/domru/call-stream-active${queryCam}`, { headers: proxyHeaders });
