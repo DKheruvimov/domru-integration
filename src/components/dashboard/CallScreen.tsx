@@ -71,17 +71,22 @@ export default function CallScreen({
     async function loadKernelActiveCallStream() {
       try {
         setLoadingStream(true);
-        addStreamLog("Запрос активного потока вызова у ядра сервера...");
+        addStreamLog(`🔑 Авторизация: ${effCreds ? "найдена (" + (effCreds.operatorId || "OK") + ")" : "отсутствует"}`);
+        addStreamLog("🛰️ Отправка запроса к /api/domru/call-stream-active...");
 
         const queryCam = cameraId ? `?cameraId=${cameraId}` : "";
         const res = await fetch(`/api/domru/call-stream-active${queryCam}`, { headers: proxyHeaders });
-
         
+        addStreamLog(`📡 Ответ сервера: HTTP ${res.status} ${res.statusText}`);
+
         if (!res.ok) {
-          throw new Error(`Ошибка ядра: ${res.status}`);
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(`Ошибка ядра: HTTP ${res.status} (${errData.error || "Bad Request"})`);
         }
 
         const data = await res.json();
+        addStreamLog(`📦 Данные: camera=${data.cameraId}, type=${data.type}`);
+
         if (data && data.url && isMounted) {
           setStreamUrl(data.url);
           setStreamType(data.type || "hls");
@@ -229,11 +234,28 @@ export default function CallScreen({
             />
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 text-zinc-500 p-6 text-center">
-            <ShieldAlert className="w-12 h-12 text-zinc-600 mb-2" />
+          <div className="flex flex-col items-center gap-3 text-zinc-500 p-6 text-center max-w-md w-full">
+            <ShieldAlert className="w-12 h-12 text-rose-500 mb-1 animate-pulse" />
             <span className="text-sm font-bold text-zinc-300">Загрузка трансляции с ядра...</span>
+            
+            {/* Live Client Diagnostic Log Box */}
+            <div className="w-full bg-zinc-900/90 border border-zinc-800 rounded-2xl p-3 text-left font-mono text-[11px] text-zinc-300 max-h-48 overflow-y-auto space-y-1.5 shadow-inner">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-rose-400 border-b border-zinc-800 pb-1 mb-1">
+                🛠️ Диагностика подключения:
+              </div>
+              {streamLogs.length > 0 ? (
+                streamLogs.map((log, idx) => (
+                  <div key={idx} className="leading-tight break-all">
+                    {log}
+                  </div>
+                ))
+              ) : (
+                <div className="text-zinc-500 italic">Инициализация веб-клиента...</div>
+              )}
+            </div>
           </div>
         )}
+
 
         {/* Success Overlay Flash */}
         {opened && (
