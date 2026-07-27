@@ -216,8 +216,35 @@ router.get("/call-stream-active", async (req, res) => {
       if (matched) selectedCamera = matched;
     }
 
-    const stream = await client.getStreamUrl(String(selectedCamera.id));
+    let targetCameraId = selectedCamera ? String(selectedCamera.id) : null;
+    let stream = targetCameraId ? await client.getStreamUrl(targetCameraId).catch(() => null) : null;
+
+    // Fallback: If direct camera stream resolution failed, query subscriber places and devices
     if (!stream || !stream.url) {
+      console.log("[CallStreamActive] Direct camera stream lookup failed, attempting device fallback...");
+      const places = await client.getSubscriberPlaces().catch(() => []);
+      if (places && places.length > 0) {
+        for (const p of places) {
+          const placeId = p.place?.id || p.id;
+          const devices = await client.getDevices(placeId).catch(() => []);
+          for (const dev of devices) {
+            const camIdToTry = dev.externalCameraId || String(dev.id);
+            if (camIdToTry) {
+              const devStream = await client.getStreamUrl(String(camIdToTry)).catch(() => null);
+              if (devStream && devStream.url) {
+                stream = devStream;
+                targetCameraId = String(camIdToTry);
+                break;
+              }
+            }
+          }
+          if (stream && stream.url) break;
+        }
+      }
+    }
+
+    if (!stream || !stream.url) {
+      console.error("[CallStreamActive] All camera and device stream fallbacks failed.");
       return res.status(404).json({ error: "Failed to fetch stream URL for active call camera" });
     }
 
@@ -225,13 +252,14 @@ router.get("/call-stream-active", async (req, res) => {
 
     res.json({
       success: true,
-      cameraId: String(selectedCamera.id),
-      placeId: (selectedCamera as any).placeId || 0,
+      cameraId: targetCameraId || "0",
+      placeId: (selectedCamera as any)?.placeId || 0,
       deviceId: 0,
       url: proxiedUrl,
       type: stream.type || "hls",
       originalUrl: stream.url,
     });
+
 
   } catch (err: any) {
     handleClientError(err, res);
