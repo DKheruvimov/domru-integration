@@ -73,6 +73,8 @@ export default function CallScreen({
     ? { Authorization: `Bearer ${btoa(encodeURIComponent(JSON.stringify(effCreds)))}` }
     : {};
 
+  const [latestEvent, setLatestEvent] = useState<any | null>(null);
+
   // Direct kernel stream resolution (runs strictly once)
   useEffect(() => {
     if (fetchedRef.current) return;
@@ -85,7 +87,6 @@ export default function CallScreen({
         setLoadingStream(true);
         addStreamLog(`🔑 Авторизация: ${effCreds ? "найдена (" + (effCreds.operatorId || "OK") + ")" : "отсутствует"}`);
         addStreamLog("🛰️ Отправка запроса к /api/domru/call-stream-active...");
-
 
         const queryCam = cameraId ? `?cameraId=${cameraId}` : "";
         const res = await fetch(`/api/domru/call-stream-active${queryCam}`, { headers: proxyHeaders });
@@ -105,7 +106,9 @@ export default function CallScreen({
           setStreamType(data.type || "hls");
           setActiveCameraId(data.cameraId);
           if (data.placeId) setResolvedPlaceId(data.placeId);
+          if (data.latestEvent) setLatestEvent(data.latestEvent);
           setHasStreamError(false);
+
 
           // Construct fallback camera object for CctvPlayer
           const mockCam: SmartCamera = {
@@ -249,8 +252,62 @@ export default function CallScreen({
                 isDevModeEnabled={isDevModeEnabled}
                 isCallScreen={true}
               />
-
             </div>
+
+            {/* Contextual Event Card matching 'События' tab */}
+            {latestEvent && (
+              <div className="w-full max-w-lg px-4 mt-4">
+                <div className="bg-[#151B20]/90 border border-zinc-800/80 rounded-3xl p-3.5 flex items-center gap-3.5 shadow-2xl backdrop-blur-md">
+                  {latestEvent.sipSnapshotUrl ? (
+                    <div className="relative w-20 h-14 rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 flex-shrink-0">
+                      <img
+                        src={latestEvent.sipSnapshotUrl}
+                        alt="Снимок вызова"
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute top-1 left-1 px-1 py-0.2 rounded text-[8px] font-black bg-rose-600 text-white uppercase tracking-wider">
+                        SIP
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-14 rounded-2xl bg-zinc-800/60 border border-zinc-700/50 flex items-center justify-center flex-shrink-0 text-zinc-400 text-[10px] font-bold">
+                      БЕЗ СНИМКА
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <h4 className="text-sm font-black text-white truncate">
+                          {latestEvent.name || "Вызов принят"}
+                        </h4>
+                        {latestEvent.openedByOurService ? (
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5">
+                            ⚡ ВРУЧНУЮ
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-zinc-800 text-zinc-400 border border-zinc-700">
+                            ВХОДЯЩИЙ
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-bold text-zinc-400 font-mono">
+                        {new Date(latestEvent.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-zinc-400 font-semibold mt-0.5 truncate">
+                      {latestEvent.openedByOurService
+                        ? `Наш сервис: ${latestEvent.openedByOurService.details || "Открыто пользователем"}`
+                        : "Вызов через домофонную сеть"}
+                    </p>
+                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-0.5 truncate">
+                      {latestEvent.deviceName || "ДОМОФОН ПОДЪЕЗДА"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center flex-1 gap-3 text-zinc-500 p-6 text-center w-full">
