@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { SmartPlace, AppCredentials, SmartDevice, SmartCamera } from "../../types";
+
 import CctvPlayer from "./CctvPlayer";
 import { X, Lock, Unlock, Volume2, ShieldAlert, CheckCircle2 } from "lucide-react";
 
