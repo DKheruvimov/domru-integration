@@ -9,7 +9,8 @@ import {
   getSubscriptionsCount,
   sendPushToAllSubscribers,
 } from "../push-manager.js";
-import { requireDomruAuth } from "../domruClientHelper.js";
+import { requireDomruAuth, getDomruInstance, isDemo } from "../domruClientHelper.js";
+
 
 const router = Router();
 
@@ -113,20 +114,56 @@ router.post("/subscriptions/clear", requireDomruAuth, (req, res) => {
 // Protected: Send a test push notification
 router.post("/test", requireDomruAuth, async (req, res) => {
   try {
+    let placeId = 0;
+    let deviceId = 0;
+    let cameraId = 0;
+
+    if (!isDemo(req)) {
+      try {
+        const client = getDomruInstance(req);
+        const places = await client.getSubscriberPlaces();
+        if (places && places.length > 0) {
+          placeId = places[0].id;
+          const devices = await client.getDevices(placeId);
+          if (devices && devices.length > 0) {
+            deviceId = devices[0].id;
+          }
+          const cameras = await client.getCameras();
+          if (cameras && cameras.length > 0) {
+            cameraId = Number(cameras[0].id) || 0;
+          }
+        }
+      } catch (e) {
+        console.error("[PushRoutes] Error resolving real camera for test push:", e);
+      }
+    }
+
+    const testUrl = `/?call=true&placeId=${placeId}&deviceId=${deviceId}&cameraId=${cameraId}&isTest=true`;
+
+
+
     const result = await sendPushToAllSubscribers({
-      title: "🔔 Тестовое уведомление",
-      body: "Пуш-уведомления Умного Дома работают отлично!",
+      title: "🔔 Тестовый звонок в домофон",
+      body: "Нажмите для входа в экстренный экран вызова и трансляции с камеры",
       tag: "test-push",
-      data: { url: "/", test: true },
+      data: {
+        url: testUrl,
+        placeId,
+        deviceId,
+        cameraId,
+        isTest: true,
+        timestamp: new Date().toISOString(),
+      },
       actions: [
-        { action: "open_app", title: "Открыть" }
+        { action: "open_app", title: "📺 Открыть видеовызов" }
       ]
     });
-    res.json({ success: true, result });
+    res.json({ success: true, result, testUrl });
   } catch (e: any) {
     res.status(500).json({ error: e.message || "Failed to send test push" });
   }
 });
 
 export default router;
+
 

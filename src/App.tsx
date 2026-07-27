@@ -2,9 +2,47 @@ import { useState, useEffect } from "react";
 import { AppCredentials } from "./types";
 import LoginForm from "./components/LoginForm";
 import Dashboard from "./components/Dashboard";
+import CallScreen from "./components/dashboard/CallScreen";
 import { Database, Home, Sun, Moon, Monitor } from "lucide-react";
 
 export default function App() {
+  const [callParams, setCallParams] = useState<{
+    placeId: number;
+    deviceId: number;
+    cameraId: number;
+    isTest: boolean;
+  } | null>(() => {
+    if (typeof window === "undefined") return null;
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("call") === "true") {
+      return {
+        placeId: Number(urlParams.get("placeId")) || 0,
+        deviceId: Number(urlParams.get("deviceId")) || 0,
+        cameraId: Number(urlParams.get("cameraId")) || 0,
+        isTest: urlParams.get("isTest") === "true",
+      };
+    }
+    return null;
+  });
+
+  // Listen for url parameter updates (e.g. from Service Worker navigation)
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("call") === "true") {
+        setCallParams({
+          placeId: Number(urlParams.get("placeId")) || 0,
+          deviceId: Number(urlParams.get("deviceId")) || 0,
+          cameraId: Number(urlParams.get("cameraId")) || 0,
+          isTest: urlParams.get("isTest") === "true",
+        });
+      }
+    };
+
+    window.addEventListener("popstate", handleUrlChange);
+    return () => window.removeEventListener("popstate", handleUrlChange);
+  }, []);
+
   const [credentials, setCredentials] = useState<AppCredentials | null>(() => {
     const saved = localStorage.getItem("domru_credentials");
     if (saved) {
@@ -221,6 +259,26 @@ export default function App() {
           </footer>
         </div>
       )}
+
+      {/* Emergency Fullscreen Call Overlay */}
+      {callParams && (
+        <CallScreen
+          placeId={callParams.placeId}
+          deviceId={callParams.deviceId}
+          cameraId={callParams.cameraId}
+          isTest={callParams.isTest}
+          credentials={credentials || undefined}
+          useWebRTC={useWebRTC}
+          onClose={() => {
+            setCallParams(null);
+            // Clear URL search params without page reload
+            if (typeof window !== "undefined" && window.history) {
+              window.history.replaceState({}, document.title, window.location.pathname);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
+
