@@ -49,13 +49,13 @@ export default function CallScreen({
   const [streamLogs, setStreamLogs] = useState<string[]>([]);
   const [snapshotTime] = useState<number>(Date.now());
 
-  const addStreamLog = (msg: string) => {
+  const addStreamLog = useCallback((msg: string) => {
     setStreamLogs((prev) => {
-      // Prevent duplicate logging if exact message already pushed
       if (prev.length > 0 && prev[prev.length - 1].includes(msg)) return prev;
       return [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`];
     });
-  };
+  }, []);
+
 
   // Helper to retrieve saved credentials from localStorage if prop is pending
   const getEffectiveCredentials = (): AppCredentials | null => {
@@ -247,36 +247,6 @@ export default function CallScreen({
                 isDevModeEnabled={isDevModeEnabled}
               />
             </div>
-
-            {/* Dev Mode Collapsible Diagnostic Logs */}
-            {isDevModeEnabled && (
-              <div className="w-full bg-zinc-900/90 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg transition-all">
-                <button
-                  onClick={() => setShowDevLogs(!showDevLogs)}
-                  className="w-full px-4 py-2.5 flex items-center justify-between text-xs font-bold text-rose-400 hover:bg-zinc-800/50 transition cursor-pointer"
-                >
-                  <span className="flex items-center gap-2">
-                    <span>🛠️ Диагностика подключения (Dev)</span>
-                    <span className="text-[10px] text-zinc-500 font-mono">({streamLogs.length} событий)</span>
-                  </span>
-                  <span className="text-zinc-400 text-xs">{showDevLogs ? "▲ Свернуть" : "▼ Раскрыть"}</span>
-                </button>
-
-                {showDevLogs && (
-                  <div className="p-3 border-t border-zinc-800/80 font-mono text-[11px] text-zinc-300 max-h-48 overflow-y-auto space-y-1.5 bg-black/40">
-                    {streamLogs.length > 0 ? (
-                      streamLogs.map((log, idx) => (
-                        <div key={idx} className="leading-tight break-all">
-                          {log}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-zinc-500 italic">Инициализация плеера...</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 text-zinc-500 p-6 text-center max-w-md w-full">
@@ -284,6 +254,7 @@ export default function CallScreen({
             <span className="text-sm font-bold text-zinc-300">Загрузка трансляции с ядра...</span>
           </div>
         )}
+
 
         {/* Success Overlay Flash */}
         {opened && (
