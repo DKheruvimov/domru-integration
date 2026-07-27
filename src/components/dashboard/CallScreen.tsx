@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { SmartPlace, AppCredentials, SmartCamera } from "../../types";
-
-import { X, Lock, Unlock, Volume2, ShieldAlert, Sparkles, CheckCircle2 } from "lucide-react";
+import { SmartPlace, AppCredentials, SmartDevice, SmartCamera } from "../../types";
+import CctvPlayer from "./CctvPlayer";
+import { X, Lock, Unlock, Volume2, ShieldAlert, CheckCircle2 } from "lucide-react";
 
 interface CallScreenProps {
   placeId: number;
@@ -20,68 +20,124 @@ export default function CallScreen({
   cameraId,
   isTest = false,
   credentials,
-  useWebRTC = true,
+  useWebRTC = false,
   onClose,
   selectedPlace,
 }: CallScreenProps) {
   const [opening, setOpening] = useState(false);
   const [opened, setOpened] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [targetCamera, setTargetCamera] = useState<SmartCamera | null>(null);
-  const [loadingCamera, setLoadingCamera] = useState(true);
 
-  // 1. Resolve camera stream details if not fully available
+  // Stream & Player state matching CctvPlayer
+  const [activeCameraId, setActiveCameraId] = useState<string>(
+    cameraId && cameraId > 0 ? String(cameraId) : ""
+  );
+  const [cameras, setCameras] = useState<SmartCamera[]>([]);
+  const [devices, setDevices] = useState<SmartDevice[]>([]);
+  const [playerMode, setPlayerMode] = useState<"stream" | "snapshot">("stream");
+  const [hasStreamError, setHasStreamError] = useState(false);
+  const [forceHlsJS, setForceHlsJS] = useState(false);
+  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [streamType, setStreamType] = useState<string | null>(null);
+  const [loadingStream, setLoadingStream] = useState(false);
+  const [streamLogs, setStreamLogs] = useState<string[]>([]);
+  const [snapshotTime] = useState<number>(Date.now());
+
+  const addStreamLog = (msg: string) => {
+    setStreamLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+  };
+
+  const proxyHeaders: Record<string, string> = credentials
+    ? { Authorization: `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}` }
+    : {};
+
+  // 1. Fetch cameras & devices for this placeId if not provided
   useEffect(() => {
     let isMounted = true;
-    async function resolveCamera() {
-      if (cameraId && cameraId > 0) {
-        // Construct fallback camera object
-        const camObj: SmartCamera = {
-          id: String(cameraId),
-          name: "Камера домофона",
-          placeId: placeId,
-          allowVideo: true,
-        };
-        if (isMounted) {
-          setTargetCamera(camObj);
-          setLoadingCamera(false);
-        }
-        return;
-      }
 
-      // Try fetching cameras for placeId
-      if (placeId && credentials) {
-        try {
-          const authHeader = `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}`;
-          const res = await fetch(`/api/domru/cameras/${placeId}`, {
-            headers: { Authorization: authHeader },
-          });
-          if (res.ok) {
-            const cameras: SmartCamera[] = await res.json();
-            if (cameras && cameras.length > 0 && isMounted) {
-              setTargetCamera(cameras[0]);
-              setLoadingCamera(false);
-              return;
-            }
+    async function loadPlaceDetails() {
+      const targetPlaceId = placeId || selectedPlace?.id || 0;
+      if (!targetPlaceId || !credentials) return;
+
+      try {
+        // Fetch devices
+        const devRes = await fetch(`/api/domru/devices/${targetPlaceId}`, { headers: proxyHeaders });
+        if (devRes.ok && isMounted) {
+          const devRaw = await devRes.json();
+          setDevices(devRaw);
+        }
+
+        // Fetch cameras
+        const camRes = await fetch(`/api/domru/cameras`, { headers: proxyHeaders });
+        if (camRes.ok && isMounted) {
+          const camRaw: SmartCamera[] = await camRes.json();
+          setCameras(camRaw);
+
+          if (!activeCameraId && camRaw.length > 0) {
+            setActiveCameraId(String(camRaw[0].id));
           }
-        } catch (e) {
-          console.error("[CallScreen] Error resolving camera:", e);
         }
-      }
-
-      if (isMounted) {
-        setLoadingCamera(false);
+      } catch (e) {
+        console.error("[CallScreen] Error loading cameras/devices:", e);
       }
     }
 
-    resolveCamera();
+    loadPlaceDetails();
     return () => {
       isMounted = false;
     };
-  }, [placeId, cameraId, credentials]);
+  }, [placeId, credentials, selectedPlace]);
 
+  // 2. Load stream when activeCameraId changes
+  useEffect(() => {
+    if (!activeCameraId || activeCameraId === "0") {
+      setStreamUrl(null);
+      setStreamType(null);
+      return;
+    }
 
-  // 2. Open door handler
+    setPlayerMode("stream");
+    setHasStreamError(false);
+
+    const fetchStream = async () => {
+      try {
+        setLoadingStream(true);
+        setStreamLogs([]);
+        addStreamLog(`Запрос URL потока для камеры ${activeCameraId}...`);
+
+        if (useWebRTC) {
+          addStreamLog(`⚠️ Используется WebRTC (режим без задержек)`);
+          const res = await fetch(`/api/domru/stream-go2rtc/${activeCameraId}`, { headers: proxyHeaders });
+          if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status} ${res.statusText}`);
+          const data = await res.json();
+          if (!data || !data.webrtcUrl) throw new Error("Сервер не вернул WebRTC URL.");
+          addStreamLog(`[WebRTC] Камера зарегистрирована в go2rtc.`);
+          setStreamUrl(data.webrtcUrl);
+          setStreamType("go2rtc");
+        } else {
+          const res = await fetch(`/api/domru/stream/${activeCameraId}`, { headers: proxyHeaders });
+          if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status} ${res.statusText}`);
+          const data = await res.json();
+          if (!data || !data.url) throw new Error("Сервер не вернул URL потока.");
+          addStreamLog(`[HLS] Камера зарегистрирована! URL: ${data.url}`);
+          setStreamUrl(data.url);
+          setStreamType("hls");
+        }
+      } catch (err: any) {
+        console.error(err);
+        addStreamLog(`⛔ Сбой получения потока: ${err.message}`);
+        setStreamUrl(null);
+        setStreamType(null);
+        setHasStreamError(true);
+      } finally {
+        setLoadingStream(false);
+      }
+    };
+
+    fetchStream();
+  }, [activeCameraId, useWebRTC]);
+
+  // 3. Open door handler
   const handleOpenDoor = async () => {
     if (opening || opened) return;
     setOpening(true);
@@ -99,19 +155,16 @@ export default function CallScreen({
     }
 
     try {
-      const authHeader = credentials
-        ? `Bearer ${btoa(encodeURIComponent(JSON.stringify(credentials)))}`
-        : "";
-
+      const targetDeviceId = deviceId || (devices.length > 0 ? devices[0].id : 0);
       const res = await fetch("/api/domru/open", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: authHeader,
+          ...proxyHeaders,
         },
         body: JSON.stringify({
-          placeId: placeId || (selectedPlace ? selectedPlace.id : 0),
-          deviceId: deviceId,
+          placeId: placeId || selectedPlace?.id || 0,
+          deviceId: targetDeviceId,
         }),
       });
 
@@ -165,27 +218,38 @@ export default function CallScreen({
         </button>
       </div>
 
-      {/* Main Video Section */}
-      <div className="relative flex-1 w-full h-full bg-zinc-950 flex items-center justify-center">
-        {targetCamera ? (
-          <div className="w-full h-full flex items-center justify-center overflow-hidden">
-            <iframe
-              src={`/api/domru/stream-proxy?url=${encodeURIComponent(`/api/domru/stream/${targetCamera.id}`)}`}
-              className="w-full h-full object-cover border-0"
-              allow="autoplay; fullscreen"
+      {/* Main CctvPlayer Video Section */}
+      <div className="relative flex-1 w-full h-full bg-zinc-950 flex items-center justify-center overflow-hidden">
+        {activeCameraId && credentials ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <CctvPlayer
+              activeCamera={activeCameraId}
+              devices={devices}
+              cameras={cameras}
+              credentials={credentials}
+              snapshotTime={snapshotTime}
+              playerMode={playerMode}
+              setPlayerMode={setPlayerMode}
+              hasStreamError={hasStreamError}
+              setHasStreamError={setHasStreamError}
+              forceHlsJS={forceHlsJS}
+              setForceHlsJS={setForceHlsJS}
+              streamUrl={streamUrl}
+              streamType={streamType}
+              loadingStream={loadingStream}
+              streamLogs={streamLogs}
+              setStreamLogs={setStreamLogs}
+              addStreamLog={addStreamLog}
+              onClose={onClose}
+              selectedPlaceId={placeId || selectedPlace?.id}
+              openingDoorId={opening ? deviceId : null}
+              triggerOpenDoor={() => handleOpenDoor()}
             />
-          </div>
-        ) : loadingCamera ? (
-
-          <div className="flex flex-col items-center gap-3 text-zinc-400">
-            <div className="w-8 h-8 border-3 border-rose-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs font-semibold">Подключение видеопотока...</span>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 text-zinc-500 p-6 text-center">
             <ShieldAlert className="w-12 h-12 text-zinc-600 mb-2" />
-            <span className="text-sm font-bold text-zinc-300">Камера временно недоступна</span>
-            <span className="text-xs">Вы всё ещё можете отправить команду на открытие двери</span>
+            <span className="text-sm font-bold text-zinc-300">Подключение трансляции...</span>
           </div>
         )}
 

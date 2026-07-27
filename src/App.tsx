@@ -25,10 +25,10 @@ export default function App() {
     return null;
   });
 
-  // Listen for url parameter updates (e.g. from Service Worker navigation)
+  // Listen for url parameter updates and Service Worker postMessage
   useEffect(() => {
-    const handleUrlChange = () => {
-      const urlParams = new URLSearchParams(window.location.search);
+    const parseAndSetCallParams = (searchStr: string) => {
+      const urlParams = new URLSearchParams(searchStr);
       if (urlParams.get("call") === "true") {
         setCallParams({
           placeId: Number(urlParams.get("placeId")) || 0,
@@ -39,9 +39,32 @@ export default function App() {
       }
     };
 
+    const handleUrlChange = () => {
+      parseAndSetCallParams(window.location.search);
+    };
+
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === "NAVIGATE_CALL" && event.data.url) {
+        const queryIdx = event.data.url.indexOf("?");
+        if (queryIdx >= 0) {
+          parseAndSetCallParams(event.data.url.substring(queryIdx));
+        }
+      }
+    };
+
     window.addEventListener("popstate", handleUrlChange);
-    return () => window.removeEventListener("popstate", handleUrlChange);
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", handleSwMessage);
+    }
+
+    return () => {
+      window.removeEventListener("popstate", handleUrlChange);
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", handleSwMessage);
+      }
+    };
   }, []);
+
 
   const [credentials, setCredentials] = useState<AppCredentials | null>(() => {
     const saved = localStorage.getItem("domru_credentials");

@@ -96,6 +96,9 @@ self.addEventListener("notificationclick", (event) => {
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes(self.location.origin)) {
+          if ("postMessage" in client) {
+            client.postMessage({ type: "NAVIGATE_CALL", url: urlToOpen });
+          }
           if ("navigate" in client) {
             client.navigate(urlToOpen);
           }
@@ -104,6 +107,7 @@ self.addEventListener("notificationclick", (event) => {
           }
         }
       }
+
       if (self.clients.openWindow) {
         return self.clients.openWindow(urlToOpen);
       }
