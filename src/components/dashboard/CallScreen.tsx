@@ -31,7 +31,9 @@ export default function CallScreen({
   const [opened, setOpened] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDevLogs, setShowDevLogs] = useState(false);
+  const [latestEvent, setLatestEvent] = useState<any | null>(null);
   const fetchedRef = useRef(false);
+
 
   // Active stream details resolved directly from kernel endpoint
   const [activeCameraId, setActiveCameraId] = useState<string>(
@@ -73,7 +75,39 @@ export default function CallScreen({
     ? { Authorization: `Bearer ${btoa(encodeURIComponent(JSON.stringify(effCreds)))}` }
     : {};
 
-  const [latestEvent, setLatestEvent] = useState<any | null>(null);
+  const [modalImage, setModalImage] = useState<string | null>(null);
+
+  // Helper to render event opening badge dynamically matching EventsView
+  const renderOpeningBadge = (opening: any) => {
+    if (!opening) {
+      return (
+        <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-zinc-800 text-zinc-400 border border-zinc-700">
+          ВХОДЯЩИЙ
+        </span>
+      );
+    }
+    const type = opening.type || "";
+    if (type.includes("auto") || type.includes("schedule") || type.includes("people")) {
+      return (
+        <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5">
+          🚗 АВТО
+        </span>
+      );
+    }
+    if (type.includes("alice")) {
+      return (
+        <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-0.5">
+          🤖 ALICE
+        </span>
+      );
+    }
+    return (
+      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-0.5">
+        ⚡ ВРУЧНУЮ
+      </span>
+    );
+  };
+
 
   // Direct kernel stream resolution (runs strictly once)
   useEffect(() => {
@@ -265,16 +299,20 @@ export default function CallScreen({
               <div className="w-full max-w-lg px-4 mt-4">
                 <div className="bg-[#151B20]/90 border border-zinc-800/80 rounded-3xl p-3.5 flex items-center gap-3.5 shadow-2xl backdrop-blur-md">
                   {latestEvent.sipSnapshotUrl ? (
-                    <div className="relative w-20 h-14 rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 flex-shrink-0">
+                    <button
+                      onClick={() => setModalImage(latestEvent.sipSnapshotUrl)}
+                      className="relative w-20 h-14 rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 flex-shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-transform group"
+                      title="Нажмите для полноэкранного просмотра снимка"
+                    >
                       <img
                         src={latestEvent.sipSnapshotUrl}
                         alt="Снимок вызова"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:brightness-110"
                       />
-                      <span className="absolute top-1 left-1 px-1 py-0.2 rounded text-[8px] font-black bg-rose-600 text-white uppercase tracking-wider">
+                      <span className="absolute top-1 left-1 px-1 py-0.2 rounded text-[8px] font-black bg-rose-600 text-white uppercase tracking-wider shadow">
                         SIP
                       </span>
-                    </div>
+                    </button>
                   ) : (
                     <div className="w-20 h-14 rounded-2xl bg-zinc-800/60 border border-zinc-700/50 flex items-center justify-center flex-shrink-0 text-zinc-400 text-[10px] font-bold">
                       БЕЗ СНИМКА
@@ -287,15 +325,7 @@ export default function CallScreen({
                         <h4 className="text-sm font-black text-white truncate">
                           {latestEvent.name || "Вызов принят"}
                         </h4>
-                        {latestEvent.openedByOurService ? (
-                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5">
-                            ⚡ ВРУЧНУЮ
-                          </span>
-                        ) : (
-                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-zinc-800 text-zinc-400 border border-zinc-700">
-                            ВХОДЯЩИЙ
-                          </span>
-                        )}
+                        {renderOpeningBadge(latestEvent.openedByOurService)}
                       </div>
                       <span className="text-xs font-bold text-zinc-400 font-mono">
                         {new Date(latestEvent.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -314,6 +344,7 @@ export default function CallScreen({
                 </div>
               </div>
             )}
+
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center flex-1 gap-3 text-zinc-500 p-6 text-center w-full">
@@ -375,6 +406,35 @@ export default function CallScreen({
           </button>
         </div>
       </div>
+
+      {/* Fullscreen Snapshot Zoom Modal */}
+      {modalImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 animate-fade-in pointer-events-auto"
+          onClick={() => setModalImage(null)}
+        >
+          <button
+            onClick={() => setModalImage(null)}
+            className="absolute top-6 right-6 w-12 h-12 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-white flex items-center justify-center border border-zinc-700/50 cursor-pointer shadow-2xl z-10"
+            title="Закрыть фото"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          
+          <div className="relative max-w-4xl max-h-[85vh] w-full h-full flex items-center justify-center overflow-hidden rounded-3xl border border-zinc-800/80 shadow-2xl">
+            <img
+              src={modalImage}
+              alt="Снимок гостя крупным планом"
+              className="max-w-full max-h-full object-contain rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <p className="text-xs text-zinc-400 font-semibold mt-4">
+            Нажмите в любом месте, чтобы закрыть
+          </p>
+        </div>
+      )}
     </div>
   );
 }
+
